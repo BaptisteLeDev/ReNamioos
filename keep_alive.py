@@ -24,12 +24,50 @@ def home():
         bot_name = "ReNamioos"
     
     return f"""
-    <html>
+    <!DOCTYPE html>
+    <html lang="fr">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>ReNamioos Bot - Status</title>
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+            <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
             <style>
+                :root {{
+                    --bg-primary: #0a0a0a;
+                    --bg-secondary: #1a1a1a;
+                    --bg-card: #1e1e1e;
+                    
+                    --text-primary: #ffffff;
+                    --text-secondary: #b3b3b3;
+                    --text-muted: #666666;
+                    
+                    --accent-yellow: #fbbf24;
+                    --accent-purple: #8b5cf6;
+                    --accent-blue: #646cff;
+                    
+                    --green-primary: #10b981;
+                    
+                    --border-purple: rgba(139, 92, 246, 0.3);
+                    --border-subtle: rgba(255, 255, 255, 0.1);
+                    
+                    --radius-sm: 0.5rem;
+                    --radius-md: 1rem;
+                    --radius-lg: 1.5rem;
+                    
+                    --spacing-md: 1rem;
+                    --spacing-lg: 1.5rem;
+                    --spacing-xl: 2rem;
+                    
+                    --font-primary: 'Share Tech Mono', monospace;
+                    
+                    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3);
+                    --shadow-lg: 0 8px 32px rgba(139, 92, 246, 0.1);
+                    
+                    --transition-base: 0.3s ease;
+                }}
+                
                 * {{
                     margin: 0;
                     padding: 0;
@@ -37,173 +75,147 @@ def home():
                 }}
                 
                 body {{
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                    background: linear-gradient(135deg, #0a0e27 0%, #1a1d3a 100%);
-                    color: #e0e0e0;
+                    font-family: var(--font-primary);
+                    line-height: 1.5;
+                    color: var(--text-primary);
+                    background: radial-gradient(
+                        ellipse 70% 55% at 50% 50%,
+                        rgba(255, 20, 147, 0.15),
+                        transparent 50%
+                    ),
+                    radial-gradient(
+                        ellipse 160% 130% at 10% 10%,
+                        rgba(0, 255, 255, 0.12),
+                        transparent 60%
+                    ),
+                    radial-gradient(
+                        ellipse 160% 130% at 90% 90%,
+                        rgba(138, 43, 226, 0.18),
+                        transparent 65%
+                    ),
+                    radial-gradient(
+                        ellipse 110% 50% at 80% 30%,
+                        rgba(255, 215, 0, 0.08),
+                        transparent 40%
+                    ),
+                    #000000;
                     min-height: 100vh;
                     display: flex;
                     justify-content: center;
                     align-items: center;
-                    overflow: hidden;
+                    padding: var(--spacing-md);
                 }}
                 
                 .container {{
                     text-align: center;
-                    padding: 40px;
-                    background: rgba(15, 20, 40, 0.8);
-                    border-radius: 20px;
-                    border: 2px solid;
-                    border-image: linear-gradient(
-                        45deg,
-                        #667eea 0%,
-                        #764ba2 25%,
-                        #f093fb 50%,
-                        #4facfe 75%,
-                        #00f2fe 100%
-                    ) 1;
-                    box-shadow: 
-                        0 0 30px rgba(102, 126, 234, 0.3),
-                        0 0 60px rgba(118, 75, 162, 0.2),
-                        inset 0 0 30px rgba(0, 242, 254, 0.1);
+                    padding: var(--spacing-xl);
+                    background: var(--bg-card);
+                    border-radius: var(--radius-lg);
+                    border: 2px solid var(--border-purple);
+                    box-shadow: var(--shadow-lg);
                     backdrop-filter: blur(10px);
                     max-width: 600px;
-                    animation: float 6s ease-in-out infinite;
-                }}
-                
-                @keyframes float {{
-                    0%, 100% {{ transform: translateY(0px); }}
-                    50% {{ transform: translateY(-10px); }}
+                    width: 100%;
                 }}
                 
                 h1 {{
-                    font-size: 2.5em;
-                    margin-bottom: 20px;
-                    background: linear-gradient(45deg, #667eea, #764ba2, #f093fb);
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;
-                    background-clip: text;
-                    text-shadow: 0 0 30px rgba(102, 126, 234, 0.5);
-                    animation: glow 2s ease-in-out infinite alternate;
-                }}
-                
-                @keyframes glow {{
-                    from {{
-                        filter: drop-shadow(0 0 5px #667eea) drop-shadow(0 0 10px #764ba2);
-                    }}
-                    to {{
-                        filter: drop-shadow(0 0 10px #764ba2) drop-shadow(0 0 20px #f093fb);
-                    }}
+                    font-size: 2.5rem;
+                    margin-bottom: var(--spacing-lg);
+                    color: var(--text-primary);
+                    font-weight: 600;
                 }}
                 
                 .status {{
-                    display: inline-block;
-                    padding: 15px 30px;
-                    margin: 20px 0;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    border-radius: 50px;
-                    font-size: 1.2em;
-                    font-weight: bold;
-                    color: white;
-                    box-shadow: 
-                        0 0 20px rgba(102, 126, 234, 0.6),
-                        0 0 40px rgba(118, 75, 162, 0.4);
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    padding: 0.75rem 1.5rem;
+                    margin: var(--spacing-lg) 0;
+                    background: var(--bg-secondary);
+                    border: 2px solid var(--green-primary);
+                    border-radius: 2rem;
+                    font-size: 1.1rem;
+                    font-weight: 600;
+                    color: var(--text-primary);
+                }}
+                
+                .status-indicator {{
+                    width: 12px;
+                    height: 12px;
+                    background: var(--green-primary);
+                    border-radius: 50%;
                     animation: pulse 2s ease-in-out infinite;
                 }}
                 
                 @keyframes pulse {{
-                    0%, 100% {{ transform: scale(1); }}
-                    50% {{ transform: scale(1.05); }}
+                    0%, 100% {{ opacity: 1; }}
+                    50% {{ opacity: 0.5; }}
                 }}
                 
                 .info {{
-                    margin: 30px 0;
-                    padding: 20px;
-                    background: rgba(102, 126, 234, 0.1);
-                    border-radius: 15px;
-                    border: 1px solid rgba(102, 126, 234, 0.3);
+                    margin: var(--spacing-xl) 0;
+                    padding: var(--spacing-lg);
+                    background: var(--bg-secondary);
+                    border-radius: var(--radius-md);
+                    border: 1px solid var(--border-subtle);
                 }}
                 
                 .info-item {{
-                    margin: 15px 0;
-                    font-size: 1.1em;
+                    margin: var(--spacing-md) 0;
+                    font-size: 1.1rem;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
                 }}
                 
                 .label {{
-                    color: #a0a0a0;
+                    color: var(--text-secondary);
                     font-weight: 500;
                 }}
                 
                 .value {{
-                    color: #4facfe;
-                    font-weight: bold;
-                    text-shadow: 0 0 10px rgba(79, 172, 254, 0.5);
+                    color: var(--accent-purple);
+                    font-weight: 700;
                 }}
                 
                 .description {{
-                    margin-top: 20px;
-                    padding: 15px;
-                    background: linear-gradient(135deg, 
-                        rgba(255, 235, 59, 0.1) 0%, 
-                        rgba(129, 212, 250, 0.1) 100%);
-                    border-radius: 10px;
-                    border-left: 4px solid;
-                    border-image: linear-gradient(180deg, #ffeb3b, #81d4fa) 1;
+                    margin-top: var(--spacing-lg);
+                    padding: var(--spacing-md);
+                    background: rgba(139, 92, 246, 0.05);
+                    border-radius: var(--radius-sm);
+                    border-left: 3px solid var(--accent-yellow);
                 }}
                 
-                .particles {{
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    pointer-events: none;
-                    z-index: -1;
+                .description p {{
+                    color: var(--text-secondary);
+                    margin: 0.5rem 0;
                 }}
                 
-                .particle {{
-                    position: absolute;
-                    width: 4px;
-                    height: 4px;
-                    background: radial-gradient(circle, #667eea, transparent);
-                    border-radius: 50%;
-                    animation: particle-float linear infinite;
-                    opacity: 0.6;
+                .description p:first-child {{
+                    color: var(--text-primary);
+                    font-weight: 600;
                 }}
                 
-                @keyframes particle-float {{
-                    0% {{
-                        transform: translateY(100vh) translateX(0);
-                        opacity: 0;
+                @media (max-width: 768px) {{
+                    h1 {{
+                        font-size: 2rem;
                     }}
-                    10% {{
-                        opacity: 0.6;
+                    .container {{
+                        padding: var(--spacing-lg);
                     }}
-                    90% {{
-                        opacity: 0.6;
-                    }}
-                    100% {{
-                        transform: translateY(-100px) translateX(100px);
-                        opacity: 0;
+                    .info-item {{
+                        font-size: 1rem;
                     }}
                 }}
             </style>
         </head>
         <body>
-            <div class="particles">
-                <div class="particle" style="left: 10%; animation-duration: 8s; animation-delay: 0s;"></div>
-                <div class="particle" style="left: 20%; animation-duration: 12s; animation-delay: 2s;"></div>
-                <div class="particle" style="left: 30%; animation-duration: 10s; animation-delay: 4s;"></div>
-                <div class="particle" style="left: 40%; animation-duration: 14s; animation-delay: 1s;"></div>
-                <div class="particle" style="left: 50%; animation-duration: 9s; animation-delay: 3s;"></div>
-                <div class="particle" style="left: 60%; animation-duration: 11s; animation-delay: 5s;"></div>
-                <div class="particle" style="left: 70%; animation-duration: 13s; animation-delay: 2s;"></div>
-                <div class="particle" style="left: 80%; animation-duration: 10s; animation-delay: 4s;"></div>
-                <div class="particle" style="left: 90%; animation-duration: 12s; animation-delay: 1s;"></div>
-            </div>
-            
             <div class="container">
                 <h1>🤖 ReNamioos</h1>
-                <div class="status">✅ En ligne</div>
+                <div class="status">
+                    <span class="status-indicator"></span>
+                    En ligne
+                </div>
                 
                 <div class="info">
                     <div class="info-item">
@@ -222,9 +234,7 @@ def home():
                 
                 <div class="description">
                     <p>🎨 Bot Discord de renommage avec polices stylisées</p>
-                    <p style="margin-top: 10px; font-size: 0.9em; color: #a0a0a0;">
-                        Transforme automatiquement les pseudos en 8 styles Unicode différents
-                    </p>
+                    <p>Transforme automatiquement les pseudos en 9 styles Unicode différents</p>
                 </div>
             </div>
             
