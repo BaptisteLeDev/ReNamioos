@@ -422,10 +422,13 @@ async def aide_slash(interaction: discord.Interaction):
         inline=False
     )
     
+    # Calculer le nombre total de rôles configurés
+    total_roles = sum(len(role_list) for role_list in ROLE_CONFIG.values())
+    
     embed.add_field(
         name="🎭 Auto-rename",
         value=(
-            f"Rôles configurés: {sum(rôle_config) for rôle_config in ROLE_CONFIG.values()}\n"
+            f"Rôles configurés: {total_roles}\n"
             "Le pseudo change automatiquement avec le rôle !"
         ),
         inline=False
