@@ -188,11 +188,39 @@ async def on_member_update(before: discord.Member, after: discord.Member):
 
 # ==================== AUTOCOMPLÉTION ====================
 
+async def style_autocomplete_with_preview(interaction: discord.Interaction, current: str):
+    """Autocomplétion pour le choix du style avec aperçu des caractères"""
+    # Exemples de texte stylisé pour chaque police
+    exemples = {
+        "cercles": "🅐🅑🅒",
+        "cursive": "𝓐𝓑𝓒",
+        "gothique": "𝔄𝔅ℭ",
+        "gras": "𝗔𝗕𝗖",
+        "monospace": "𝙰𝙱𝙲",
+        "carres": "🄰🄱🄲",
+        "double": "𝔸𝔹ℂ",
+        "fullwidth": "ＡＢＣ",
+        "scriptify": "𝒜ℬ𝒞"
+    }
+    
+    # Filtrer les styles qui correspondent à la saisie actuelle
+    choices = []
+    for style in STYLES.keys():
+        if current.lower() in style.lower():
+            exemple = exemples.get(style, "ABC")
+            # Format: "Nom du style - ABC"
+            display_name = f"{style.capitalize()} - {exemple}"
+            choices.append(app_commands.Choice(name=display_name, value=style))
+    
+    # Discord limite à 25 choix maximum
+    return choices[:25]
+
 @bot.tree.command(name="convert", description="Convertit un texte dans un style Unicode")
 @app_commands.describe(
     style="Choisis un style de police",
     texte="Le texte à convertir"
 )
+@app_commands.autocomplete(style=style_autocomplete_with_preview)
 async def convert_slash(interaction: discord.Interaction, style: str, texte: str):
     """Commande slash pour convertir du texte"""
     if style not in STYLES:
@@ -212,18 +240,6 @@ async def convert_slash(interaction: discord.Interaction, style: str, texte: str
     embed.add_field(name="🎨 Résultat", value=resultat, inline=False)
     
     await interaction.response.send_message(embed=embed)
-
-@convert_slash.autocomplete('style')
-async def style_autocomplete(interaction: discord.Interaction, current: str):
-    """Autocomplétion pour le choix du style"""
-    # Filtrer les styles qui commencent par la saisie actuelle
-    choices = [
-        app_commands.Choice(name=style.capitalize(), value=style)
-        for style in STYLES.keys()
-        if current.lower() in style.lower()
-    ]
-    # Discord limite à 25 choix maximum
-    return choices[:25]
 
 # ==================== COMMANDES SLASH ====================
 
@@ -269,6 +285,7 @@ async def styles_slash(interaction: discord.Interaction):
     style="Le style à appliquer",
     nouveau_nom="Le nouveau nom (optionnel, utilise le nom actuel par défaut)"
 )
+@app_commands.autocomplete(style=style_autocomplete_with_preview)
 async def rename_slash(
     interaction: discord.Interaction,
     membre: discord.Member,
@@ -323,16 +340,6 @@ async def rename_slash(
             f"❌ Erreur: {str(e)}",
             ephemeral=True
         )
-
-@rename_slash.autocomplete('style')
-async def rename_style_autocomplete(interaction: discord.Interaction, current: str):
-    """Autocomplétion pour le style de la commande rename"""
-    choices = [
-        app_commands.Choice(name=style.capitalize(), value=style)
-        for style in STYLES.keys()
-        if current.lower() in style.lower()
-    ]
-    return choices[:25]
 
 @bot.tree.command(name="random", description="Renomme un membre avec un style aléatoire")
 @app_commands.describe(
