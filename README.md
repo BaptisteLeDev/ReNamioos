@@ -1,57 +1,27 @@
-# 🤖 ReNamio# 🤖 ReNamio
+# 🤖 ReNamio
 
+**ReNamio** est un bot Discord en Python qui transforme automatiquement les pseudos en versions stylisées grâce à l'Unicode.
 
+## ✨ Fonctionnalités
 
-ReNamio est un **bot Discord en Python** qui transforme vos pseudos en versions stylisées grâce à l'Unicode.  ReNamio est un **bot Discord en Python** qui transforme vos pseudos en versions stylisées grâce à l’Unicode.  
-
-Pratique pour donner une identité unique, surprendre vos amis ou personnaliser vos serveurs Discord.  Pratique pour donner une identité unique, surprendre vos amis ou personnaliser vos serveurs Discord.  
-
-
-
-------
-
-
-
-## ✨ Fonctionnalités## ✨ Fonctionnalités
-
-
-
-- 🔤 **8 styles de polices** : cercles, cursive, gothique, gras, monospace, carrés, double, fullwidth- 🔤 Génère plusieurs styles de texte (carrés, gothique, cursive, fullwidth, etc.)
-
-- 🎲 **Commande aléatoire** : laisse ReNamio choisir un style pour toi- 🎲 Commande aléatoire : laisse ReNamio choisir pour toi
-
-- 🛠️ **Commandes simples** : interface intuitive avec préfixe `!`- 🛠️ Commandes simples via prefix (`!`) ou slash commands
-
-- 👤 **Renommage automatique** : renomme les membres du serveur (avec permissions)- 👤 Peut renommer automatiquement un membre (si le bot a la permission)
-
-- 🎨 **Aperçu des styles** : visualise tous les styles avant de les utiliser- 📜 Extensible : facile d’ajouter de nouveaux styles
-
-- 📜 **Extensible** : facile d'ajouter de nouveaux styles
+- 🎨 **8 styles de polices** : cercles, cursive, gothique, gras, monospace, carrés, double, fullwidth
+- ⚡ **Commandes Slash (/)** : Interface moderne avec auto-complétion
+- 🎭 **Auto-rename sur rôles** : Renommage automatique quand un membre obtient un rôle spécifique
+- 🔄 **Restauration automatique** : Remet le pseudo par défaut quand le rôle est retiré
+- 🎲 **Renommage aléatoire** : Laisse le bot choisir un style au hasard
+- 🛠️ **Interface intuitive** : Commandes simples et claires
 
 ---
-
----
-
-## 📦 Installation
 
 ## 🎨 Exemples de Styles
 
-### 1. Pré-requis
-
-| Style | Exemple |- Python **3.10+**
-
-|-------|---------|- Une application bot Discord → [Créer un bot](https://discord.com/developers/applications)
-
+| Style | Exemple |
+|-------|---------|
 | **Cercles** | 🅡🅔🅝🅐🅜🅘🅞 |
-
-| **Cursive** | 𝓡𝓮𝓝𝓪𝓶𝓲𝓸 |### 2. Cloner le projet
-
-| **Gothique** | ℜ𝔢𝔑𝔞𝔪𝔦𝔬 |```bash
-
-| **Gras** | 𝗥𝗲𝗡𝗮𝗺𝗶𝗼 |git clone https://github.com/toncompte/ReNamio.git
-
-| **Monospace** | 𝚁𝚎𝙽𝚊𝚖𝚒𝚘 |cd ReNamio
-
+| **Cursive** | 𝓡𝓮𝓝𝓪𝓶𝓲𝓸 |
+| **Gothique** | ℜ𝔢𝔑𝔞𝔪𝔦𝔬 |
+| **Gras** | 𝗥𝗲𝗡𝗮𝗺𝗶𝗼 |
+| **Monospace** | 𝚁𝚎𝙽𝚊𝚖𝚒𝚘 |
 | **Carrés** | 🅁🄴🄽🄰🄼🄸🄾 |
 | **Double** | ℝ𝕖ℕ𝕒𝕞𝕚𝕠 |
 | **Fullwidth** | ＲｅＮａｍｉｏ |
@@ -72,12 +42,7 @@ cd ReNamio
 
 ### 3. Installer les dépendances
 ```bash
-pip install discord.py python-dotenv
-```
-
-Ou avec Python directement :
-```bash
-python -m pip install discord.py python-dotenv
+pip install -r requirements.txt
 ```
 
 ### 4. Configurer le bot
@@ -89,35 +54,30 @@ python -m pip install discord.py python-dotenv
 4. Allez dans l'onglet **"Bot"**
 
 #### b) Activer les Intents Privilégiés ⚠️
-**IMPORTANT** : Sans cette étape, le bot ne fonctionnera pas !
+**IMPORTANT** : Dans l'onglet **Bot**, activez tous les **Privileged Gateway Intents** :
+- ✅ **PRESENCE INTENT**
+- ✅ **SERVER MEMBERS INTENT** (obligatoire pour l'auto-rename)
+- ✅ **MESSAGE CONTENT INTENT**
 
-Dans l'onglet **Bot**, activez les **Privileged Gateway Intents** :
-- ✅ **SERVER MEMBERS INTENT** (obligatoire pour renommer)
-- ✅ **MESSAGE CONTENT INTENT** (obligatoire pour les commandes)
-
-Cliquez sur **"Save Changes"**
-
-#### c) Récupérer le token
-1. Dans l'onglet **"Bot"**, cliquez sur **"Reset Token"**
-2. Copiez le token généré
-3. Créez un fichier `.env` à la racine du projet :
+#### c) Configurer le token
+1. Dans l'onglet **"Bot"**, copiez le token
+2. Créez un fichier `.env` à la racine du projet :
 ```env
 TOKEN=votre_token_ici
 ```
 
-⚠️ **Ne partagez JAMAIS votre token !** Le fichier `.env` est déjà dans `.gitignore`.
+⚠️ **Ne partagez JAMAIS votre token !**
 
-#### d) Inviter le bot sur votre serveur
+#### d) Inviter le bot
 1. Allez dans l'onglet **"OAuth2"** → **"URL Generator"**
-2. Sélectionnez les scopes :
+2. Sélectionnez :
    - ✅ `bot`
    - ✅ `applications.commands`
-3. Sélectionnez les permissions :
+3. Permissions :
    - ✅ `Manage Nicknames`
    - ✅ `Send Messages`
    - ✅ `Embed Links`
-4. Copiez l'URL générée et ouvrez-la dans votre navigateur
-5. Sélectionnez votre serveur et autorisez le bot
+4. Copiez l'URL et invitez le bot sur votre serveur
 
 ---
 
@@ -127,91 +87,90 @@ TOKEN=votre_token_ici
 python DiscordReNameStyle.py
 ```
 
-Si tout fonctionne, vous verrez :
+Si tout fonctionne :
 ```
-🚀 Démarrage du bot...
-✅ ReNamio#1234 est connecté !
+✅ ReNamio#4970 est connecté !
 📊 Serveurs: 1
 🎨 Styles disponibles: 8
+🎭 Rôles avec auto-rename: 1
+✅ 6 commande(s) slash synchronisée(s)
 ```
 
 ---
 
 ## 📖 Commandes
 
+### Commandes Slash (/)
+
 | Commande | Description | Exemple |
 |----------|-------------|---------|
-| `!ping` | Teste si le bot répond | `!ping` |
-| `!styles` | Affiche tous les styles disponibles | `!styles` |
-| `!convert <style> <texte>` | Convertit un texte dans le style choisi | `!convert cursive Mon Pseudo` |
-| `!rename <@user> <style> [nom]` | Renomme un membre avec un style | `!rename @User gothique NouveauNom` |
-| `!random <@user> [nom]` | Renomme avec un style aléatoire | `!random @User` |
-| `!aide` | Affiche l'aide complète | `!aide` |
+| `/ping` | Teste si le bot répond | `/ping` |
+| `/styles` | Affiche tous les styles disponibles | `/styles` |
+| `/convert <style> <texte>` | Convertit un texte | `/convert cursive Bonjour` |
+| `/rename <@user> <style> [nom]` | Renomme un membre | `/rename @User cursive` |
+| `/random <@user> [nom]` | Style aléatoire | `/random @User` |
+| `/aide` | Affiche l'aide | `/aide` |
 
-### Exemples d'utilisation
+### Commandes Prefix (!)
 
-#### Convertir du texte
-```
-!convert cursive Bonjour Discord
-```
-Résultat : 𝓑𝓸𝓷𝓳𝓸𝓾𝓻 𝓓𝓲𝓼𝓬𝓸𝓻𝓭
+Les commandes avec `!` sont aussi disponibles pour la compatibilité :
+- `!ping`, `!styles`, `!convert`, `!rename`, `!random`, `!aide`
 
-#### Renommer un membre
-```
-!rename @Baptiste cercles Baptiste
-```
-Résultat : Le pseudo de Baptiste devient 🅑🅐🅟🅣🅘🅢🅣🅔
+---
 
-#### Renommer avec le pseudo actuel
-```
-!rename @Baptiste cursive
-```
-Le bot utilisera le pseudo actuel du membre.
+## 🎭 Auto-Rename sur Rôles
 
-#### Style aléatoire
+Le bot peut renommer automatiquement les membres quand ils obtiennent un rôle spécifique.
+
+### Configuration
+
+Éditez le fichier `role.json` :
+```json
+{
+    "cursive": ["Nom du Rôle 1"],
+    "gothique": ["Nom du Rôle 2", "Autre Rôle"],
+    "cercles": ["VIP"]
+}
 ```
-!random @Baptiste
+
+### Fonctionnement
+
+1. **Membre obtient le rôle** → Son pseudo est converti avec le style associé
+2. **Membre perd le rôle** → Son pseudo est remis par défaut
+
+**Exemple** :
 ```
-Le bot choisira un style au hasard !
+Membre "Baptiste" obtient le rôle "Éclats d'Aether"
+→ Renommé en "𝓑𝓪𝓹𝓽𝓲𝓼𝓽𝓮"
+
+Membre perd le rôle
+→ Redevient "Baptiste"
+```
 
 ---
 
 ## ⚙️ Configuration
 
-### Permissions requises
-
-Le bot a besoin des permissions suivantes :
-- **Manage Nicknames** : Pour renommer les membres
-- **Send Messages** : Pour envoyer des messages
-- **Embed Links** : Pour afficher les embeds stylisés
-
-### Limitations Discord
-
-- Les pseudos sont limités à **32 caractères** maximum
-- Le bot ne peut pas renommer les propriétaires de serveur
-- Le bot ne peut pas renommer les membres ayant un rôle supérieur au sien
-
----
-
-## 🔧 Développement
-
 ### Structure du projet
 ```
 ReNamio/
-├── DiscordReNameStyle.py  # Code principal du bot
-├── .env                    # Configuration (token)
-├── .gitignore             # Fichiers à ignorer
-└── README.md              # Ce fichier
+├── DiscordReNameStyle.py  # Code principal
+├── styles.json            # Définition des styles
+├── role.json             # Configuration auto-rename
+├── .env                  # Token (ne pas commit !)
+├── .gitignore           # Fichiers à ignorer
+├── requirements.txt     # Dépendances
+└── README.md           # Documentation
 ```
 
 ### Ajouter un nouveau style
 
-1. Ouvrez `DiscordReNameStyle.py`
-2. Dans le dictionnaire `STYLES`, ajoutez votre style :
-```python
+1. Éditez `styles.json`
+2. Ajoutez votre style :
+```json
 "nouveau_style": {
-    "a": "𝕒", "b": "𝕓", "c": "𝕔", # ... etc
-    "A": "𝔸", "B": "𝔹", "C": "ℂ", # ... etc
+    "a": "𝕒", "b": "𝕓", "c": "𝕔",
+    "A": "𝔸", "B": "𝔹", "C": "ℂ"
 }
 ```
 3. Redémarrez le bot
@@ -221,38 +180,39 @@ ReNamio/
 ## 🐛 Résolution de problèmes
 
 ### Le bot ne se connecte pas
-1. Vérifiez que votre token est correct dans `.env`
-2. Vérifiez que les **intents privilégiés** sont activés (voir section Installation)
-3. Vérifiez votre connexion internet
+- Vérifiez le token dans `.env`
+- Vérifiez que tous les **intents** sont activés
+- Vérifiez votre connexion internet
 
-### Les commandes ne s'affichent pas
-Les commandes avec préfixe `!` apparaissent quand vous tapez `!` dans le chat.  
-Si elles n'apparaissent pas, vérifiez que :
-- Le bot est bien en ligne
-- Le **MESSAGE CONTENT INTENT** est activé
-- Vous avez la permission d'envoyer des messages dans le salon
+### Les commandes slash n'apparaissent pas
+- Attendez quelques minutes (synchronisation Discord)
+- Réinvitez le bot avec le scope `applications.commands`
+- Redémarrez Discord
 
-### "Je n'ai pas la permission de renommer ce membre"
+### L'auto-rename ne fonctionne pas
+- Vérifiez que **SERVER MEMBERS INTENT** est activé
 - Vérifiez que le bot a la permission **Manage Nicknames**
-- Vérifiez que le rôle du bot est **au-dessus** du rôle du membre à renommer
-- Vous ne pouvez pas renommer le propriétaire du serveur
+- Vérifiez que le rôle du bot est **au-dessus** des membres à renommer
+- Vérifiez le nom exact du rôle dans `role.json`
 
-### "Le pseudo stylisé est trop long"
-Discord limite les pseudos à 32 caractères. Essayez avec un pseudo plus court.
+### "Permissions insuffisantes"
+- Le bot doit avoir **Manage Nicknames**
+- Le rôle du bot doit être **au-dessus** du membre
+- Impossible de renommer le propriétaire du serveur
 
 ---
 
 ## 📝 Licence
 
-Ce projet est sous licence MIT. Vous êtes libre de l'utiliser, le modifier et le distribuer.
+MIT License - Vous êtes libre d'utiliser, modifier et distribuer ce projet.
 
 ---
 
 ## 🤝 Contribution
 
-Les contributions sont les bienvenues ! N'hésitez pas à :
-- 🐛 Signaler des bugs
-- 💡 Proposer de nouvelles fonctionnalités
+Les contributions sont bienvenues !
+- 🐛 Signaler des bugs via [Issues](https://github.com/BaptisteLeDev/ReNamio/issues)
+- 💡 Proposer des fonctionnalités
 - 🎨 Ajouter de nouveaux styles
 - 📖 Améliorer la documentation
 
@@ -261,11 +221,22 @@ Les contributions sont les bienvenues ! N'hésitez pas à :
 ## 📞 Support
 
 - 🌐 [GitHub Issues](https://github.com/BaptisteLeDev/ReNamio/issues)
-- 📧 Contact : [Créer une issue](https://github.com/BaptisteLeDev/ReNamio/issues/new)
+- 📧 [Créer une issue](https://github.com/BaptisteLeDev/ReNamio/issues/new)
 
 ---
 
 ## 🎉 Crédits
 
-Créé avec ❤️ pour la communauté Discord  
+Créé avec ❤️ par Baptiste pour la communauté Discord  
 Utilise [discord.py](https://github.com/Rapptz/discord.py)
+
+---
+
+## ⚠️ Avertissement de Sécurité
+
+**Ne partagez JAMAIS** :
+- Votre token Discord (`.env`)
+- Votre secret client
+- Vos clés API
+
+Le fichier `.env` est déjà dans `.gitignore` pour éviter les commits accidentels.
