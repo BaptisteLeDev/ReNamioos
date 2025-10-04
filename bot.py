@@ -1,5 +1,5 @@
 """
-ReNamio - Bot Discord de renommage avec polices stylisées
+ReNamioos - Bot Discord de renommage avec polices stylisées
 """
 
 # Import du keep-alive en premier (pour hébergement gratuit)
@@ -8,38 +8,44 @@ try:
     keep_alive()
     print("✅ Keep-alive activé")
 except ImportError:
-    print("⚠️ Keep-alive non disponible (Flask non installé)")
+    print("⚠️ keep_alive.py non trouvé, mode local uniquement")
 except Exception as e:
-    print(f"⚠️ Erreur keep-alive : {e}")
+    print(f"❌ Erreur keep-alive: {e}")
 
+print("🚀 Démarrage du bot...")
+
+# Imports standards
+import os
+import json
+import random
+import re
 import discord
 from discord import app_commands
 from discord.ext import commands
-import os
 from dotenv import load_dotenv
-import random
-import json
 
 # ==================== CHARGEMENT CONFIGURATION ====================
 
-# Charger les variables d'environnement
 load_dotenv()
 TOKEN = os.getenv("TOKEN")
 
-# Charger les styles depuis styles.json
 def charger_styles():
+    """Charge les styles depuis styles.json"""
     try:
         with open("styles.json", "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+            # Séparer les conversions des styles
+            conversions = data.pop("conversions", {})
+            return data, conversions
     except FileNotFoundError:
-        print("⚠️ Fichier styles.json introuvable")
-        return {}
+        print("❌ Fichier styles.json introuvable")
+        return {}, {}
     except json.JSONDecodeError:
-        print("⚠️ Erreur de lecture du fichier styles.json")
-        return {}
+        print("❌ Erreur lors du chargement de styles.json")
+        return {}, {}
 
-# Charger la configuration des rôles
 def charger_roles():
+    """Charge la configuration des rôles depuis role.json"""
     try:
         with open("role.json", "r", encoding="utf-8") as f:
             return json.load(f)
@@ -47,10 +53,10 @@ def charger_roles():
         print("⚠️ Fichier role.json introuvable")
         return {}
     except json.JSONDecodeError:
-        print("⚠️ Erreur de lecture du fichier role.json")
+        print("❌ Erreur lors du chargement de role.json")
         return {}
 
-STYLES = charger_styles()
+STYLES, CONVERSIONS = charger_styles()
 ROLE_CONFIG = charger_roles()
 
 # ==================== CONFIGURATION BOT ====================
@@ -60,16 +66,49 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 # ==================== FONCTIONS UTILITAIRES ====================
 
+def nettoyer_pseudo(texte: str) -> str:
+    """Nettoie le pseudo en retirant les caractères spéciaux au début et à la fin"""
+    # Retire les caractères spéciaux au début
+    texte = re.sub(r'^[^a-zA-Z0-9]+', '', texte)
+    # Retire les caractères spéciaux à la fin
+    texte = re.sub(r'[^a-zA-Z0-9]+$', '', texte)
+    return texte
+
+def convertir_chiffres(texte: str) -> str:
+    """Convertit les chiffres en lettres selon le mapping"""
+    for chiffre, lettre in CONVERSIONS.items():
+        texte = texte.replace(chiffre, lettre)
+    return texte
+
+def mettre_majuscule_debut(texte: str) -> str:
+    """Met une majuscule à la première lettre"""
+    if not texte:
+        return texte
+    # Trouve la première lettre
+    for i, char in enumerate(texte):
+        if char.isalpha():
+            return texte[:i] + texte[i].upper() + texte[i+1:]
+    return texte
+
 def convertir_texte(texte: str, style: str) -> str:
-    """Convertit un texte avec le style choisi"""
+    """Convertit un texte dans le style choisi avec preprocessing"""
     if style not in STYLES:
-        return None
+        return texte
     
-    style_dict = STYLES[style]
+    # 1. Nettoyer les caractères spéciaux
+    texte = nettoyer_pseudo(texte)
+    
+    # 2. Convertir les chiffres en lettres
+    texte = convertir_chiffres(texte)
+    
+    # 3. Mettre la première lettre en majuscule
+    texte = mettre_majuscule_debut(texte)
+    
+    # 4. Appliquer le style
+    style_map = STYLES[style]
     resultat = ""
-    
     for char in texte:
-        resultat += style_dict.get(char, char)
+        resultat += style_map.get(char, char)
     
     return resultat
 
@@ -77,166 +116,88 @@ def convertir_texte(texte: str, style: str) -> str:
 
 @bot.event
 async def on_ready():
+    """Événement déclenché quand le bot est prêt"""
     print(f"✅ {bot.user} est connecté !")
     print(f"📊 Serveurs: {len(bot.guilds)}")
     print(f"🎨 Styles disponibles: {len(STYLES)}")
-    print(f"🎭 Rôles avec auto-rename: {len(ROLE_CONFIG)}")
+    
+    # Compter le nombre de rôles configurés
+    total_roles = sum(len(roles) for roles in ROLE_CONFIG.values())
+    print(f"🎭 Rôles avec auto-rename: {total_roles}")
     
     # Synchroniser les commandes slash
     try:
         synced = await bot.tree.sync()
         print(f"✅ {len(synced)} commande(s) slash synchronisée(s)")
     except Exception as e:
-        print(f"❌ Erreur lors de la synchronisation des commandes : {e}")
+        print(f"❌ Erreur lors de la synchronisation: {e}")
 
 @bot.event
-async def on_member_update(before, after):
-    """Détecte quand un membre reçoit ou perd un rôle et gère le renommage automatiquement"""
-    
+async def on_member_update(before: discord.Member, after: discord.Member):
+    """Détecte les changements de rôles et renomme automatiquement"""
     # Ignorer si ce n'est pas un changement de rôle
     if before.roles == after.roles:
         return
     
-    # Vérifie si un rôle a été ajouté
+    # Détection d'ajout de rôle
     if len(before.roles) < len(after.roles):
-        # Trouve le nouveau rôle
         new_role = next((role for role in after.roles if role not in before.roles), None)
-        
         if new_role:
             print(f"📌 {after.name} a reçu le rôle : {new_role.name}")
             
-            # Vérifie si ce rôle est dans la configuration
+            # Vérifier si ce rôle est dans la configuration
             for style, role_names in ROLE_CONFIG.items():
                 if new_role.name in role_names:
                     print(f"🎯 Rôle trouvé ! Application du style '{style}'")
-                    
-                    # Récupère le pseudo actuel du membre (son nom d'utilisateur, pas le nickname)
-                    nom_actuel = after.name
-                    
-                    # Convertit le nom avec le style associé
-                    nom_stylise = convertir_texte(nom_actuel, style)
-                    
-                    if nom_stylise is None:
-                        print(f"⚠️ Style '{style}' introuvable")
-                        continue
-                    
-                    # Vérifie la longueur (Discord limite à 32 caractères)
-                    if len(nom_stylise) > 32:
-                        print(f"⚠️ Pseudo trop long pour {after.name}: {len(nom_stylise)} caractères")
-                        nom_stylise = nom_stylise[:32]
-                    
                     try:
-                        await after.edit(nick=nom_stylise)
-                        print(f"✅ {after.name} renommé en {nom_stylise} (style: {style})")
+                        # Convertir le pseudo actuel
+                        nouveau_pseudo = convertir_texte(after.name, style)
+                        
+                        # Limiter à 32 caractères (limite Discord)
+                        if len(nouveau_pseudo) > 32:
+                            nouveau_pseudo = nouveau_pseudo[:32]
+                        
+                        # Renommer le membre
+                        await after.edit(nick=nouveau_pseudo)
+                        print(f"✅ {after.name} renommé en {nouveau_pseudo} (style: {style})")
                     except discord.Forbidden:
                         print(f"❌ Permissions insuffisantes pour renommer {after.name}")
-                    except discord.HTTPException as e:
-                        print(f"❌ Erreur lors du renommage de {after.name}: {e}")
-                    
+                    except Exception as e:
+                        print(f"❌ Erreur lors du renommage: {e}")
                     break
     
-    # Vérifie si un rôle a été retiré
+    # Détection de retrait de rôle
     elif len(before.roles) > len(after.roles):
-        # Trouve le rôle retiré
         removed_role = next((role for role in before.roles if role not in after.roles), None)
-        
         if removed_role:
             print(f"📌 {after.name} a perdu le rôle : {removed_role.name}")
             
-            # Vérifie si ce rôle était dans la configuration
+            # Vérifier si ce rôle était dans la configuration
             for style, role_names in ROLE_CONFIG.items():
                 if removed_role.name in role_names:
                     print(f"🔄 Rôle stylisé retiré ! Remise du pseudo par défaut")
-                    
                     try:
-                        # Remet le pseudo par défaut (None = pseudo d'origine)
+                        # Remettre le pseudo par défaut (nom Discord)
                         await after.edit(nick=None)
                         print(f"✅ {after.name} a retrouvé son pseudo par défaut")
                     except discord.Forbidden:
-                        print(f"❌ Permissions insuffisantes pour réinitialiser le pseudo de {after.name}")
-                    except discord.HTTPException as e:
-                        print(f"❌ Erreur lors de la réinitialisation du pseudo de {after.name}: {e}")
-                    
+                        print(f"❌ Permissions insuffisantes pour réinitialiser {after.name}")
+                    except Exception as e:
+                        print(f"❌ Erreur lors de la réinitialisation: {e}")
                     break
 
-# ==================== COMMANDES PREFIX (!) ====================
+# ==================== AUTOCOMPLÉTION ====================
 
-@bot.command(name="ping")
-async def ping(ctx):
-    """Teste si le bot répond"""
-    await ctx.send("🏓 Pong !")
-
-# ==================== COMMANDES SLASH (/) ====================
-
-@bot.tree.command(name="ping", description="Teste si le bot répond")
-async def slash_ping(interaction: discord.Interaction):
-    """Teste si le bot répond"""
-    await interaction.response.send_message("🏓 Pong !")
-
-@bot.command(name="styles")
-async def liste_styles(ctx):
-    """Affiche tous les styles disponibles"""
-    embed = discord.Embed(
-        title="🎨 Styles disponibles",
-        description="Voici tous les styles de police disponibles :",
-        color=discord.Color.blue()
-    )
-    
-    for style_name in STYLES.keys():
-        exemple = convertir_texte("ReNamioos", style_name)
-        embed.add_field(name=style_name.capitalize(), value=exemple, inline=False)
-    
-    embed.set_footer(text="Utilisez /rename ou !rename pour renommer")
-    await ctx.send(embed=embed)
-
-@bot.tree.command(name="styles", description="Affiche tous les styles de police disponibles")
-async def slash_styles(interaction: discord.Interaction):
-    """Affiche tous les styles disponibles"""
-    embed = discord.Embed(
-        title="🎨 Styles disponibles",
-        description="Voici tous les styles de police disponibles :",
-        color=discord.Color.blue()
-    )
-    
-    for style_name in STYLES.keys():
-        exemple = convertir_texte("ReNamioos", style_name)
-        embed.add_field(name=style_name.capitalize(), value=exemple, inline=False)
-    
-    embed.set_footer(text="Utilisez /rename pour renommer un membre")
-    await interaction.response.send_message(embed=embed)
-
-@bot.command(name="convert")
-async def convertir(ctx, style: str, *, texte: str):
-    """Convertit un texte dans le style choisi"""
-    style = style.lower()
-    
-    if style not in STYLES:
-        await ctx.send(f"❌ Style inconnu ! Utilisez `/styles` pour voir la liste.")
-        return
-    
-    resultat = convertir_texte(texte, style)
-    
-    embed = discord.Embed(
-        title=f"✨ Style: {style.capitalize()}",
-        description=resultat,
-        color=discord.Color.green()
-    )
-    embed.set_footer(text=f"Demandé par {ctx.author.display_name}")
-    
-    await ctx.send(embed=embed)
-
-@bot.tree.command(name="convert", description="Convertit un texte dans le style choisi")
+@bot.tree.command(name="convert", description="Convertit un texte dans un style Unicode")
 @app_commands.describe(
-    style="Le style de police à appliquer",
+    style="Choisis un style de police",
     texte="Le texte à convertir"
 )
-async def slash_convert(interaction: discord.Interaction, style: str, texte: str):
-    """Convertit un texte dans le style choisi"""
-    style = style.lower()
-    
+async def convert_slash(interaction: discord.Interaction, style: str, texte: str):
+    """Commande slash pour convertir du texte"""
     if style not in STYLES:
         await interaction.response.send_message(
-            f"❌ Style inconnu ! Utilisez `/styles` pour voir la liste.",
+            f"❌ Style '{style}' inconnu. Utilise `/styles` pour voir la liste.",
             ephemeral=True
         )
         return
@@ -244,301 +205,250 @@ async def slash_convert(interaction: discord.Interaction, style: str, texte: str
     resultat = convertir_texte(texte, style)
     
     embed = discord.Embed(
-        title=f"✨ Style: {style.capitalize()}",
-        description=resultat,
-        color=discord.Color.green()
+        title=f"✨ Conversion en {style}",
+        color=discord.Color.blue()
     )
-    embed.set_footer(text=f"Demandé par {interaction.user.display_name}")
+    embed.add_field(name="📝 Original", value=texte, inline=False)
+    embed.add_field(name="🎨 Résultat", value=resultat, inline=False)
     
     await interaction.response.send_message(embed=embed)
 
-@bot.command(name="rename")
-@commands.has_permissions(manage_nicknames=True)
-async def renommer(ctx, membre: discord.Member, style: str, *, nouveau_nom: str = None):
-    """Renomme un membre avec un style de police"""
-    style = style.lower()
-    
-    if style not in STYLES:
-        await ctx.send(f"❌ Style inconnu ! Utilisez `/styles` pour voir la liste.")
-        return
-    
-    if nouveau_nom is None:
-        nouveau_nom = membre.display_name
-    
-    nom_stylise = convertir_texte(nouveau_nom, style)
-    
-    if len(nom_stylise) > 32:
-        await ctx.send(f"❌ Le pseudo stylisé est trop long ({len(nom_stylise)}/32 caractères)!")
-        return
-    
-    try:
-        ancien_nom = membre.display_name
-        await membre.edit(nick=nom_stylise)
-        
-        embed = discord.Embed(
-            title="✅ Renommage réussi !",
-            color=discord.Color.green()
-        )
-        embed.add_field(name="Membre", value=membre.mention, inline=True)
-        embed.add_field(name="Style", value=style.capitalize(), inline=True)
-        embed.add_field(name="Ancien nom", value=ancien_nom, inline=False)
-        embed.add_field(name="Nouveau nom", value=nom_stylise, inline=False)
-        embed.set_footer(text=f"Modifié par {ctx.author.display_name}")
-        
-        await ctx.send(embed=embed)
-    except discord.Forbidden:
-        await ctx.send("❌ Je n'ai pas la permission de renommer ce membre !")
-    except discord.HTTPException as e:
-        await ctx.send(f"❌ Erreur lors du renommage : {e}")
+@convert_slash.autocomplete('style')
+async def style_autocomplete(interaction: discord.Interaction, current: str):
+    """Autocomplétion pour le choix du style"""
+    # Filtrer les styles qui commencent par la saisie actuelle
+    choices = [
+        app_commands.Choice(name=style.capitalize(), value=style)
+        for style in STYLES.keys()
+        if current.lower() in style.lower()
+    ]
+    # Discord limite à 25 choix maximum
+    return choices[:25]
 
-@bot.tree.command(name="rename", description="Renomme un membre avec un style de police stylisé")
+# ==================== COMMANDES SLASH ====================
+
+@bot.tree.command(name="ping", description="Teste si le bot répond")
+async def ping_slash(interaction: discord.Interaction):
+    """Commande slash ping"""
+    latence = round(bot.latency * 1000)
+    await interaction.response.send_message(f"🏓 Pong ! Latence: {latence}ms")
+
+@bot.tree.command(name="styles", description="Affiche tous les styles disponibles")
+async def styles_slash(interaction: discord.Interaction):
+    """Commande slash pour afficher les styles"""
+    embed = discord.Embed(
+        title="🎨 Styles disponibles",
+        description="Voici tous les styles de police disponibles",
+        color=discord.Color.gold()
+    )
+    
+    exemples = {
+        "cercles": "🅡🅔🅝🅐🅜🅘🅞",
+        "cursive": "𝓡𝓮𝓝𝓪𝓶𝓲𝓸",
+        "gothique": "ℜ𝔢𝔑𝔞𝔪𝔦𝔬",
+        "gras": "𝗥𝗲𝗡𝗮𝗺𝗶𝗼",
+        "monospace": "𝚁𝚎𝙽𝚊𝚼𝚖𝚒𝚘",
+        "carres": "🅁🄴🄽🄰🄼🄸🄾",
+        "double": "ℝ𝕖ℕ𝕒𝕞𝕚𝕠",
+        "fullwidth": "ＲｅＮａｍｉｏ"
+    }
+    
+    for style in STYLES.keys():
+        exemple = exemples.get(style, "ReNamio")
+        embed.add_field(
+            name=f"**{style.capitalize()}**",
+            value=exemple,
+            inline=True
+        )
+    
+    await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="rename", description="Renomme un membre avec un style")
 @app_commands.describe(
     membre="Le membre à renommer",
-    style="Le style de police à appliquer",
-    nouveau_nom="Le nouveau nom (optionnel, utilise le nom actuel si non spécifié)"
+    style="Le style à appliquer",
+    nouveau_nom="Le nouveau nom (optionnel, utilise le nom actuel par défaut)"
 )
-@app_commands.checks.has_permissions(manage_nicknames=True)
-async def slash_rename(interaction: discord.Interaction, membre: discord.Member, style: str, nouveau_nom: str = None):
-    """Renomme un membre avec un style de police"""
-    style = style.lower()
+async def rename_slash(
+    interaction: discord.Interaction,
+    membre: discord.Member,
+    style: str,
+    nouveau_nom: str = None
+):
+    """Commande slash pour renommer un membre"""
+    # Vérifier les permissions
+    if not interaction.user.guild_permissions.manage_nicknames:
+        await interaction.response.send_message(
+            "❌ Tu n'as pas la permission de gérer les surnoms.",
+            ephemeral=True
+        )
+        return
     
     if style not in STYLES:
         await interaction.response.send_message(
-            f"❌ Style inconnu ! Utilisez `/styles` pour voir la liste.",
+            f"❌ Style '{style}' inconnu. Utilise `/styles` pour voir la liste.",
             ephemeral=True
         )
         return
     
-    if nouveau_nom is None:
-        nouveau_nom = membre.display_name
+    # Utiliser le nom actuel si aucun nouveau nom n'est fourni
+    nom_a_convertir = nouveau_nom if nouveau_nom else (membre.nick or membre.name)
     
-    nom_stylise = convertir_texte(nouveau_nom, style)
+    # Convertir le nom
+    nouveau_pseudo = convertir_texte(nom_a_convertir, style)
     
-    if len(nom_stylise) > 32:
-        await interaction.response.send_message(
-            f"❌ Le pseudo stylisé est trop long ({len(nom_stylise)}/32 caractères)!",
-            ephemeral=True
-        )
-        return
+    # Limiter à 32 caractères
+    if len(nouveau_pseudo) > 32:
+        nouveau_pseudo = nouveau_pseudo[:32]
     
     try:
-        ancien_nom = membre.display_name
-        await membre.edit(nick=nom_stylise)
+        await membre.edit(nick=nouveau_pseudo)
         
         embed = discord.Embed(
-            title="✅ Renommage réussi !",
+            title="✅ Membre renommé",
             color=discord.Color.green()
         )
-        embed.add_field(name="Membre", value=membre.mention, inline=True)
-        embed.add_field(name="Style", value=style.capitalize(), inline=True)
-        embed.add_field(name="Ancien nom", value=ancien_nom, inline=False)
-        embed.add_field(name="Nouveau nom", value=nom_stylise, inline=False)
-        embed.set_footer(text=f"Modifié par {interaction.user.display_name}")
+        embed.add_field(name="👤 Membre", value=membre.mention, inline=True)
+        embed.add_field(name="🎨 Style", value=style.capitalize(), inline=True)
+        embed.add_field(name="📝 Nouveau pseudo", value=nouveau_pseudo, inline=False)
         
         await interaction.response.send_message(embed=embed)
     except discord.Forbidden:
-        await interaction.response.send_message("❌ Je n'ai pas la permission de renommer ce membre !", ephemeral=True)
-    except discord.HTTPException as e:
-        await interaction.response.send_message(f"❌ Erreur lors du renommage : {e}", ephemeral=True)
-
-@bot.command(name="random")
-async def renommer_aleatoire(ctx, membre: discord.Member, *, nouveau_nom: str = None):
-    """Renomme un membre avec un style aléatoire"""
-    style = random.choice(list(STYLES.keys()))
-    
-    if nouveau_nom is None:
-        nouveau_nom = membre.display_name
-    
-    nom_stylise = convertir_texte(nouveau_nom, style)
-    
-    if len(nom_stylise) > 32:
-        await ctx.send(f"❌ Le pseudo stylisé est trop long ({len(nom_stylise)}/32 caractères)!")
-        return
-    
-    try:
-        await membre.edit(nick=nom_stylise)
-        
-        embed = discord.Embed(
-            title="🎲 Renommage aléatoire !",
-            color=discord.Color.purple()
+        await interaction.response.send_message(
+            "❌ Je n'ai pas la permission de renommer ce membre.",
+            ephemeral=True
         )
-        embed.add_field(name="Membre", value=membre.mention, inline=True)
-        embed.add_field(name="Style", value=f"🎰 {style.capitalize()}", inline=True)
-        embed.add_field(name="Nouveau nom", value=nom_stylise, inline=False)
-        
-        await ctx.send(embed=embed)
-    except discord.Forbidden:
-        await ctx.send("❌ Je n'ai pas la permission de renommer ce membre !")
-    except discord.HTTPException as e:
-        await ctx.send(f"❌ Erreur lors du renommage : {e}")
+    except Exception as e:
+        await interaction.response.send_message(
+            f"❌ Erreur: {str(e)}",
+            ephemeral=True
+        )
+
+@rename_slash.autocomplete('style')
+async def rename_style_autocomplete(interaction: discord.Interaction, current: str):
+    """Autocomplétion pour le style de la commande rename"""
+    choices = [
+        app_commands.Choice(name=style.capitalize(), value=style)
+        for style in STYLES.keys()
+        if current.lower() in style.lower()
+    ]
+    return choices[:25]
 
 @bot.tree.command(name="random", description="Renomme un membre avec un style aléatoire")
 @app_commands.describe(
     membre="Le membre à renommer",
     nouveau_nom="Le nouveau nom (optionnel)"
 )
-@app_commands.checks.has_permissions(manage_nicknames=True)
-async def slash_random(interaction: discord.Interaction, membre: discord.Member, nouveau_nom: str = None):
-    """Renomme un membre avec un style aléatoire"""
-    style = random.choice(list(STYLES.keys()))
-    
-    if nouveau_nom is None:
-        nouveau_nom = membre.display_name
-    
-    nom_stylise = convertir_texte(nouveau_nom, style)
-    
-    if len(nom_stylise) > 32:
+async def random_slash(
+    interaction: discord.Interaction,
+    membre: discord.Member,
+    nouveau_nom: str = None
+):
+    """Commande slash pour renommer avec un style aléatoire"""
+    # Vérifier les permissions
+    if not interaction.user.guild_permissions.manage_nicknames:
         await interaction.response.send_message(
-            f"❌ Le pseudo stylisé est trop long ({len(nom_stylise)}/32 caractères)!",
+            "❌ Tu n'as pas la permission de gérer les surnoms.",
             ephemeral=True
         )
         return
     
+    # Choisir un style aléatoire
+    style = random.choice(list(STYLES.keys()))
+    
+    # Utiliser le nom actuel si aucun nouveau nom n'est fourni
+    nom_a_convertir = nouveau_nom if nouveau_nom else (membre.nick or membre.name)
+    
+    # Convertir le nom
+    nouveau_pseudo = convertir_texte(nom_a_convertir, style)
+    
+    # Limiter à 32 caractères
+    if len(nouveau_pseudo) > 32:
+        nouveau_pseudo = nouveau_pseudo[:32]
+    
     try:
-        await membre.edit(nick=nom_stylise)
+        await membre.edit(nick=nouveau_pseudo)
         
         embed = discord.Embed(
-            title="🎲 Renommage aléatoire !",
+            title="🎲 Membre renommé (aléatoire)",
             color=discord.Color.purple()
         )
-        embed.add_field(name="Membre", value=membre.mention, inline=True)
-        embed.add_field(name="Style", value=f"🎰 {style.capitalize()}", inline=True)
-        embed.add_field(name="Nouveau nom", value=nom_stylise, inline=False)
+        embed.add_field(name="👤 Membre", value=membre.mention, inline=True)
+        embed.add_field(name="🎨 Style", value=style.capitalize(), inline=True)
+        embed.add_field(name="📝 Nouveau pseudo", value=nouveau_pseudo, inline=False)
         
         await interaction.response.send_message(embed=embed)
     except discord.Forbidden:
-        await interaction.response.send_message("❌ Je n'ai pas la permission de renommer ce membre !", ephemeral=True)
-    except discord.HTTPException as e:
-        await interaction.response.send_message(f"❌ Erreur lors du renommage : {e}", ephemeral=True)
-
-@bot.command(name="aide")
-async def aide(ctx):
-    """Affiche l'aide du bot"""
-    embed = discord.Embed(
-        title="🤖 ReNamioos - Guide d'utilisation",
-        description="Bot de renommage avec polices stylisées\n**Utilisez `/` pour les commandes slash !**",
-        color=discord.Color.gold()
-    )
-    
-    embed.add_field(
-        name="/ping",
-        value="Teste si le bot répond",
-        inline=False
-    )
-    embed.add_field(
-        name="/styles",
-        value="Affiche tous les styles disponibles",
-        inline=False
-    )
-    embed.add_field(
-        name="/convert <style> <texte>",
-        value="Convertit un texte dans le style choisi",
-        inline=False
-    )
-    embed.add_field(
-        name="/rename <@user> <style> [nom]",
-        value="Renomme un membre avec un style",
-        inline=False
-    )
-    embed.add_field(
-        name="/random <@user> [nom]",
-        value="Renomme avec un style aléatoire",
-        inline=False
-    )
-    
-    embed.set_footer(text="Auto-rename activé pour certains rôles • Créé avec ❤️")
-    
-    await ctx.send(embed=embed)
+        await interaction.response.send_message(
+            "❌ Je n'ai pas la permission de renommer ce membre.",
+            ephemeral=True
+        )
+    except Exception as e:
+        await interaction.response.send_message(
+            f"❌ Erreur: {str(e)}",
+            ephemeral=True
+        )
 
 @bot.tree.command(name="aide", description="Affiche l'aide du bot")
-async def slash_aide(interaction: discord.Interaction):
-    """Affiche l'aide du bot"""
+async def aide_slash(interaction: discord.Interaction):
+    """Commande slash d'aide"""
     embed = discord.Embed(
-        title="🤖 ReNamioos - Guide d'utilisation",
-        description="Bot de renommage avec polices stylisées",
-        color=discord.Color.gold()
+        title="📖 Aide - ReNamio",
+        description="Bot de renommage avec polices Unicode stylisées",
+        color=discord.Color.blue()
     )
     
     embed.add_field(
-        name="/ping",
-        value="Teste si le bot répond",
-        inline=False
-    )
-    embed.add_field(
-        name="/styles",
-        value="Affiche tous les styles disponibles",
-        inline=False
-    )
-    embed.add_field(
-        name="/convert <style> <texte>",
-        value="Convertit un texte dans le style choisi",
-        inline=False
-    )
-    embed.add_field(
-        name="/rename <@user> <style> [nom]",
-        value="Renomme un membre avec un style",
-        inline=False
-    )
-    embed.add_field(
-        name="/random <@user> [nom]",
-        value="Renomme avec un style aléatoire",
+        name="🎨 Commandes principales",
+        value=(
+            "`/styles` - Affiche tous les styles\n"
+            "`/convert <style> <texte>` - Convertit du texte\n"
+            "`/rename <membre> <style> [nom]` - Renomme un membre\n"
+            "`/random <membre> [nom]` - Style aléatoire\n"
+            "`/ping` - Teste la connexion"
+        ),
         inline=False
     )
     
-    embed.set_footer(text="Auto-rename activé pour certains rôles • Créé avec ❤️")
+    embed.add_field(
+        name="✨ Fonctionnalités",
+        value=(
+            "• 8 styles de polices Unicode\n"
+            "• Auto-rename avec rôles\n"
+            "• Conversion automatique chiffres → lettres\n"
+            "• Majuscule automatique en début\n"
+            "• Nettoyage des caractères spéciaux"
+        ),
+        inline=False
+    )
+    
+    embed.add_field(
+        name="🎭 Auto-rename",
+        value=(
+            f"Rôles configurés: {sum(rôle_config) for rôle_config in ROLE_CONFIG.values()}\n"
+            "Le pseudo change automatiquement avec le rôle !"
+        ),
+        inline=False
+    )
+    
+    embed.set_footer(text="Créé avec ❤️ par Baptiste")
     
     await interaction.response.send_message(embed=embed)
 
-# ==================== GESTION D'ERREURS ====================
-
-@renommer.error
-async def rename_error(ctx, error):
-    if isinstance(error, commands.MissingPermissions):
-        await ctx.send("❌ Vous n'avez pas la permission de gérer les pseudos !")
-    elif isinstance(error, commands.MemberNotFound):
-        await ctx.send("❌ Membre introuvable !")
-    elif isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send("❌ Syntaxe: `!rename <@user> <style> [nom]`")
-
-@bot.event
-async def on_command_error(ctx, error):
-    """Gestion globale des erreurs"""
-    if isinstance(error, commands.CommandNotFound):
-        return  # Ignorer les commandes inexistantes
-    elif isinstance(error, discord.Forbidden):
-        try:
-            await ctx.send("❌ Je n'ai pas les permissions nécessaires ! Vérifiez que j'ai les permissions suivantes :\n"
-                          "• Envoyer des messages\n"
-                          "• Intégrer des liens\n"
-                          "• Gérer les pseudos (pour la commande rename)")
-        except:
-            print(f"❌ Impossible d'envoyer un message dans {ctx.channel}. Permissions manquantes!")
-    elif isinstance(error, commands.CommandInvokeError):
-        original_error = error.original
-        if isinstance(original_error, discord.Forbidden):
-            try:
-                await ctx.send("❌ Je n'ai pas les permissions nécessaires pour effectuer cette action !")
-            except:
-                print(f"❌ Permissions manquantes dans {ctx.channel}")
-        else:
-            print(f"Erreur lors de l'exécution de la commande : {error}")
-    else:
-        print(f"Erreur non gérée : {error}")
-
-# ==================== LANCEMENT DU BOT ====================
+# ==================== LANCEMENT ====================
 
 def main():
     """Fonction principale pour lancer le bot"""
     if not TOKEN:
-        print("❌ Erreur : Token introuvable dans le fichier .env")
-        print("💡 Assurez-vous que votre fichier .env contient : TOKEN=votre_token_ici")
+        print("❌ TOKEN manquant dans le fichier .env")
         return
     
-    print("🚀 Démarrage du bot...")
     try:
         bot.run(TOKEN)
+    except discord.LoginFailure:
+        print("❌ Token Discord invalide")
     except Exception as e:
-        print(f"❌ Erreur lors du démarrage du bot : {e}")
+        print(f"❌ Erreur fatale: {e}")
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
