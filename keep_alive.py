@@ -31,10 +31,16 @@ def health():
 
 def run():
     """Lance le serveur Flask"""
-    app.run(host='0.0.0.0', port=8080, debug=False)
+    # Utilise le port fourni par Render (variable d'environnement PORT)
+    # Ou 8080 par défaut pour local
+    import os
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port, debug=False)
 
 def keep_alive():
     """Lance le serveur dans un thread séparé"""
-    print("🌐 Serveur keep-alive démarré sur le port 8080")
+    import os
+    port = int(os.environ.get('PORT', 8080))
+    print(f"🌐 Serveur keep-alive démarré sur le port {port}")
     t = Thread(target=run, daemon=True)
     t.start()

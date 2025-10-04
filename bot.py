@@ -1,3 +1,17 @@
+"""
+ReNamio - Bot Discord de renommage avec polices stylisées
+"""
+
+# Import du keep-alive en premier (pour hébergement gratuit)
+try:
+    from keep_alive import keep_alive
+    keep_alive()
+    print("✅ Keep-alive activé")
+except ImportError:
+    print("⚠️ Keep-alive non disponible (Flask non installé)")
+except Exception as e:
+    print(f"⚠️ Erreur keep-alive : {e}")
+
 import discord
 from discord import app_commands
 from discord.ext import commands
