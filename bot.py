@@ -169,7 +169,7 @@ async def liste_styles(ctx):
     )
     
     for style_name in STYLES.keys():
-        exemple = convertir_texte("ReNamio", style_name)
+        exemple = convertir_texte("ReNamioos", style_name)
         embed.add_field(name=style_name.capitalize(), value=exemple, inline=False)
     
     embed.set_footer(text="Utilisez /rename ou !rename pour renommer")
@@ -185,7 +185,7 @@ async def slash_styles(interaction: discord.Interaction):
     )
     
     for style_name in STYLES.keys():
-        exemple = convertir_texte("ReNamio", style_name)
+        exemple = convertir_texte("ReNamioos", style_name)
         embed.add_field(name=style_name.capitalize(), value=exemple, inline=False)
     
     embed.set_footer(text="Utilisez /rename pour renommer un membre")
@@ -401,7 +401,7 @@ async def slash_random(interaction: discord.Interaction, membre: discord.Member,
 async def aide(ctx):
     """Affiche l'aide du bot"""
     embed = discord.Embed(
-        title="🤖 ReNamio - Guide d'utilisation",
+        title="🤖 ReNamioos - Guide d'utilisation",
         description="Bot de renommage avec polices stylisées\n**Utilisez `/` pour les commandes slash !**",
         color=discord.Color.gold()
     )
@@ -440,7 +440,7 @@ async def aide(ctx):
 async def slash_aide(interaction: discord.Interaction):
     """Affiche l'aide du bot"""
     embed = discord.Embed(
-        title="🤖 ReNamio - Guide d'utilisation",
+        title="🤖 ReNamioos - Guide d'utilisation",
         description="Bot de renommage avec polices stylisées",
         color=discord.Color.gold()
     )

@@ -1,6 +1,6 @@
-# 🤖 ReNamio
+# 🤖 ReNamioos
 
-**ReNamio** est un bot Discord en Python qui transforme automatiquement les pseudos en versions stylisées grâce à l'Unicode.
+**ReNamioos** est un bot Discord en Python qui transforme automatiquement les pseudos en versions stylisées grâce à l'Unicode.
 
 ## ✨ Fonctionnalités
 
@@ -36,8 +36,8 @@
 
 ### 2. Cloner le projet
 ```bash
-git clone https://github.com/BaptisteLeDev/ReNamio.git
-cd ReNamio
+git clone https://github.com/BaptisteLeDev/ReNamioos.git
+cd ReNamioos
 ```
 
 ### 3. Installer les dépendances
@@ -50,7 +50,7 @@ pip install -r requirements.txt
 #### a) Créer une application Discord
 1. Allez sur [Discord Developer Portal](https://discord.com/developers/applications)
 2. Cliquez sur **"New Application"**
-3. Donnez un nom à votre application (ex: ReNamio)
+3. Donnez un nom à votre application (ex: ReNamioos)
 4. Allez dans l'onglet **"Bot"**
 
 #### b) Activer les Intents Privilégiés ⚠️
@@ -89,7 +89,7 @@ python DiscordReNameStyle.py
 
 Si tout fonctionne :
 ```
-✅ ReNamio#4970 est connecté !
+✅ ReNamioos#4970 est connecté !
 📊 Serveurs: 1
 🎨 Styles disponibles: 8
 🎭 Rôles avec auto-rename: 1
@@ -153,7 +153,7 @@ Membre perd le rôle
 
 ### Structure du projet
 ```
-ReNamio/
+ReNamioos/
 ├── DiscordReNameStyle.py  # Code principal
 ├── styles.json            # Définition des styles
 ├── role.json             # Configuration auto-rename
@@ -211,7 +211,7 @@ MIT License - Vous êtes libre d'utiliser, modifier et distribuer ce projet.
 ## 🤝 Contribution
 
 Les contributions sont bienvenues !
-- 🐛 Signaler des bugs via [Issues](https://github.com/BaptisteLeDev/ReNamio/issues)
+- 🐛 Signaler des bugs via [Issues](https://github.com/BaptisteLeDev/ReNamioos/issues)
 - 💡 Proposer des fonctionnalités
 - 🎨 Ajouter de nouveaux styles
 - 📖 Améliorer la documentation
@@ -220,8 +220,8 @@ Les contributions sont bienvenues !
 
 ## 📞 Support
 
-- 🌐 [GitHub Issues](https://github.com/BaptisteLeDev/ReNamio/issues)
-- 📧 [Créer une issue](https://github.com/BaptisteLeDev/ReNamio/issues/new)
+- 🌐 [GitHub Issues](https://github.com/BaptisteLeDev/ReNamioos/issues)
+- 📧 [Créer une issue](https://github.com/BaptisteLeDev/ReNamioos/issues/new)
 
 ---
 
