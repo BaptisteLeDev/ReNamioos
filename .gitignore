@@ -24,10 +24,11 @@ venv/
 ENV/
 env/
 
-# IDE
+# IDE / outillage agent
 .vscode/
 .idea/
 *.swp
+.serena/
 
 # OS
 .DS_Store

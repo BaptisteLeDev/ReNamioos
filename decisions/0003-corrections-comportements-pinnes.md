@@ -66,13 +66,28 @@ stylisés ne sont pas `[a-zA-Z0-9]`, donc `nettoyerPseudo` les considérait tous
 et rognait toute la chaîne (non-idempotence **destructrice**, bug n°1). Combiné à `member.edit(nick="")`,
 cela réinitialisait le pseudo au nom global — silencieusement.
 
-**Décision.** **Pas de dé-stylisation magique.** Si, après nettoyage, le texte à styliser est
-**vide** (cas typique : entrée intégralement composée de glyphes / symboles non-lettres-non-chiffres),
-le domaine renvoie une **erreur métier explicite** et **aucun rendu**. Le message :
-« ce texte est déjà stylisé » (ou équivalent). Aucun renommage n'est effectué côté commandes.
+**Décision.** **Pas de dé-stylisation magique.** Le refus propre se déclenche quand il n'y a
+**rien à styliser**. La **matière** du style est la **lettre ASCII `[A-Za-z]`** : c'est le seul
+caractère qu'une table de glyphes transforme (les chiffres sont d'abord convertis en lettres
+ASCII par l'étape [2], donc couverts). Si, après nettoyage + conversion des chiffres, le texte
+ne contient **aucune lettre ASCII**, le domaine renvoie une **erreur métier explicite** et
+**aucun rendu**. Ce cas couvre :
+- l'entrée vide `""` ;
+- une entrée ne contenant que des symboles (`!!!###`) ;
+- un texte **déjà stylisé** : ses glyphes sont des lettres Unicode (`\p{L}`) mais **pas** des
+  lettres ASCII → rien à styliser → refus. Message côté commandes : « ce texte est déjà stylisé ».
+
+**Interaction décision 2 ↔ décision 3 (important).** La décision 2 (accents/lettres préservés)
+**supprime le mécanisme destructeur** d'origine : sous l'ancien `nettoyerPseudo`, re-styliser
+vidait la chaîne (`""`) car les glyphes étaient rognés. Avec la décision 2, les glyphes (lettres
+Unicode) **survivent** au nettoyage ; la chaîne n'est donc **plus vide**. Détecter « déjà stylisé »
+par la **vacuité** ne suffit plus. On bascule sur le **critère robuste** « absence de lettre ASCII
+stylisable », qui capture les trois cas ci-dessus de façon cohérente, que la chaîne soit vide ou
+pleine de glyphes.
 
 **Décision de type (états invalides irreprésentables).** `convertirTexte` ne renvoie plus un
-`string` qui peut sournoisement valoir `""`, mais un **`Result`** discriminé :
+`string` qui peut sournoisement valoir `""` (ou un texte intact non stylisé), mais un **`Result`**
+discriminé :
 
 ```ts
 type ResultatStylisation =
@@ -80,10 +95,11 @@ type ResultatStylisation =
   | { ok: false; erreur: ErreurStylisation };
 ```
 
-`ErreurStylisation` est une union fermée (`'texte-vide-apres-nettoyage'`, `'style-inconnu'`).
-Le « texte vide en sortie » cesse d'être un état valide silencieux : il devient un cas `ok: false`
+`ErreurStylisation` est une union fermée : `'style-inconnu'`, `'rien-a-styliser'`. Le « texte
+sans matière stylisable » cesse d'être un état valide silencieux : il devient un cas `ok: false`
 que l'appelant **doit** traiter (le type l'y force). Les commandes traduisent chaque variante
-d'erreur en message Discord éphémère ; aucune ne peut écrire un `nick` vide par accident.
+d'erreur en message Discord éphémère ; aucune ne peut écrire un `nick` vide ni un pseudo non
+stylisé par accident.
 
 **Conséquence.** Le court-circuit « style inconnu » devient lui aussi un `ok: false`
 (`'style-inconnu'`) au lieu de renvoyer l'entrée brute — cohérent avec un type qui rend
@@ -122,11 +138,12 @@ Tous les chiffres deviennent des lettres et sont donc **stylisés** par la table
   Touchés : `test_conversions_chiffres_mapping_exact`, `test_aucun_style_ne_mappe_les_chiffres`
   (les chiffres deviennent des lettres → restent absents des tables, invariant conservé mais
   raison documentée), `test_nettoyer_pseudo_supprime_accents_en_bord` → devient
-  `…_conserve_accents_en_bord`, `test_convertir_chiffres_non_mappes_inchanges` → tous mappés,
-  `test_convertir_texte_accent_en_bord_supprime` → préservé, `test_convertir_texte_n_est_PAS_idempotent`
-  → refus propre (`ok: false`), `test_convertir_texte_style_inconnu_renvoie_entree_brute` →
-  `ok: false` `'style-inconnu'`, et le passage de toutes les assertions `convertirTexte(...)`
-  au déballage du `Result`.
+  `…_conserve_accents_en_bord`, `test_convertir_chiffres_non_mappes_inchanges` →
+  `…_tous_mappes`, `test_convertir_texte_accent_en_bord_supprime` → `…_accent_en_bord_preserve`,
+  `test_convertir_texte_n_est_PAS_idempotent` → `…_deja_stylise_refus_propre` (`ok: false`,
+  `'rien-a-styliser'`), `test_convertir_texte_style_inconnu_renvoie_entree_brute` →
+  `…_style_inconnu_erreur_metier` (`ok: false`, `'style-inconnu'`), et le passage de toutes les
+  assertions `convertirTexte(...)` au déballage du `Result` (helper `attenduOk`).
 - **`scriptify`.** L'aperçu de `/styles` est désormais dérivé du domaine (pas de littéral UI à
   maintenir) → aucun style chargé ne peut être absent de l'UI.
 - **Landing (`feat/website`).** La landing affiche **8** styles ; elle devra passer à **9** quand
@@ -143,7 +160,10 @@ Tous les chiffres deviennent des lettres et sont donc **stylisés** par la table
   « pas de dé-stylisation magique » (décision utilisateur). Coûteux (table inverse pour 9 styles),
   ambigu (collisions `cercles`/`carres` min=maj) et surprenant. Un refus propre est plus honnête.
 - **`convertirTexte` renvoie `string | null`.** Écarté : `null` ne porte pas la *raison* de
-  l'échec (style inconnu vs texte vidé) → l'appelant ne peut pas choisir le bon message. Le
+  l'échec (style inconnu vs rien à styliser) → l'appelant ne peut pas choisir le bon message. Le
   `Result` discriminé rend chaque cause explicite et le `switch` exhaustif vérifiable par le type.
+- **Détecter « déjà stylisé » par la vacuité après nettoyage.** Écarté : la décision 2 fait
+  survivre les glyphes (lettres Unicode) au nettoyage → la chaîne n'est plus vide. On détecte
+  donc par l'**absence de lettre ASCII stylisable**, robuste quelle que soit la composition.
 - **2/6/9 → autres lettres** (`6→b`, `9→p`…). Écarté : `Z`/`G`/`G` sont les correspondances
   leet les plus lisibles ; la collision `6=9=G` est sans conséquence pratique et documentée.
