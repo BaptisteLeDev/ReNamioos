@@ -1,0 +1,7 @@
+# Dépendances installées (réinstallables via bun/pnpm/npm install)
+node_modules/
+
+# Cache Astro (types générés, etc.)
+.astro/
+
+# NB : le build statique n'est PAS ici — il est écrit dans ../website (committé).
