@@ -39,6 +39,17 @@ export class BotClient extends Client implements StatsProvider {
   }
 
   private async handleInteraction(interaction: Interaction): Promise<void> {
+    if (interaction.isAutocomplete()) {
+      const cmd = this.commands.get(interaction.commandName);
+      if (cmd?.autocomplete) {
+        try {
+          await cmd.autocomplete(interaction);
+        } catch (err) {
+          console.error(`Erreur autocomplete /${interaction.commandName} :`, err);
+        }
+      }
+      return;
+    }
     if (!interaction.isChatInputCommand()) return;
     const command = this.commands.get(interaction.commandName);
     if (!command) {

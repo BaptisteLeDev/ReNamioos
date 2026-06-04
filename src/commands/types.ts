@@ -6,6 +6,7 @@
  * metier elles-memes.
  */
 import type {
+  AutocompleteInteraction,
   ChatInputCommandInteraction,
   SlashCommandBuilder,
   SlashCommandOptionsOnlyBuilder,
@@ -20,4 +21,6 @@ export type CommandData =
 export interface Command {
   data: CommandData;
   execute(interaction: ChatInputCommandInteraction): Promise<void>;
+  /** Optionnel : autocompletion d'une option (ex. choix du style avec apercu). */
+  autocomplete?(interaction: AutocompleteInteraction): Promise<void>;
 }
