@@ -18,7 +18,7 @@ const SUPPORT_URL = "https://github.com/BaptisteLeDev/ReNamioos/issues";
 
 const commands = [
   { name: "/ping",    glyph: "📡", desc: "Vérifie que ReNamioos répond — un battement de cœur instantané." },
-  { name: "/styles",  glyph: "🎨", desc: "Affiche les 8 styles disponibles, avec un aperçu de chacun." },
+  { name: "/styles",  glyph: "🎨", desc: "Affiche les styles disponibles, avec un aperçu de chacun." },
   { name: "/convert", glyph: "🔤", desc: "Convertit n'importe quel texte dans le style de votre choix." },
   { name: "/rename",  glyph: "✏️", desc: "Renomme un membre avec un style précis, ou un nom sur mesure." },
   { name: "/random",  glyph: "🎲", desc: "Laisse le hasard choisir un style et l'applique à un membre." },
@@ -63,12 +63,12 @@ const commands = [
       </Fragment>
 
       <Fragment slot="visual">
-        <div class="ren-showcase" role="img" aria-label="Aperçus de pseudos stylisés par ReNamioos">
+        <div class="ren-showcase">
           <BlobShape size="116px" float class="ren-showcase__mark"><span>𝓡</span></BlobShape>
           <ul class="ren-showcase__list">
             {HERO_SHOWCASE.map((s) => (
               <li class="ren-chip">
-                <span class="ren-chip__preview">{s.preview}</span>
+                <span class="ren-chip__preview" lang="und" translate="no" aria-hidden="true">{s.preview}</span>
                 <span class="ren-chip__meta">{s.label} · {s.style}</span>
               </li>
             ))}
@@ -306,7 +306,7 @@ const commands = [
     font-size: var(--fs-2xs);
     color: var(--accent-600);
     background: color-mix(in srgb, var(--accent-100) 60%, var(--c-paper-0));
-    padding: 2px var(--sp-2);
+    padding: var(--sp-1) var(--sp-2);
     border-radius: var(--r-xs);
     white-space: nowrap;
   }
@@ -361,8 +361,8 @@ const commands = [
   }
   .ren-steps__n {
     flex: none;
-    width: 26px;
-    height: 26px;
+    width: var(--sp-5);
+    height: var(--sp-5);
     display: grid;
     place-items: center;
     border-radius: var(--bot-blob);
