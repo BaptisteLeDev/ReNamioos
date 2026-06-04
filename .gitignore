@@ -1,5 +1,12 @@
 # Fichiers sensibles
 .env
+.env.*
+!.env.example
+
+# Node / Bun (reecriture TS)
+node_modules/
+*.tsbuildinfo
+.commitmsg.tmp
 
 # Cache Python
 __pycache__/
