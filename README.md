@@ -1,5 +1,28 @@
 # 🤖 ReNamioos
 
+> ## ⚠️ Réécriture en cours — Bun / TypeScript
+>
+> ReNamioos est en cours de **réécriture** de Python vers **Bun / TypeScript** (Discord.js 14),
+> bot pilote de la flotte (cf. [`decisions/0001`](decisions/0001-langage-cible-reecriture.md) et
+> [`decisions/0002`](decisions/0002-pattern-starter.md)). Pendant la transition, le **legacy Python
+> (`bot.py`) reste intact** jusqu'à la bascule (slice B7) ; le scaffold TS **coexiste** à la racine.
+>
+> - **Lancer la version TS** : `bun install` puis `bun run dev` (API Fastify + bot Discord).
+> - **Tests** : `bun test` · **Typecheck** : `bun run typecheck` · **Commandes** : `bun run deploy-commands`.
+> - **Config** : copier `.env.example` en `.env` (variables `DISCORD_TOKEN`, `DISCORD_APPLICATION_ID`,
+>   `PORT`, …).
+> - **Architecture cible** : voir [`ARCHITECTURE.md`](ARCHITECTURE.md) (DDD : domaine pur isolé,
+>   ACL ciblée Discord, API conforme au contrat monitoring `/health` + `/stats`).
+> - **Domaine de stylisation** : voir [`src/domain/README.md`](src/domain/README.md) (langage
+>   ubiquitaire, API cible, invariants pinnés) — implémenté en slice B3.
+>
+> La documentation Python ci-dessous décrit le **comportement legacy de référence** (cf. aussi
+> [`docs/caracterisation.md`](docs/caracterisation.md)).
+
+---
+
+## Version Python (legacy, référence jusqu'à B7)
+
 **ReNamioos** est un bot Discord en Python qui transforme automatiquement les pseudos en versions stylisées grâce à l'Unicode.
 
 ## ✨ Fonctionnalités
