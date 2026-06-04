@@ -7,48 +7,62 @@
 
 ## Statut
 
-**Implémenté en B3.** Le pipeline `convertirTexte` est porté à **parité stricte** avec le
-`bot.py` legacy, derrière le harnais de caractérisation porté en `bun:test`
-(`stylisation.test.ts`, 63 tests, mêmes littéraux Unicode que la version Python).
+**Implémenté en B3, corrigé en B5 (lot B4).** Le pipeline a d'abord été porté à **parité
+stricte** avec le `bot.py` legacy (B3), derrière le harnais de caractérisation porté en
+`bun:test` (`stylisation.test.ts`). Le lot **B4** (cf.
+[ADR-0003](../../decisions/0003-corrections-comportements-pinnes.md)) a ensuite **corrigé**
+4 des comportements pinnés ; chaque test du harnais touché porte un commentaire
+`ÉCART VOLONTAIRE (B4): …`, les autres restent à parité stricte.
 
 | Fichier | Rôle |
 |---|---|
 | `styles.ts` | **Provenance des données** : charge `data/styles.json` (tables de glyphes + `conversions`) et `data/roles.json`, expose `STYLE_NAMES`, `StyleName`, `STYLES`, `CONVERSIONS`, `ROLE_CONFIG`. Successeur versionné de `styles.json`/`role.json` (aucune DB). |
-| `stylisation.ts` | Pipeline **pur** : `nettoyerPseudo`, `convertirChiffres`, `mettreMajusculeDebut`, `convertirTexte`, `tronquerPseudo`. |
-| `stylisation.test.ts` | Harnais de caractérisation porté (parité stricte). |
-| `data/` | Config fichier versionnée (copie bit-pour-bit de `styles.json`/`role.json` racine, vérifiée par SHA256). |
+| `stylisation.ts` | Pipeline **pur** : `nettoyerPseudo`, `convertirChiffres`, `mettreMajusculeDebut`, `convertirTexte` (→ `ResultatStylisation`), `tronquerPseudo`. Types `ErreurStylisation` / `ResultatStylisation`. |
+| `stylisation.test.ts` | Harnais de caractérisation porté, avec les ÉCARTS VOLONTAIRES B4 marqués. |
+| `data/` | Config fichier versionnée. **Diverge volontairement** du legacy depuis B4 : `conversions` couvre désormais les 10 chiffres (2→Z, 6→G, 9→G). |
 
-**Décision B3 (actée) : les 7 bugs pinnés sont REPRODUITS tels quels**, pas corrigés —
-les corrections sont des décisions B4/B5 assumées. Preuve de parité croisée : 960 sorties
-(`out` + `trunc`) générées sur 96 entrées × 10 styles (9 + style inconnu), diffées contre
-`convertir_texte` du `bot.py` réel → **diff vide**.
+**Corrections B4 (ADR-0003)** — chacune un ÉCART VOLONTAIRE :
+1. `scriptify` officialisé → 9 styles publics (UI/doc).
+2. Accents **préservés partout** (`nettoyerPseudo` ne rogne plus que les non-lettres-non-chiffres
+   en bord ; les lettres Unicode survivent quelle que soit leur position).
+3. Re-styliser un texte déjà stylisé → **refus propre** : `convertirTexte` renvoie un
+   `ResultatStylisation` discriminé ; absence de lettre ASCII stylisable → `ok: false`
+   (`'rien-a-styliser'`), aucun rendu. Style inconnu → `ok: false` (`'style-inconnu'`).
+4. Mapping chiffres **complété** (10 chiffres).
 
 ## Langage ubiquitaire (source : `docs/caracterisation.md`)
 
 | Terme | Définition |
 |---|---|
 | **Style** | Police Unicode nommée (`cursive`, `gothique`, …) ⇒ table `ASCII → glyphe`. Source : `styles.json`. |
-| **Conversion (chiffres)** | Substitution leet `chiffre → lettre` (`4 → A`) appliquée avant le style. |
-| **Nettoyage** | Retrait des caractères non `[a-zA-Z0-9]` **aux extrémités** du pseudo. |
+| **Conversion (chiffres)** | Substitution leet `chiffre → lettre` (`4 → A`) appliquée avant le style. Depuis B4 : les **10** chiffres. |
+| **Nettoyage** | Retrait des caractères **non-lettre-non-chiffre** **aux extrémités** du pseudo (B4 : les lettres Unicode, accents compris, sont préservées). |
 | **Capitalisation** | Majuscule sur la **première lettre** rencontrée. |
-| **Texte stylisé** | Sortie de `convertir_texte` : nettoyé → chiffres convertis → capitalisé → mappé glyphe par glyphe. |
+| **Texte stylisé** | Sortie de `convertirTexte` (cas `ok`) : nettoyé → chiffres convertis → capitalisé → mappé glyphe par glyphe. |
+| **Refus propre** | Cas `ok: false` : style inconnu, ou aucune lettre ASCII à styliser (texte vide, symboles, ou déjà stylisé). Pas de rendu. |
 
-## API publique cible du domaine (à implémenter en B3)
-
-Fonction pure attendue (signature indicative, à figer par les tests portés) :
+## API publique du domaine
 
 ```ts
-convertirTexte(texte: string, style: StyleName): string;
+convertirTexte(texte: string, style: StyleName): ResultatStylisation;
+
+type ResultatStylisation =
+  | { ok: true; texte: string }
+  | { ok: false; erreur: ErreurStylisation };
+
+type ErreurStylisation = 'style-inconnu' | 'rien-a-styliser';
 ```
 
 Pipeline (cf. `docs/caracterisation.md`, § Pipeline de conversion) :
-`[0] court-circuit style inconnu → [1] nettoyer → [2] convertir chiffres → [3] capitaliser → [4] mapper le style`.
+`[0] style inconnu → erreur ; [1] nettoyer → [2] convertir chiffres → refus si rien à styliser ; [3] capitaliser → [4] mapper le style`.
 
-## Invariants pinnés à reproduire (décision explicite B3)
+## Comportements corrigés en B4 (ÉCARTS VOLONTAIRES)
 
-Les **bugs pinnés** du legacy (non-idempotence destructrice, accents perdus en bord, chiffres
-2/6/9 non convertis, `scriptify` fantôme dans l'UI) sont figés par le harnais. B3 décide
-**explicitement** de les reproduire ou de les corriger — jamais par accident.
+Les bugs pinnés du legacy ont été tranchés en B4 (cf.
+[ADR-0003](../../decisions/0003-corrections-comportements-pinnes.md)). **Corrigés** : accents
+préservés, non-idempotence destructrice → refus propre, chiffres 2/6/9 mappés, `scriptify`
+officialisé. **Non encore tranchés** (couche événements, B6) : auto-rename basé sur `after.name`,
+échec silencieux sur cardinalité égale, commandes préfixe `!` inexistantes.
 
 Point de vigilance JS/TS : la troncature à **32 code points** se fait via `[...str].slice(0, 32)`
 (les glyphes stylisés sont majoritairement hors BMP) — **pas** `str.slice(0, 32)`.

@@ -23,11 +23,23 @@ import {
   convertirTexte,
   mettreMajusculeDebut,
   nettoyerPseudo,
+  type ResultatStylisation,
   tronquerPseudo,
 } from './stylisation';
 
 /** Chaque style en ligne `it.each` (tuple a 1 element, table mutable). */
 const STYLE_ROWS: Array<[StyleName]> = STYLE_NAMES.map((s) => [s]);
+
+/**
+ * Deballe le cas succes d'un ResultatStylisation (ECART VOLONTAIRE B4 :
+ * convertirTexte renvoie un Result, ADR-0003 decision 3). Echoue explicitement
+ * si le domaine a renvoye une erreur metier.
+ */
+function attenduOk(r: ResultatStylisation): string {
+  expect(r.ok).toBe(true);
+  if (!r.ok) throw new Error(`attendu ok:true, recu erreur '${r.erreur}'`);
+  return r.texte;
+}
 
 // ===================================================================
 // 1. DONNEES CHARGEES (styles.json / role.json) — provenance pinnee
@@ -41,18 +53,22 @@ describe('donnees chargees', () => {
   });
 
   it('test_conversions_chiffres_mapping_exact', () => {
-    // PINNE : seuls 7 chiffres sont mappes ; 2, 6 et 9 sont absents.
+    // ÉCART VOLONTAIRE (B4): mapping COMPLETE aux 10 chiffres (ADR-0003, decision 4).
+    // 2->Z, 6->G, 9->G ajoutes ; collision 6=9=G assumee et documentee.
     expect(CONVERSIONS).toEqual({
       '0': 'O',
       '1': 'I',
+      '2': 'Z',
       '3': 'E',
       '4': 'A',
       '5': 'S',
+      '6': 'G',
       '7': 'T',
       '8': 'B',
+      '9': 'G',
     });
-    for (const absent of ['2', '6', '9']) {
-      expect(absent in CONVERSIONS).toBe(false);
+    for (const chiffre of '0123456789') {
+      expect(chiffre in CONVERSIONS).toBe(true);
     }
   });
 
@@ -73,8 +89,10 @@ describe('donnees chargees', () => {
   });
 
   it.each(STYLE_ROWS)('test_aucun_style_ne_mappe_les_chiffres [%s]', (style) => {
-    // PINNE : aucun style ne contient de glyphe pour 0-9. Les chiffres non
-    // convertis en lettres (2/6/9) traversent donc tels quels.
+    // PINNE (invariant conserve) : aucun style ne contient de glyphe pour 0-9.
+    // Depuis B4 (ADR-0003 decision 4) les 10 chiffres sont mappes vers des
+    // LETTRES par convertirChiffres AVANT le style, donc plus aucun chiffre nu
+    // n'atteint la table de style.
     const styleMap = STYLES[style];
     for (const d of '0123456789') {
       expect(d in styleMap).toBe(false);
@@ -109,16 +127,26 @@ describe('nettoyerPseudo', () => {
     expect(nettoyerPseudo(entree)).toBe(attendu);
   });
 
-  it('test_nettoyer_pseudo_supprime_accents_en_bord', () => {
-    // PINNE : [^a-zA-Z0-9] considere les lettres accentuees comme speciales.
-    // Un accent en DEBUT ou FIN de pseudo est donc SUPPRIME.
-    expect(nettoyerPseudo('éhello')).toBe('hello'); // 'éhello' -> 'hello'
-    expect(nettoyerPseudo('café')).toBe('caf'); // 'café' -> 'caf' (é final supprime)
+  it('test_nettoyer_pseudo_conserve_accents_en_bord', () => {
+    // ÉCART VOLONTAIRE (B4): accents PRESERVES partout (ADR-0003, decision 2).
+    // Le nettoyage ne rogne plus que les non-lettres-non-chiffres en bord ; une
+    // lettre Unicode (accentuee comprise) est conservee quelle que soit sa
+    // position. Avant B4 : 'éhello'->'hello', 'café'->'caf'.
+    expect(nettoyerPseudo('éhello')).toBe('éhello');
+    expect(nettoyerPseudo('café')).toBe('café');
   });
 
   it('test_nettoyer_pseudo_conserve_accents_internes', () => {
-    // PINNE : un accent ENTOURE d'ASCII (non en bord) est conserve.
+    // Un accent interne est conserve (deja le cas avant B4 ; desormais coherent
+    // avec les accents en bord).
     expect(nettoyerPseudo('naïve')).toBe('naïve'); // 'naïve' inchange
+  });
+
+  it('test_nettoyer_pseudo_rogne_les_symboles_en_bord_garde_les_lettres', () => {
+    // ÉCART VOLONTAIRE (B4): seuls les non-lettres-non-chiffres sont rognes en
+    // bord ; les lettres accentuees survivent au milieu des symboles rognes.
+    expect(nettoyerPseudo('***café***')).toBe('café');
+    expect(nettoyerPseudo('  élan  ')).toBe('élan');
   });
 
   it('test_nettoyer_pseudo_vide', () => {
@@ -136,9 +164,11 @@ describe('convertirChiffres', () => {
     expect(convertirChiffres('0134578')).toBe('OIEASTB');
   });
 
-  it('test_convertir_chiffres_non_mappes_inchanges', () => {
-    // PINNE : 2, 6 et 9 n'ont pas de mapping -> conserves.
-    expect(convertirChiffres('0123456789')).toBe('OI2EAS6TB9');
+  it('test_convertir_chiffres_tous_mappes', () => {
+    // ÉCART VOLONTAIRE (B4): les 10 chiffres sont mappes (ADR-0003, decision 4).
+    // Avant B4 : '0123456789' -> 'OI2EAS6TB9' (2/6/9 nus). Desormais 2->Z, 6->G,
+    // 9->G : plus aucun chiffre nu.
+    expect(convertirChiffres('0123456789')).toBe('OIZEASGTBG');
   });
 
   it('test_convertir_chiffres_sans_chiffre', () => {
@@ -180,72 +210,95 @@ describe('mettreMajusculeDebut', () => {
 describe('convertirTexte', () => {
   it('test_convertir_texte_alphabet_complet_cursive', () => {
     // Le pipeline met une majuscule sur la 1re lettre : 'a' devient 'A' avant style.
-    expect(convertirTexte('abc', 'cursive')).toBe('\u{1d4d0}\u{1d4eb}\u{1d4ec}'); // 𝓐𝓫𝓬
+    expect(attenduOk(convertirTexte('abc', 'cursive'))).toBe('\u{1d4d0}\u{1d4eb}\u{1d4ec}'); // 𝓐𝓫𝓬
   });
 
   it('test_convertir_texte_scriptify_present', () => {
-    // scriptify est bien fonctionnel meme s'il est absent de l'UI /aide.
-    expect(convertirTexte('abc', 'scriptify')).toBe('\u{1d49c}\u{1d4b7}\u{1d4b8}'); // 𝒜𝒷𝒸
+    // scriptify est un style public de plein droit (ADR-0003, decision 1).
+    expect(attenduOk(convertirTexte('abc', 'scriptify'))).toBe('\u{1d49c}\u{1d4b7}\u{1d4b8}'); // 𝒜𝒷𝒸
   });
 
   it.each(STYLE_ROWS)('test_convertir_texte_tous_styles_un_mot [%s]', (style) => {
     // Smoke : chaque style produit une sortie non vide et != entree pour un mot ASCII.
-    const out = convertirTexte('renamio', style);
+    const out = attenduOk(convertirTexte('renamio', style));
     expect(out).toBeTruthy();
     expect(out).not.toBe('renamio');
   });
 
   it('test_convertir_texte_chiffres_mappes_deviennent_lettres_stylisees', () => {
-    // PINNE : '12abc' -> '1'->'I', '2' non mappe, puis majuscule sur la 1re
-    // lettre (le 'I' issu de '1', deja majuscule), style applique. '2' n'a ni
-    // conversion ni glyphe de style -> reste un '2' nu.
-    expect(convertirTexte('12abc', 'cursive')).toBe(
-      '\u{1d4d8}' + '2' + '\u{1d4ea}\u{1d4eb}\u{1d4ec}', // 𝓘2𝓪𝓫𝓬
+    // ÉCART VOLONTAIRE (B4): '2' est desormais mappe (2->Z) (ADR-0003, decision 4).
+    // '12abc' -> '1'->'I', '2'->'Z', majuscule sur la 1re lettre (le 'I', deja
+    // majuscule), style applique a tout. Avant B4 : le '2' restait nu.
+    expect(attenduOk(convertirTexte('12abc', 'cursive'))).toBe(
+      '\u{1d4d8}\u{1d4e9}\u{1d4ea}\u{1d4eb}\u{1d4ec}', // 𝓘𝓩𝓪𝓫𝓬 (I Z a b c stylises)
     );
   });
 
-  it('test_convertir_texte_accent_en_bord_supprime', () => {
-    // PINNE : 'café' -> nettoyer retire le 'é' final -> 'caf' -> style.
-    expect(convertirTexte('café', 'cursive')).toBe('\u{1d4d2}\u{1d4ea}\u{1d4ef}'); // 𝓒𝓪𝓯
+  it('test_convertir_texte_accent_en_bord_preserve', () => {
+    // ÉCART VOLONTAIRE (B4): accents PRESERVES partout (ADR-0003, decision 2).
+    // 'café' -> nettoyer garde le 'é' final -> 'café' -> style (le 'é' traverse
+    // non stylise). Avant B4 : 'café' -> 'caf' -> 𝓒𝓪𝓯.
+    expect(attenduOk(convertirTexte('café', 'cursive'))).toBe(
+      '\u{1d4d2}\u{1d4ea}\u{1d4ef}' + 'é', // 𝓒𝓪𝓯é
+    );
+  });
+
+  it('test_convertir_texte_accent_initial_capitalise_et_preserve', () => {
+    // ÉCART VOLONTAIRE (B4): un accent en tete survit au nettoyage et devient la
+    // 1re lettre capitalisee ('é'->'É'), non stylisee (pas de glyphe). Avant B4 :
+    // 'éhello' -> 'hello' -> 𝓗𝓮𝓵𝓵𝓸.
+    expect(attenduOk(convertirTexte('éhello', 'cursive'))).toBe(
+      'É' + '\u{1d4f1}\u{1d4ee}\u{1d4f5}\u{1d4f5}\u{1d4f8}', // É𝓱𝓮𝓵𝓵𝓸
+    );
   });
 
   it('test_convertir_texte_accent_interne_traverse_le_style_inchange', () => {
-    // PINNE : un accent interne survit a nettoyer mais n'a pas de glyphe de
-    // style -> il traverse tel quel (style_map.get(char, char)).
-    expect(convertirTexte('aéb', 'cursive')).toBe('\u{1d4d0}' + 'é' + '\u{1d4eb}'); // 𝓐é𝓫
+    // Un accent interne survit a nettoyer mais n'a pas de glyphe de style -> il
+    // traverse tel quel (styleMap[char] ?? char). Inchange par B4.
+    expect(attenduOk(convertirTexte('aéb', 'cursive'))).toBe('\u{1d4d0}' + 'é' + '\u{1d4eb}'); // 𝓐é𝓫
   });
 
   it('test_convertir_texte_espace_interne_conserve', () => {
-    // PINNE : un espace interne n'est ni en bord (pas supprime par nettoyer)
-    // ni dans le style map -> conserve tel quel.
-    expect(convertirTexte('a b', 'cursive')).toBe('\u{1d4d0}' + ' ' + '\u{1d4eb}'); // '𝓐 𝓫'
+    // Un espace interne n'est ni en bord (pas supprime par nettoyer) ni dans le
+    // style map -> conserve tel quel.
+    expect(attenduOk(convertirTexte('a b', 'cursive'))).toBe('\u{1d4d0}' + ' ' + '\u{1d4eb}'); // '𝓐 𝓫'
   });
 
-  it('test_convertir_texte_style_inconnu_renvoie_entree_brute', () => {
-    // PINNE : style inconnu -> texte renvoye SANS aucun traitement (ni nettoyage,
-    // ni chiffres, ni majuscule). Court-circuit en tete de fonction.
-    expect(convertirTexte('hello', 'inexistant' as StyleName)).toBe('hello');
-    expect(convertirTexte('...HELLO!!!', 'inexistant' as StyleName)).toBe('...HELLO!!!');
+  it('test_convertir_texte_style_inconnu_erreur_metier', () => {
+    // ÉCART VOLONTAIRE (B4): style inconnu -> erreur metier 'style-inconnu'
+    // (ADR-0003, decision 3), plus de renvoi de l'entree brute.
+    const r = convertirTexte('hello', 'inexistant' as StyleName);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.erreur).toBe('style-inconnu');
   });
 
-  it('test_convertir_texte_vide', () => {
-    expect(convertirTexte('', 'cursive')).toBe('');
+  it('test_convertir_texte_vide_erreur_metier', () => {
+    // ÉCART VOLONTAIRE (B4): entree vide -> rien a styliser -> erreur metier
+    // 'rien-a-styliser' (ADR-0003, decision 3). Avant B4 : ''.
+    const r = convertirTexte('', 'cursive');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.erreur).toBe('rien-a-styliser');
   });
 
-  it('test_convertir_texte_que_des_caracteres_speciaux_donne_vide', () => {
-    // PINNE : nettoyer supprime tout -> chaine vide en sortie.
-    expect(convertirTexte('!!!###', 'cursive')).toBe('');
+  it('test_convertir_texte_que_des_caracteres_speciaux_erreur_metier', () => {
+    // ÉCART VOLONTAIRE (B4): nettoyer rogne tout -> aucune lettre ASCII -> erreur
+    // metier au lieu d'un string vide silencieux (ADR-0003, decision 3). Avant B4 : ''.
+    const r = convertirTexte('!!!###', 'cursive');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.erreur).toBe('rien-a-styliser');
   });
 
-  it('test_convertir_texte_n_est_PAS_idempotent', () => {
-    // PINNE (surprenant mais reel) : appliquer un style DEUX fois DETRUIT la
-    // chaine. Les glyphes stylises sont non-[a-zA-Z0-9] : au 2e passage
-    // nettoyerPseudo les considere tous comme speciaux et les retire (bords),
-    // et comme TOUTE la chaine est stylisee, il ne reste RIEN.
+  it('test_convertir_texte_deja_stylise_refus_propre', () => {
+    // ÉCART VOLONTAIRE (B4): re-styliser un texte deja stylise -> REFUS PROPRE
+    // (ADR-0003, decision 3). Les glyphes stylises sont des lettres Unicode mais
+    // PAS des lettres ASCII [A-Za-z] (la seule matiere du style) : il n'y a donc
+    // RIEN a styliser -> erreur metier 'rien-a-styliser', AUCUN rendu. Plus de
+    // destruction silencieuse, pas de de-stylisation magique. Avant B4 : ''.
     const uneFois = convertirTexte('hello', 'cursive');
-    const deuxFois = convertirTexte(uneFois, 'cursive');
-    expect(uneFois).toBe('\u{1d4d7}\u{1d4ee}\u{1d4f5}\u{1d4f5}\u{1d4f8}'); // 𝓗𝓮𝓵𝓵𝓸
-    expect(deuxFois).toBe(''); // destruction totale
+    expect(attenduOk(uneFois)).toBe('\u{1d4d7}\u{1d4ee}\u{1d4f5}\u{1d4f5}\u{1d4f8}'); // 𝓗𝓮𝓵𝓵𝓸
+    const deuxFois = convertirTexte(attenduOk(uneFois), 'cursive');
+    expect(deuxFois.ok).toBe(false);
+    if (!deuxFois.ok) expect(deuxFois.erreur).toBe('rien-a-styliser');
   });
 });
 
@@ -266,7 +319,7 @@ describe('troncature', () => {
     // hors BMP (ex cursive, 1 code point >0xFFFF) compte pour 1. La troncature
     // a 32 garde donc 32 code points.
     const source = 'a'.repeat(40); // 40 lettres -> 40 glyphes
-    const styleOut = convertirTexte(source, 'cursive');
+    const styleOut = attenduOk(convertirTexte(source, 'cursive'));
     // 1re lettre en majuscule (A) ; le reste en minuscule. 40 glyphes au total.
     expect([...styleOut].length).toBe(40);
     const tronque = tronquerPseudo(styleOut);
@@ -274,7 +327,7 @@ describe('troncature', () => {
   });
 
   it('test_troncature_ne_touche_pas_les_pseudos_courts', () => {
-    const out = convertirTexte('renamio', 'cursive');
+    const out = attenduOk(convertirTexte('renamio', 'cursive'));
     expect([...out].length).toBeLessThanOrEqual(32);
     expect(tronquerPseudo(out)).toBe(out);
   });

@@ -39,7 +39,10 @@ const { conversions, ...stylesRaw } = stylesData as {
   conversions: Record<string, string>;
 } & Record<string, StyleMap>;
 
-/** Mapping chiffre -> lettre MAJUSCULE (leet). PINNE : 2/6/9 absents. */
+/**
+ * Mapping chiffre -> lettre MAJUSCULE (leet). ECART VOLONTAIRE B4 (ADR-0003,
+ * decision 4) : les 10 chiffres sont mappes (2->Z, 6->G, 9->G ajoutes).
+ */
 export const CONVERSIONS: Record<string, string> = conversions;
 
 /** Tables de glyphes des 9 styles, indexees par nom de style. */
