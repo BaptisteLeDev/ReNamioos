@@ -5,7 +5,10 @@
   "private": true,
   "description": "Landing page ReNamioos — Astro, consomme @bdf/design. Build statique sorti dans ../website.",
   "scripts": {
+    "gen": "node scripts/gen-styles.mjs",
+    "predev": "node scripts/gen-styles.mjs",
     "dev": "astro dev",
+    "prebuild": "node scripts/gen-styles.mjs",
     "build": "astro build",
     "preview": "astro preview"
   },
