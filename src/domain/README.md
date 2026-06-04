@@ -7,9 +7,21 @@
 
 ## Statut
 
-**Vide à l'issue de B2** (scaffold). L'implémentation est la tâche de **B3** : porter le
-pipeline `convertir_texte` derrière le harnais de caractérisation
-(`worktrees/renamioos-characterization/tests/test_characterization.py`).
+**Implémenté en B3.** Le pipeline `convertirTexte` est porté à **parité stricte** avec le
+`bot.py` legacy, derrière le harnais de caractérisation porté en `bun:test`
+(`stylisation.test.ts`, 63 tests, mêmes littéraux Unicode que la version Python).
+
+| Fichier | Rôle |
+|---|---|
+| `styles.ts` | **Provenance des données** : charge `data/styles.json` (tables de glyphes + `conversions`) et `data/roles.json`, expose `STYLE_NAMES`, `StyleName`, `STYLES`, `CONVERSIONS`, `ROLE_CONFIG`. Successeur versionné de `styles.json`/`role.json` (aucune DB). |
+| `stylisation.ts` | Pipeline **pur** : `nettoyerPseudo`, `convertirChiffres`, `mettreMajusculeDebut`, `convertirTexte`, `tronquerPseudo`. |
+| `stylisation.test.ts` | Harnais de caractérisation porté (parité stricte). |
+| `data/` | Config fichier versionnée (copie bit-pour-bit de `styles.json`/`role.json` racine, vérifiée par SHA256). |
+
+**Décision B3 (actée) : les 7 bugs pinnés sont REPRODUITS tels quels**, pas corrigés —
+les corrections sont des décisions B4/B5 assumées. Preuve de parité croisée : 960 sorties
+(`out` + `trunc`) générées sur 96 entrées × 10 styles (9 + style inconnu), diffées contre
+`convertir_texte` du `bot.py` réel → **diff vide**.
 
 ## Langage ubiquitaire (source : `docs/caracterisation.md`)
 
