@@ -5,13 +5,17 @@
  * (cf. decisions/0002-pattern-starter.md, decision 3).
  *
  * PUR : aucune dependance a Discord.js / Fastify / I/O reseau. Les tables de
- * glyphes (`STYLES`), le mapping chiffres->lettres (`CONVERSIONS`) et le mapping
- * roles->styles (`ROLE_CONFIG`) proviennent de `data/styles.json` et
- * `data/roles.json`, importes au build. C'est la table AUTORITAIRE : le pipeline
- * (`stylisation.ts`) ne connait que ces structures, jamais les fichiers bruts.
+ * glyphes (`STYLES`) et le mapping chiffres->lettres (`CONVERSIONS`) proviennent
+ * de `data/styles.json`, importe au build. C'est la table AUTORITAIRE : le
+ * pipeline (`stylisation.ts`) ne connait que ces structures, jamais les fichiers
+ * bruts.
+ *
+ * Le mapping roles->styles de l'auto-rename N'EST PLUS ici : depuis B6 (ADR-0004)
+ * il vit dans la config FICHIER `auto-rename.json` (roleId -> styleName), chargee
+ * par src/config/auto-rename-config.ts. Source de verite UNIQUE (l'ancien
+ * `ROLE_CONFIG` / `data/roles.json`, copie du legacy `role.json`, a ete retire).
  */
 import stylesData from './data/styles.json';
-import rolesData from './data/roles.json';
 
 /** Les 9 styles charges (scriptify inclus), dans l'ordre de `styles.json`. */
 export const STYLE_NAMES = [
@@ -47,6 +51,3 @@ export const CONVERSIONS: Record<string, string> = conversions;
 
 /** Tables de glyphes des 9 styles, indexees par nom de style. */
 export const STYLES: Record<StyleName, StyleMap> = stylesRaw as Record<StyleName, StyleMap>;
-
-/** Mapping role->style pour l'auto-rename (successeur de role.json). */
-export const ROLE_CONFIG: Record<string, string[]> = rolesData as Record<string, string[]>;

@@ -13,7 +13,6 @@
 import { describe, expect, it } from 'bun:test';
 import {
   CONVERSIONS,
-  ROLE_CONFIG,
   STYLE_NAMES,
   STYLES,
   type StyleName,
@@ -42,7 +41,12 @@ function attenduOk(r: ResultatStylisation): string {
 }
 
 // ===================================================================
-// 1. DONNEES CHARGEES (styles.json / role.json) — provenance pinnee
+// 1. DONNEES CHARGEES (styles.json) — provenance pinnee
+//
+// Le pin du mapping role->style legacy (`role.json` / `ROLE_CONFIG`) a ete
+// RETIRE en B6 (ADR-0004) : la source de verite de l'auto-rename est desormais
+// la config `auto-rename.json` (roleId -> styleName), testee dans
+// src/config/auto-rename-config.test.ts et src/domain/auto-rename.test.ts.
 // ===================================================================
 
 describe('donnees chargees', () => {
@@ -70,12 +74,6 @@ describe('donnees chargees', () => {
     for (const chiffre of '0123456789') {
       expect(chiffre in CONVERSIONS).toBe(true);
     }
-  });
-
-  it('test_role_config_pinne', () => {
-    // PINNE : un seul style cable a des roles (scriptify), 9 roles.
-    expect(Object.keys(ROLE_CONFIG)).toEqual(['scriptify']);
-    expect(ROLE_CONFIG['scriptify']?.length).toBe(9);
   });
 
   it.each(STYLE_ROWS)('test_chaque_style_couvre_les_52_lettres_ascii [%s]', (style) => {
