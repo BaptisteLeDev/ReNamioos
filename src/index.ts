@@ -9,6 +9,7 @@
  * (le contrat exige une preuve de vie independante de l'etat de connexion Discord).
  */
 import { loadConfig } from './config';
+import { chargerConfigAutoRename } from './config/auto-rename-config';
 import { createApiServer } from './api/server';
 import { BotClient } from './client';
 
@@ -16,7 +17,12 @@ async function bootstrap(): Promise<void> {
   const config = loadConfig();
   console.log(`Demarrage de ReNamioos (env: ${config.env})`);
 
-  const bot = new BotClient();
+  // Config auto-rename (B6, ADR-0004) chargee et validee AU BOOT : un style
+  // inconnu fait echouer le demarrage (aucun auto-rename a moitie casse en prod).
+  const autoRenameMapping = chargerConfigAutoRename(config.autoRenameConfigPath);
+  console.log(`Auto-rename : ${Object.keys(autoRenameMapping).length} role(s) mappe(s)`);
+
+  const bot = new BotClient(autoRenameMapping);
 
   // 1. API d'abord.
   const api = await createApiServer({

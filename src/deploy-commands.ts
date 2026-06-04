@@ -8,11 +8,13 @@
  */
 import { REST, Routes } from 'discord.js';
 import { loadConfig } from './config';
-import { commands } from './commands/index';
+import { creerCommandes } from './commands/index';
 
 async function deploy(): Promise<void> {
   const config = loadConfig();
-  const body = commands.map((c) => c.data.toJSON());
+  // Le mapping auto-rename n'influe pas sur le SCHEMA des slash (il n'alimente que
+  // le texte d'aide) -> mapping vide ici, suffisant pour le deploiement.
+  const body = creerCommandes({}).map((c) => c.data.toJSON());
   const rest = new REST({ version: '10' }).setToken(config.discord.token);
 
   if (config.discord.guildId) {

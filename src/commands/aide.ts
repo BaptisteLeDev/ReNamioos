@@ -4,16 +4,24 @@
  * Successeur de aide_slash (bot.py:399). ÉCART VOLONTAIRE (B4, ADR-0003
  * decision 1) : annonce le nombre REEL de styles (9), DERIVE de STYLE_NAMES —
  * le legacy ecrivait « 8 styles » en dur (et omettait scriptify).
+ *
+ * Le compte « Rôles configurés » est DERIVE de la config auto-rename B6
+ * (mapping roleId -> styleName, ADR-0004), injectee a la composition. Source de
+ * verite UNIQUE : plus de double source role->style (l'ancien ROLE_CONFIG
+ * legacy a ete retire). Une commande = une fermeture sur sa config.
  */
 import { EmbedBuilder, SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
-import { ROLE_CONFIG, STYLE_NAMES } from '../domain/styles';
+import { STYLE_NAMES } from '../domain/styles';
+import type { MappingRoleStyle } from '../domain/auto-rename';
 import type { Command } from './types';
 
-export const aideCommand: Command = {
+/** Fabrique /aide : le compte de roles mappes vient de la config auto-rename (B6). */
+export function creerAideCommand(autoRenameMapping: MappingRoleStyle): Command {
+  return {
   data: new SlashCommandBuilder().setName('aide').setDescription('Affiche l’aide du bot.'),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    const totalRoles = Object.values(ROLE_CONFIG).reduce((acc, roles) => acc + roles.length, 0);
+    const totalRoles = Object.keys(autoRenameMapping).length;
 
     const embed = new EmbedBuilder()
       .setTitle('📖 Aide - ReNamioos')
@@ -52,4 +60,5 @@ export const aideCommand: Command = {
 
     await interaction.reply({ embeds: [embed] });
   },
-};
+  };
+}
