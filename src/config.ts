@@ -17,6 +17,10 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(8199),
   HOST: z.string().default('0.0.0.0'),
 
+  // Auto-rename (B6, ADR-0004) : chemin du mapping roleId -> styleName, charge et
+  // valide au boot. Defaut = config versionnee a la racine du repo.
+  AUTO_RENAME_CONFIG_PATH: z.string().default('auto-rename.json'),
+
   // Environnement
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 });
@@ -42,6 +46,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       applicationId: e.DISCORD_APPLICATION_ID,
       guildId: e.DISCORD_GUILD_ID,
     },
+    autoRenameConfigPath: e.AUTO_RENAME_CONFIG_PATH,
     api: { port: e.PORT, host: e.HOST },
     env: e.NODE_ENV,
     isDevelopment: e.NODE_ENV === 'development',
@@ -56,6 +61,7 @@ export interface Config {
     applicationId: string;
     guildId: string | undefined;
   };
+  autoRenameConfigPath: string;
   api: { port: number; host: string };
   env: Env['NODE_ENV'];
   isDevelopment: boolean;
