@@ -1,28 +1,31 @@
 /**
  * Registre des commandes slash. Toute nouvelle commande s'ajoute ici.
  *
- * Fabrique : la plupart des commandes sont des objets statiques, mais /aide
- * derive son compte « Rôles configurés » de la config auto-rename (B6, ADR-0004),
- * injectee a la composition (src/client.ts). On expose donc une fabrique qui
- * recoit le mapping ; le deploiement des slash (deploy-commands.ts) peut passer
- * un mapping vide (le compte n'apparait pas dans le schema des commandes).
+ * Fabrique : la plupart des commandes sont des objets statiques, mais /aide et
+ * /auto-rename dependent de la PROVENANCE de la config auto-rename. Depuis B8
+ * (ADR-0005) celle-ci est le port MappingStore (Neon par serveur, ou fichier en
+ * dev), injecte a la composition (src/client.ts). On expose donc une fabrique qui
+ * recoit le store ; le deploiement des slash (deploy-commands.ts) passe un store
+ * fichier vide (suffisant pour produire le SCHEMA des commandes).
  */
 import { creerAideCommand } from './aide';
+import { creerAutoRenameCommand } from './auto-rename';
 import { convertCommand } from './convert';
 import { pingCommand } from './ping';
 import { randomCommand } from './random';
 import { renameCommand } from './rename';
 import { stylesCommand } from './styles';
 import type { Command } from './types';
-import type { MappingRoleStyle } from '../domain/auto-rename';
+import type { MappingStore } from '../mapping/store';
 
-export function creerCommandes(autoRenameMapping: MappingRoleStyle): Command[] {
+export function creerCommandes(mappingStore: MappingStore): Command[] {
   return [
     pingCommand,
     stylesCommand,
     convertCommand,
     renameCommand,
     randomCommand,
-    creerAideCommand(autoRenameMapping),
+    creerAutoRenameCommand(mappingStore),
+    creerAideCommand(mappingStore),
   ];
 }

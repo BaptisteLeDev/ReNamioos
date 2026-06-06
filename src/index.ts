@@ -12,17 +12,28 @@ import { loadConfig } from './config';
 import { chargerConfigAutoRename } from './config/auto-rename-config';
 import { createApiServer } from './api/server';
 import { BotClient } from './client';
+import { creerMappingStore } from './mapping/index';
+import { closeDb } from './db/client';
 
 async function bootstrap(): Promise<void> {
   const config = loadConfig();
   console.log(`Demarrage de ReNamioos (env: ${config.env})`);
 
-  // Config auto-rename (B6, ADR-0004) chargee et validee AU BOOT : un style
-  // inconnu fait echouer le demarrage (aucun auto-rename a moitie casse en prod).
-  const autoRenameMapping = chargerConfigAutoRename(config.autoRenameConfigPath);
-  console.log(`Auto-rename : ${Object.keys(autoRenameMapping).length} role(s) mappe(s)`);
+  // Provenance de la config auto-rename (B8, ADR-0005). Le FICHIER auto-rename.json
+  // est toujours charge+valide au boot (echec fort si un style est inconnu) : il sert
+  // de fallback lecture en mode Neon, et de source unique en mode dev (sans DATABASE_URL).
+  const mappingFichier = chargerConfigAutoRename(config.autoRenameConfigPath);
+  const mappingStore = creerMappingStore({
+    databaseUrl: config.database.url,
+    mappingFichier,
+  });
+  console.log(
+    config.database.url
+      ? `Auto-rename : mode Neon (par serveur), fallback fichier ${Object.keys(mappingFichier).length} role(s)`
+      : `Auto-rename : mode fichier (dev), ${Object.keys(mappingFichier).length} role(s) mappe(s)`,
+  );
 
-  const bot = new BotClient(autoRenameMapping);
+  const bot = new BotClient(mappingStore);
 
   // 1. API d'abord.
   const api = await createApiServer({
@@ -42,6 +53,7 @@ async function bootstrap(): Promise<void> {
   setupGracefulShutdown(async () => {
     await bot.destroy();
     await api.close();
+    await closeDb(); // ferme le pool Postgres (no-op en mode fichier).
   });
 }
 

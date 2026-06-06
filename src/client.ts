@@ -19,7 +19,8 @@ import type { Command } from './commands/types';
 import { creerCommandes } from './commands/index';
 import type { BotStats, StatsProvider } from './api/stats-provider';
 import { creerGestionnaireMembreMisAJour } from './events/guild-member-update';
-import type { MappingRoleStyle } from './domain/auto-rename';
+import type { MappingStore } from './mapping/store';
+import { creerFileMappingStore } from './mapping/file-store';
 import packageJson from '../package.json' with { type: 'json' };
 
 export class BotClient extends Client implements StatsProvider {
@@ -27,23 +28,23 @@ export class BotClient extends Client implements StatsProvider {
   private commandsToday = 0;
 
   /**
-   * @param autoRenameMapping mapping roleId -> styleName (B6, ADR-0004), deja
-   *   valide par le chargeur de config (defaut : {} = auto-rename inactif).
-   *   Branche l'auto-rename sur guildMemberUpdate ET alimente le compte affiche
-   *   par /aide (source unique). L'intent GuildMembers (PRIVILEGIE) est requis
-   *   pour recevoir cet evenement — a activer dans le Dev Portal Discord.
+   * @param mappingStore provenance UNIQUE de la config auto-rename (B8, ADR-0005) :
+   *   Neon par serveur, ou fichier en dev. Defaut : store fichier vide (auto-rename
+   *   inactif). Branche l'auto-rename sur guildMemberUpdate, alimente le compte de
+   *   /aide ET sert la commande /auto-rename (source unique). L'intent GuildMembers
+   *   (PRIVILEGIE) est requis pour recevoir l'evenement — a activer dans le Dev Portal.
    */
-  constructor(autoRenameMapping: MappingRoleStyle = {}) {
+  constructor(mappingStore: MappingStore = creerFileMappingStore({})) {
     // GuildMembers est un intent PRIVILEGIE (a activer dans le Dev Portal) : sans
     // lui, guildMemberUpdate n'arrive jamais. On le demande car l'auto-rename en
     // depend ; les autres intents restent minimaux (cf. ARCHITECTURE.md).
     super({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
-    for (const cmd of creerCommandes(autoRenameMapping)) {
+    for (const cmd of creerCommandes(mappingStore)) {
       this.commands.set(cmd.data.name, cmd);
     }
-    // Auto-rename (B6, ADR-0004) : abonnement a guildMemberUpdate. L'evenement
+    // Auto-rename (B8, ADR-0005) : abonnement a guildMemberUpdate. L'evenement
     // n'arrive que si l'intent privilegie GuildMembers est active (Dev Portal).
-    const onMembreMisAJour = creerGestionnaireMembreMisAJour({ mapping: autoRenameMapping });
+    const onMembreMisAJour = creerGestionnaireMembreMisAJour({ store: mappingStore });
     this.on(Events.GuildMemberUpdate, (oldMember, newMember) => {
       void onMembreMisAJour(oldMember, newMember);
     });

@@ -9,12 +9,14 @@
 import { REST, Routes } from 'discord.js';
 import { loadConfig } from './config';
 import { creerCommandes } from './commands/index';
+import { creerFileMappingStore } from './mapping/file-store';
 
 async function deploy(): Promise<void> {
   const config = loadConfig();
-  // Le mapping auto-rename n'influe pas sur le SCHEMA des slash (il n'alimente que
-  // le texte d'aide) -> mapping vide ici, suffisant pour le deploiement.
-  const body = creerCommandes({}).map((c) => c.data.toJSON());
+  // Le store auto-rename n'influe pas sur le SCHEMA des slash (il n'alimente que le
+  // texte d'aide et l'execution de /auto-rename) -> store fichier vide ici, suffisant
+  // pour produire le schema a deployer (aucune connexion Neon necessaire).
+  const body = creerCommandes(creerFileMappingStore({})).map((c) => c.data.toJSON());
   const rest = new REST({ version: '10' }).setToken(config.discord.token);
 
   if (config.discord.guildId) {

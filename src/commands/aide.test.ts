@@ -10,12 +10,24 @@
 import { describe, expect, it } from 'bun:test';
 import { STYLE_NAMES } from '../domain/styles';
 import type { MappingRoleStyle } from '../domain/auto-rename';
+import type { MappingStore } from '../mapping/store';
 import { creerAideCommand } from './aide';
 
-function fakeInteraction() {
+/** Store fake lecture seule : meme mapping pour la guild de test (B8). */
+function fakeStore(mapping: MappingRoleStyle): MappingStore {
+  return {
+    styleForRole: (_g, r) => Promise.resolve(mapping[r] ?? null),
+    add: () => Promise.reject(new Error('lecture seule (test)')),
+    remove: () => Promise.reject(new Error('lecture seule (test)')),
+    list: () => Promise.resolve({ ...mapping }),
+  };
+}
+
+function fakeInteraction(guildId: string | null = 'guild-1') {
   const captured: { embeds: { data: { fields?: { value: string }[] } }[] } = { embeds: [] };
   return {
     interaction: {
+      guildId,
       reply: (payload: { embeds?: never[] }) => {
         captured.embeds = (payload.embeds ?? []) as never;
         return Promise.resolve();
@@ -25,7 +37,7 @@ function fakeInteraction() {
   };
 }
 
-const SANS_ROLES: MappingRoleStyle = {};
+const SANS_ROLES: MappingStore = fakeStore({});
 
 describe('commande /aide', () => {
   it('se nomme "aide" et a une description', () => {
@@ -51,11 +63,19 @@ describe('commande /aide', () => {
     }
   });
 
-  it('derive « Rôles configurés » de la config auto-rename injectee (B6, source unique)', async () => {
-    const { interaction, captured } = fakeInteraction();
-    const mapping: MappingRoleStyle = { '111': 'scriptify', '222': 'cursive' };
-    await creerAideCommand(mapping).execute(interaction);
+  it('derive « Rôles configurés » du store auto-rename PAR GUILD (B8, source unique)', async () => {
+    const { interaction, captured } = fakeInteraction('guild-1');
+    const store = fakeStore({ '111': 'scriptify', '222': 'cursive' });
+    await creerAideCommand(store).execute(interaction);
     const texte = (captured.embeds[0]?.data.fields ?? []).map((f) => f.value).join('\n');
     expect(texte).toContain('Rôles configurés : 2');
+  });
+
+  it('hors serveur (DM, guildId null) -> « Rôles configurés : 0 » sans lire le store', async () => {
+    const { interaction, captured } = fakeInteraction(null);
+    const store = fakeStore({ '111': 'scriptify' });
+    await creerAideCommand(store).execute(interaction);
+    const texte = (captured.embeds[0]?.data.fields ?? []).map((f) => f.value).join('\n');
+    expect(texte).toContain('Rôles configurés : 0');
   });
 });

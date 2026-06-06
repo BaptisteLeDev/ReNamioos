@@ -14,12 +14,26 @@
  */
 import { describe, expect, it } from 'bun:test';
 import type { MappingRoleStyle } from '../domain/auto-rename';
+import type { MappingStore } from '../mapping/store';
 import { creerGestionnaireMembreMisAJour } from './guild-member-update';
 
 const MAPPING: MappingRoleStyle = {
   role_cursive: 'cursive',
   role_scriptify: 'scriptify',
 };
+
+/**
+ * Store FAKE en lecture seule : meme mapping pour toute guild (B8). L'adapter lit la
+ * provenance via store.list(guildId) ; le domaine pur reste inchange (ADR-0004).
+ */
+function fakeStore(mapping: MappingRoleStyle): MappingStore {
+  return {
+    styleForRole: (_g, r) => Promise.resolve(mapping[r] ?? null),
+    add: () => Promise.reject(new Error('lecture seule (test)')),
+    remove: () => Promise.reject(new Error('lecture seule (test)')),
+    list: () => Promise.resolve({ ...mapping }),
+  };
+}
 
 interface MembreFake {
   nickname?: string | null;
@@ -61,7 +75,7 @@ function setup(old: MembreFake, neuf: MembreFake) {
     },
   };
   const gestionnaire = creerGestionnaireMembreMisAJour({
-    mapping: MAPPING,
+    store: fakeStore(MAPPING),
     log: {
       warn: (message, contexte) => capture.warns.push({ message, contexte }),
     },
@@ -155,7 +169,7 @@ describe('adapter guildMemberUpdate — auto-rename', () => {
   it('mapping vide -> jamais d auto-rename', async () => {
     const capture: Capture = { editCalled: false, editedNick: undefined, warns: [] };
     const gestionnaire = creerGestionnaireMembreMisAJour({
-      mapping: {},
+      store: fakeStore({}),
       log: { warn: (message, contexte) => capture.warns.push({ message, contexte }) },
     });
     const oldMember = fakeMember({ roleIds: ['x'] });

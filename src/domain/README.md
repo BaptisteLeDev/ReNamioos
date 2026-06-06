@@ -20,7 +20,7 @@ stricte** avec le `bot.py` legacy (B3), derrière le harnais de caractérisation
 | `stylisation.ts` | Pipeline **pur** : `nettoyerPseudo`, `convertirChiffres`, `mettreMajusculeDebut`, `convertirTexte` (→ `ResultatStylisation`), `tronquerPseudo`. Types `ErreurStylisation` / `ResultatStylisation`. |
 | `auto-rename.ts` | **Logique pure de l'auto-rename (B6)** : `rolesAjoutes` (diff d'ensembles), `styleDeclenche` (quel style appliquer suite à un changement de rôles, priorité = ordre du mapping), type `MappingRoleStyle`. Aucun import discord.js. Voir [ADR-0004](../../decisions/0004-auto-rename.md). |
 | `stylisation.test.ts` / `auto-rename.test.ts` | Harnais de caractérisation porté (ÉCARTS B4 marqués) ; suite d'acceptation du domaine auto-rename (ÉCARTS B6 marqués). |
-| `data/` | Config fichier versionnée (`styles.json`). **Diverge volontairement** du legacy depuis B4 : `conversions` couvre les 10 chiffres (2→Z, 6→G, 9→G). Le mapping rôles→styles n'est plus ici : il vit dans `auto-rename.json` à la racine (chargé par `src/config/auto-rename-config.ts`, B6). |
+| `data/` | Config fichier versionnée (`styles.json`). **Diverge volontairement** du legacy depuis B4 : `conversions` couvre les 10 chiffres (2→Z, 6→G, 9→G). Le mapping rôles→styles n'est plus ici : sa provenance est le port `MappingStore` (`src/mapping/`, Neon ou fichier ; B8, ADR-0005). |
 
 **Corrections B4 (ADR-0003)** — chacune un ÉCART VOLONTAIRE :
 1. `scriptify` officialisé → 9 styles publics (UI/doc).
@@ -72,6 +72,11 @@ Point de vigilance JS/TS : la troncature à **32 code points** se fait via `[...
 
 ## Provenance des données
 
-Le mapping rôles→styles et les tables de glyphes sont une **config fichier versionnée**
-(successeurs de `role.json` / `styles.json`), chargée et validée au démarrage — **aucune DB**
-(cf. [ADR-0002](../../decisions/0002-pattern-starter.md), décision 3).
+Les **tables de glyphes** (`data/styles.json`) restent une **config fichier versionnée**, chargée
+et validée au démarrage (cf. [ADR-0002](../../decisions/0002-pattern-starter.md), décision 3).
+
+Le **mapping rôles→styles** de l'auto-rename, lui, n'est **plus** une donnée du domaine ni un
+fichier figé : depuis B8 ([ADR-0005](../../decisions/0005-config-auto-rename-neon.md), supersède
+ADR-0004) sa **provenance** est le port `MappingStore` (`src/mapping/`) — Neon par serveur en prod,
+fichier `auto-rename.json` en dev. Le domaine pur ne connaît que le type `MappingRoleStyle`
+(`styleDeclenche` le reçoit déjà ordonné) ; il ignore d'où il vient.

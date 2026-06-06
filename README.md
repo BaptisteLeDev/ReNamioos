@@ -77,7 +77,8 @@ au boot, cf. `src/config.ts`) :
 | `DISCORD_GUILD_ID` | guilde de déploiement des commandes (dev) | optionnel |
 | `PORT` | port de l'API de supervision | `8199` |
 | `HOST` | interface d'écoute de l'API | `0.0.0.0` |
-| `AUTO_RENAME_CONFIG_PATH` | chemin du mapping auto-rename | `auto-rename.json` |
+| `AUTO_RENAME_CONFIG_PATH` | chemin du mapping auto-rename (mode fichier / fallback) | `auto-rename.json` |
+| `DATABASE_URL` | URL Postgres Neon ; **absente** = mode fichier (dev), **présente** = mode Neon par serveur | optionnel |
 | `NODE_ENV` | `development` / `production` / `test` | `development` |
 
 ⚠️ **Ne partagez JAMAIS votre token.** Le fichier `.env` est dans `.gitignore`.
@@ -123,21 +124,42 @@ L'API démarre **avant** le bot : `GET /health` répond même si le login Discor
 | `/convert <style> <texte>` | Convertit un texte | `/convert cursive Bonjour` |
 | `/rename <@user> <style> [nom]` | Renomme un membre | `/rename @User cursive` |
 | `/random <@user> [nom]` | Style aléatoire | `/random @User` |
+| `/auto-rename add\|remove\|list` | Configure l'auto-rename du serveur (admin `Manage Server`) | `/auto-rename add role:@VIP style:Cursive` |
 | `/aide` | Affiche l'aide | `/aide` |
 
 ---
 
 ## 🎭 Auto-Rename sur Rôles
 
-Le bot peut renommer automatiquement les membres quand ils obtiennent un rôle mappé.
+Le bot renomme automatiquement les membres quand ils obtiennent un rôle mappé. La config est
+**par serveur** et **modifiable depuis Discord** (depuis le lot B8 ; voir
+[`decisions/0005-config-auto-rename-neon.md`](decisions/0005-config-auto-rename-neon.md), qui
+supersède la config fichier d'[ADR-0004](decisions/0004-auto-rename.md)).
 
-### Configuration
+### Configuration depuis Discord (mode Neon)
 
-Le mapping `roleId → styleName` vit dans **`auto-rename.json`** (exemple :
-[`auto-rename.example.json`](auto-rename.example.json)), chemin configurable via
-`AUTO_RENAME_CONFIG_PATH`. Il est chargé et validé par zod au boot (style inconnu, fichier
-absent ou JSON malformé ⇒ échec de boot explicite). Voir
-[`decisions/0004-auto-rename.md`](decisions/0004-auto-rename.md).
+Avec `DATABASE_URL` défini (production), un admin (`Manage Server`) configure tout via
+`/auto-rename` :
+
+| Sous-commande | Effet |
+|---|---|
+| `/auto-rename add role:<@rôle> style:<style>` | mappe un rôle à un style (sélecteur de rôle natif + choix de style) |
+| `/auto-rename remove role:<@rôle>` | retire le mapping d'un rôle |
+| `/auto-rename list` | liste les mappings du serveur avec un aperçu de chaque style |
+
+La config vit dans une table **Neon** (`auto_rename_mappings`, clé `(guild_id, role_id)`) :
+multi-serveur par construction, persistante, sans redéploiement. La **provenance des données** est
+centralisée derrière un port unique (`MappingStore`) : `/auto-rename`, `/aide` et l'événement
+`guildMemberUpdate` lisent tous la même source (cf. [`ARCHITECTURE.md`](ARCHITECTURE.md),
+§ Auto-rename). L'**ordre d'ajout** définit la priorité quand plusieurs rôles mappés sont gagnés
+en même temps.
+
+### Mode fichier (développement)
+
+Sans `DATABASE_URL`, le bot lit le mapping `roleId → styleName` du fichier **`auto-rename.json`**
+(exemple : [`auto-rename.example.json`](auto-rename.example.json), chemin configurable via
+`AUTO_RENAME_CONFIG_PATH`), validé par zod au boot. En mode fichier, `/auto-rename add|remove`
+est refusé (le fichier dev s'édite à la main) :
 
 ```json
 {
@@ -146,8 +168,10 @@ absent ou JSON malformé ⇒ échec de boot explicite). Voir
 }
 ```
 
-L'**ordre des clés** du fichier définit la priorité quand plusieurs rôles mappés sont gagnés
-en même temps.
+**Transition** : en mode Neon, tant qu'un serveur n'a **aucun** mapping en base, le fichier est
+lu en **fallback lecture** (le temps que l'admin recrée sa config via `/auto-rename`). Dès qu'un
+mapping Neon existe pour le serveur, le fichier est ignoré pour ce serveur. Ce fallback est
+transitoire (à retirer une release plus tard).
 
 ### Fonctionnement
 
@@ -168,13 +192,15 @@ Membre "Baptiste" gagne le rôle mappé sur "cursive"
 ReNamioos/
 ├── src/                    # code TypeScript (domaine pur, adapters Discord, API)
 │   ├── index.ts            # bootstrap : API d'abord, puis bot
-│   ├── config.ts           # config zod (seule source d'env)
-│   ├── config/             # chargeur+validation du mapping auto-rename
+│   ├── config.ts           # config zod (seule source d'env, dont DATABASE_URL optionnelle)
+│   ├── config/             # chargeur+validation du mapping fichier auto-rename
 │   ├── client.ts           # BotClient (adapter Discord, StatsProvider)
 │   ├── deploy-commands.ts  # enregistrement des commandes slash
 │   ├── api/                # server.ts, stats-provider.ts (port), contract.test.ts
-│   ├── commands/           # ping, styles, convert, rename, random, aide + helpers
-│   ├── events/             # guild-member-update.ts (adapter auto-rename)
+│   ├── db/                 # schema drizzle + client pg/Neon (init paresseuse)
+│   ├── mapping/            # port MappingStore + adapters Neon/fichier (provenance auto-rename)
+│   ├── commands/           # ping, styles, convert, rename, random, auto-rename, aide + helpers
+│   ├── events/             # guild-member-update.ts (adapter auto-rename → MappingStore)
 │   └── domain/             # logique pure (stylisation, auto-rename) + data/styles.json
 ├── docs/                   # caracterisation.md (archive legacy), stories.md
 ├── decisions/              # ADR (0001 langage, 0002 pattern, 0003 corrections, 0004 auto-rename)
@@ -211,7 +237,12 @@ si nécessaire (cf. [`src/domain/README.md`](src/domain/README.md)) et relancez 
 - Vérifiez que **SERVER MEMBERS INTENT** est activé dans le Dev Portal
 - Vérifiez que le bot a la permission **Manage Nicknames**
 - Vérifiez que le rôle du bot est **au-dessus** des membres à renommer
-- Vérifiez les `roleId` mappés dans `auto-rename.json`
+- Vérifiez les mappings du serveur avec `/auto-rename list` (mode Neon) ou les `roleId` de
+  `auto-rename.json` (mode fichier / fallback)
+
+### `/auto-rename add` répond « mode fichier en lecture seule »
+- L'écriture exige le mode Neon : définissez `DATABASE_URL`. En développement sans base, éditez
+  `auto-rename.json` à la main.
 
 ### "Permissions insuffisantes"
 - Le bot doit avoir **Manage Nicknames**

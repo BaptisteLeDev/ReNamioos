@@ -5,23 +5,26 @@
  * decision 1) : annonce le nombre REEL de styles (9), DERIVE de STYLE_NAMES —
  * le legacy ecrivait « 8 styles » en dur (et omettait scriptify).
  *
- * Le compte « Rôles configurés » est DERIVE de la config auto-rename B6
- * (mapping roleId -> styleName, ADR-0004), injectee a la composition. Source de
- * verite UNIQUE : plus de double source role->style (l'ancien ROLE_CONFIG
- * legacy a ete retire). Une commande = une fermeture sur sa config.
+ * Le compte « Rôles configurés » est DERIVE de la config auto-rename via le port
+ * MappingStore (B8, ADR-0005), injecte a la composition. Source de verite UNIQUE :
+ * plus de double source role->style. Depuis B8, la config est PAR SERVEUR : le compte
+ * affiche est donc celui de la guild courante (store.list(guildId)) ; en DM (hors
+ * guild) il vaut 0. Une commande = une fermeture sur le store.
  */
 import { EmbedBuilder, SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
 import { STYLE_NAMES } from '../domain/styles';
-import type { MappingRoleStyle } from '../domain/auto-rename';
+import type { MappingStore } from '../mapping/store';
 import type { Command } from './types';
 
-/** Fabrique /aide : le compte de roles mappes vient de la config auto-rename (B6). */
-export function creerAideCommand(autoRenameMapping: MappingRoleStyle): Command {
+/** Fabrique /aide : le compte de roles mappes vient du store auto-rename (B8). */
+export function creerAideCommand(mappingStore: MappingStore): Command {
   return {
   data: new SlashCommandBuilder().setName('aide').setDescription('Affiche l’aide du bot.'),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    const totalRoles = Object.keys(autoRenameMapping).length;
+    const totalRoles = interaction.guildId
+      ? Object.keys(await mappingStore.list(interaction.guildId)).length
+      : 0;
 
     const embed = new EmbedBuilder()
       .setTitle('📖 Aide - ReNamioos')

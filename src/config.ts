@@ -18,8 +18,16 @@ const envSchema = z.object({
   HOST: z.string().default('0.0.0.0'),
 
   // Auto-rename (B6, ADR-0004) : chemin du mapping roleId -> styleName, charge et
-  // valide au boot. Defaut = config versionnee a la racine du repo.
+  // valide au boot. Defaut = config versionnee a la racine du repo. Depuis B8
+  // (ADR-0005), ce fichier ne sert plus qu'au mode DEV (sans DATABASE_URL) et au
+  // FALLBACK lecture pendant la transition vers Neon.
   AUTO_RENAME_CONFIG_PATH: z.string().default('auto-rename.json'),
+
+  // Persistance Neon (B8, ADR-0005) — OPTIONNELLE. Absente => mode FICHIER (dev) :
+  // auto-rename lu depuis auto-rename.json, ecriture via /auto-rename interdite.
+  // Presente => mode NEON : config auto-rename PAR SERVEUR, modifiable depuis Discord
+  // (avec fallback lecture fichier tant qu'une guild n'a rien en base).
+  DATABASE_URL: z.string().min(1).optional(),
 
   // Environnement
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -47,6 +55,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       guildId: e.DISCORD_GUILD_ID,
     },
     autoRenameConfigPath: e.AUTO_RENAME_CONFIG_PATH,
+    database: { url: e.DATABASE_URL },
     api: { port: e.PORT, host: e.HOST },
     env: e.NODE_ENV,
     isDevelopment: e.NODE_ENV === 'development',
@@ -62,6 +71,8 @@ export interface Config {
     guildId: string | undefined;
   };
   autoRenameConfigPath: string;
+  /** URL Postgres Neon (B8, ADR-0005). Absente = mode fichier (dev). */
+  database: { url: string | undefined };
   api: { port: number; host: string };
   env: Env['NODE_ENV'];
   isDevelopment: boolean;

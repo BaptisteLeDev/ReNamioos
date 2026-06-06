@@ -21,9 +21,10 @@
  * d'exception remontee, jamais de silence (mandat : aucun catch silencieux).
  */
 import type { GuildMember, PartialGuildMember } from 'discord.js';
-import { styleDeclenche, type MappingRoleStyle } from '../domain/auto-rename';
+import { styleDeclenche } from '../domain/auto-rename';
 import { appliquerRename, sourceRename } from '../commands/styliser';
 import type { StyleName } from '../domain/styles';
+import type { MappingStore } from '../mapping/store';
 
 /** Seam de log structure : injectable pour les tests, console.warn par defaut. */
 export interface LoggerAutoRename {
@@ -35,7 +36,12 @@ const loggerParDefaut: LoggerAutoRename = {
 };
 
 export interface DepsAutoRename {
-  mapping: MappingRoleStyle;
+  /**
+   * Provenance UNIQUE rOle -> style (B8, ADR-0005). Interroge PAR GUILD : la config
+   * est par serveur. Le store porte le cache (NeonMappingStore) ; l'adapter ne fait
+   * que lire le mapping ordonne de la guild et le donner au domaine pur.
+   */
+  store: MappingStore;
   log?: LoggerAutoRename;
 }
 
@@ -56,10 +62,13 @@ export function creerGestionnaireMembreMisAJour(deps: DepsAutoRename) {
     oldMember: GuildMember | PartialGuildMember,
     newMember: GuildMember,
   ): Promise<void> {
+    // Provenance par serveur : on lit le mapping ORDONNE de cette guild (cache cOte
+    // store). Le domaine pur tranche le style a appliquer (priorite = ordre).
+    const mapping = await deps.store.list(newMember.guild.id);
     const style: StyleName | null = styleDeclenche(
       roleIds(oldMember),
       roleIds(newMember),
-      deps.mapping,
+      mapping,
     );
     if (style === null) return; // aucun role mappe ajoute : rien a faire.
 
