@@ -1,6 +1,6 @@
 {
   "name": "renamioos",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "type": "module",
   "private": true,
   "description": "ReNamioos — bot Discord de stylisation de pseudos (reecriture Bun/TS du pilote)",
