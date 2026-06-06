@@ -10,6 +10,7 @@
 import { EmbedBuilder, SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
 import { convertirTexte } from '../domain/stylisation';
 import type { Command } from './types';
+import { COULEUR_BLEU } from './couleurs';
 import { autocompleteStyle } from './style-autocomplete';
 import { capitaliser, estStyleConnu, messageErreur } from './styliser';
 
@@ -47,7 +48,7 @@ export const convertCommand: Command = {
 
     const embed = new EmbedBuilder()
       .setTitle(`✨ Conversion en ${capitaliser(style)}`)
-      .setColor(0x3498db)
+      .setColor(COULEUR_BLEU)
       .addFields(
         { name: '📝 Original', value: texte, inline: false },
         { name: '🎨 Résultat', value: resultat.texte, inline: false },

@@ -7,7 +7,6 @@
  * hierarchie, refus propre, Forbidden bot) — ÉCART VOLONTAIRE B4 (ADR-0003 d.3).
  */
 import {
-  EmbedBuilder,
   PermissionFlagsBits,
   SlashCommandBuilder,
   type ChatInputCommandInteraction,
@@ -15,9 +14,8 @@ import {
 } from 'discord.js';
 import { STYLE_NAMES, type StyleName } from '../domain/styles';
 import type { Command } from './types';
-import { appliquerRename, sourceRename } from './styliser';
-
-const COULEUR_VIOLET = 0x9b59b6;
+import { COULEUR_VIOLET } from './couleurs';
+import { appliquerRename, embedRenameOk, sourceRename } from './styliser';
 
 /** Tire un style au hasard parmi les 9 (extrait pour rester trivial et lisible). */
 function styleAleatoire(): StyleName {
@@ -60,14 +58,13 @@ export const randomCommand: Command = {
       return;
     }
 
-    const embed = new EmbedBuilder()
-      .setTitle('🎲 Membre renommé (aléatoire)')
-      .setColor(COULEUR_VIOLET)
-      .addFields(
-        { name: '👤 Membre', value: membre.toString(), inline: true },
-        { name: '🎨 Style', value: resultat.style, inline: true },
-        { name: '📝 Nouveau pseudo', value: resultat.pseudo, inline: false },
-      );
+    const embed = embedRenameOk(
+      membre,
+      resultat.pseudo,
+      resultat.style,
+      COULEUR_VIOLET,
+      '🎲 Membre renommé (aléatoire)',
+    );
     await interaction.reply({ embeds: [embed] });
   },
 };

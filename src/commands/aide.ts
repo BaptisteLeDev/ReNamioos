@@ -15,6 +15,7 @@ import { EmbedBuilder, SlashCommandBuilder, type ChatInputCommandInteraction } f
 import { STYLE_NAMES } from '../domain/styles';
 import type { MappingStore } from '../mapping/store';
 import type { Command } from './types';
+import { COULEUR_BLEU } from './couleurs';
 
 /** Fabrique /aide : le compte de roles mappes vient du store auto-rename (B8). */
 export function creerAideCommand(mappingStore: MappingStore): Command {
@@ -29,7 +30,7 @@ export function creerAideCommand(mappingStore: MappingStore): Command {
     const embed = new EmbedBuilder()
       .setTitle('📖 Aide - ReNamioos')
       .setDescription('Bot de renommage avec polices Unicode stylisées')
-      .setColor(0x3498db)
+      .setColor(COULEUR_BLEU)
       .addFields(
         {
           name: '🎨 Commandes principales',

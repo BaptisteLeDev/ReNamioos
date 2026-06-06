@@ -25,9 +25,8 @@ import {
 import { STYLE_NAMES } from '../domain/styles';
 import type { MappingStore } from '../mapping/store';
 import type { Command } from './types';
+import { COULEUR_VIOLET } from './couleurs';
 import { apercuStyle, capitaliser, estStyleConnu, messageErreur } from './styliser';
-
-const COULEUR_CONFIG = 0x9b59b6;
 
 /** Fabrique /auto-rename : le store (provenance) est injecte a la composition. */
 export function creerAutoRenameCommand(store: MappingStore): Command {
@@ -96,7 +95,7 @@ export function creerAutoRenameCommand(store: MappingStore): Command {
         await store.add(guildId, role.id, style);
         const embed = new EmbedBuilder()
           .setTitle('✅ Mapping enregistré')
-          .setColor(COULEUR_CONFIG)
+          .setColor(COULEUR_VIOLET)
           .addFields(
             { name: '🎭 Rôle', value: role.toString(), inline: true },
             { name: '🎨 Style', value: capitaliser(style), inline: true },
@@ -111,7 +110,7 @@ export function creerAutoRenameCommand(store: MappingStore): Command {
         await store.remove(guildId, role.id);
         const embed = new EmbedBuilder()
           .setTitle('🗑️ Mapping retiré')
-          .setColor(COULEUR_CONFIG)
+          .setColor(COULEUR_VIOLET)
           .addFields({ name: '🎭 Rôle', value: role.toString(), inline: true });
         await interaction.reply({ embeds: [embed], ephemeral: true });
         return;
@@ -129,7 +128,7 @@ export function creerAutoRenameCommand(store: MappingStore): Command {
       }
       const embed = new EmbedBuilder()
         .setTitle('🎭 Auto-rename de ce serveur')
-        .setColor(COULEUR_CONFIG)
+        .setColor(COULEUR_VIOLET)
         .setDescription("Ordre = priorité quand plusieurs rôles sont gagnés d’un coup.")
         .addFields(
           entrees.map(([roleId, style]) => ({
