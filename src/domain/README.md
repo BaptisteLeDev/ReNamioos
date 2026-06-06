@@ -16,10 +16,11 @@ stricte** avec le `bot.py` legacy (B3), derrière le harnais de caractérisation
 
 | Fichier | Rôle |
 |---|---|
-| `styles.ts` | **Provenance des données** : charge `data/styles.json` (tables de glyphes + `conversions`) et `data/roles.json`, expose `STYLE_NAMES`, `StyleName`, `STYLES`, `CONVERSIONS`, `ROLE_CONFIG`. Successeur versionné de `styles.json`/`role.json` (aucune DB). |
+| `styles.ts` | **Provenance des données** : charge `data/styles.json` (tables de glyphes + `conversions`), expose `STYLE_NAMES`, `StyleName`, `STYLES`, `CONVERSIONS`. Successeur versionné de `styles.json` (aucune DB). |
 | `stylisation.ts` | Pipeline **pur** : `nettoyerPseudo`, `convertirChiffres`, `mettreMajusculeDebut`, `convertirTexte` (→ `ResultatStylisation`), `tronquerPseudo`. Types `ErreurStylisation` / `ResultatStylisation`. |
-| `stylisation.test.ts` | Harnais de caractérisation porté, avec les ÉCARTS VOLONTAIRES B4 marqués. |
-| `data/` | Config fichier versionnée. **Diverge volontairement** du legacy depuis B4 : `conversions` couvre désormais les 10 chiffres (2→Z, 6→G, 9→G). |
+| `auto-rename.ts` | **Logique pure de l'auto-rename (B6)** : `rolesAjoutes` (diff d'ensembles), `styleDeclenche` (quel style appliquer suite à un changement de rôles, priorité = ordre du mapping), type `MappingRoleStyle`. Aucun import discord.js. Voir [ADR-0004](../../decisions/0004-auto-rename.md). |
+| `stylisation.test.ts` / `auto-rename.test.ts` | Harnais de caractérisation porté (ÉCARTS B4 marqués) ; suite d'acceptation du domaine auto-rename (ÉCARTS B6 marqués). |
+| `data/` | Config fichier versionnée (`styles.json`). **Diverge volontairement** du legacy depuis B4 : `conversions` couvre les 10 chiffres (2→Z, 6→G, 9→G). Le mapping rôles→styles n'est plus ici : il vit dans `auto-rename.json` à la racine (chargé par `src/config/auto-rename-config.ts`, B6). |
 
 **Corrections B4 (ADR-0003)** — chacune un ÉCART VOLONTAIRE :
 1. `scriptify` officialisé → 9 styles publics (UI/doc).
@@ -61,8 +62,10 @@ Pipeline (cf. `docs/caracterisation.md`, § Pipeline de conversion) :
 Les bugs pinnés du legacy ont été tranchés en B4 (cf.
 [ADR-0003](../../decisions/0003-corrections-comportements-pinnes.md)). **Corrigés** : accents
 préservés, non-idempotence destructrice → refus propre, chiffres 2/6/9 mappés, `scriptify`
-officialisé. **Non encore tranchés** (couche événements, B6) : auto-rename basé sur `after.name`,
-échec silencieux sur cardinalité égale, commandes préfixe `!` inexistantes.
+officialisé. **Tranchés en B6** (couche événements, cf.
+[ADR-0004](../../decisions/0004-auto-rename.md)) : auto-rename source = pseudo serveur sinon nom
+global (plus `after.name`), détection par **diff d'ensembles** (plus la cardinalité). **Restant**
+(non porté, hors périmètre rewrite) : commandes préfixe `!` inexistantes.
 
 Point de vigilance JS/TS : la troncature à **32 code points** se fait via `[...str].slice(0, 32)`
 (les glyphes stylisés sont majoritairement hors BMP) — **pas** `str.slice(0, 32)`.

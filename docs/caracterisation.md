@@ -1,3 +1,7 @@
+> ⚠️ **Document d'archive.** Décrit le legacy Python (`bot.py`), supprimé à la B7 (2026-06-06).
+> Les tests pytest référencés ici (`tests/test_characterization.py`) ont leurs équivalents
+> `bun:test` dans `src/`. Conservé pour la traçabilité de la réécriture, ne décrit plus le code en place.
+
 # Caractérisation de ReNamioos — comportement observable actuel
 
 > **But.** Inventorier de façon exhaustive le comportement **observable et actuel**

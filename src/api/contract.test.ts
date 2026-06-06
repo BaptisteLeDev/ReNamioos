@@ -13,6 +13,8 @@
 import { describe, expect, it } from 'bun:test';
 import { createApiServer } from './server';
 import type { StatsProvider } from './stats-provider';
+import { BotClient } from '../client';
+import packageJson from '../../package.json' with { type: 'json' };
 
 /** Provider factice : bot non connecte (aucune guild), valeurs deterministes. */
 const offlineProvider: StatsProvider = {
@@ -63,5 +65,22 @@ describe('contrat cibles ↔ bdf-monitor', () => {
     expect(typeof body['guildCount']).toBe('number');
     expect(typeof body['userCount']).toBe('number');
     await app.close();
+  });
+
+  // Source unique de version (D13) : /stats lit le champ `version` de package.json,
+  // pas un litteral en dur. Un bump de version (ex. tag v2.0.0) se reflete sans
+  // toucher au code. On branche le VRAI BotClient (sans login Discord) pour pinner
+  // la chaine de provenance package.json -> getStats() -> /stats.
+  it('GET /stats renvoie version === package.json (source unique, pas de hardcode)', async () => {
+    const bot = new BotClient();
+    try {
+      const app = await createApiServer({ statsProvider: bot });
+      const res = await app.inject({ method: 'GET', url: '/stats' });
+      const body = res.json() as Record<string, unknown>;
+      expect(body['version']).toBe(packageJson.version);
+      await app.close();
+    } finally {
+      await bot.destroy();
+    }
   });
 });

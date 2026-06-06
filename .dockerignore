@@ -1,0 +1,23 @@
+node_modules
+.git
+
+# Secrets en clair (jamais dans l'image). .env.production chiffre est COPY explicitement.
+.env
+.env.example
+.env.local
+.env.keys
+
+# Doc et decisions : inutiles au runtime.
+docs
+decisions
+*.md
+
+# Legacy Python (retire a la bascule) et caches.
+*.py
+__pycache__
+pytest.ini
+
+# Outillage agent / IDE.
+.serena
+.vscode
+.idea

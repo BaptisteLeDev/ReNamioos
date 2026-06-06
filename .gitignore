@@ -2,6 +2,10 @@
 .env
 .env.*
 !.env.example
+# .env.production est chiffre par dotenvx et committe (ADR-0005, D7) : seule
+# DOTENV_PRIVATE_KEY (hors repo, Bitwarden) permet de le dechiffrer.
+!.env.production
+.env.keys
 
 # Node / Bun (reecriture TS)
 node_modules/

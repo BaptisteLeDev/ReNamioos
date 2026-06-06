@@ -1,38 +1,23 @@
 # 🤖 ReNamioos
 
-> ## ⚠️ Réécriture en cours — Bun / TypeScript
->
-> ReNamioos est en cours de **réécriture** de Python vers **Bun / TypeScript** (Discord.js 14),
-> bot pilote de la flotte (cf. [`decisions/0001`](decisions/0001-langage-cible-reecriture.md) et
-> [`decisions/0002`](decisions/0002-pattern-starter.md)). Pendant la transition, le **legacy Python
-> (`bot.py`) reste intact** jusqu'à la bascule (slice B7) ; le scaffold TS **coexiste** à la racine.
->
-> - **Lancer la version TS** : `bun install` puis `bun run dev` (API Fastify + bot Discord).
-> - **Tests** : `bun test` · **Typecheck** : `bun run typecheck` · **Commandes** : `bun run deploy-commands`.
-> - **Config** : copier `.env.example` en `.env` (variables `DISCORD_TOKEN`, `DISCORD_APPLICATION_ID`,
->   `PORT`, …).
-> - **Architecture cible** : voir [`ARCHITECTURE.md`](ARCHITECTURE.md) (DDD : domaine pur isolé,
->   ACL ciblée Discord, API conforme au contrat monitoring `/health` + `/stats`).
-> - **Domaine de stylisation** : voir [`src/domain/README.md`](src/domain/README.md) (langage
->   ubiquitaire, API cible, invariants pinnés) — implémenté en slice B3.
->
-> La documentation Python ci-dessous décrit le **comportement legacy de référence** (cf. aussi
-> [`docs/caracterisation.md`](docs/caracterisation.md)).
+ReNamioos est un bot Discord en **Bun / TypeScript** (Discord.js 14) qui transforme
+automatiquement les pseudos en versions stylisées grâce à l'Unicode. C'est le bot **pilote**
+de la flotte (cf. [`decisions/0001`](decisions/0001-langage-cible-reecriture.md) langage cible,
+[`decisions/0002`](decisions/0002-pattern-starter.md) pattern du pilote).
 
----
-
-## Version Python (legacy, référence jusqu'à B7)
-
-**ReNamioos** est un bot Discord en Python qui transforme automatiquement les pseudos en versions stylisées grâce à l'Unicode.
+Le bot est doublé d'une **API HTTP de supervision** (`/health` + `/stats`) consommée par le
+monitoring de la flotte. Voir [`ARCHITECTURE.md`](ARCHITECTURE.md) (DDD : domaine pur isolé,
+ACL ciblée Discord, contrat monitoring) et [`src/domain/README.md`](src/domain/README.md)
+(langage ubiquitaire du domaine de stylisation, API, invariants).
 
 ## ✨ Fonctionnalités
 
 - 🎨 **8 styles de polices** : cercles, cursive, gothique, gras, monospace, carrés, double, fullwidth
-- ⚡ **Commandes Slash (/)** : Interface moderne avec auto-complétion
-- 🎭 **Auto-rename sur rôles** : Renommage automatique quand un membre obtient un rôle spécifique
-- 🔄 **Restauration automatique** : Remet le pseudo par défaut quand le rôle est retiré
-- 🎲 **Renommage aléatoire** : Laisse le bot choisir un style au hasard
-- 🛠️ **Interface intuitive** : Commandes simples et claires
+- ⚡ **Commandes Slash (/)** : interface moderne avec auto-complétion
+- 🎭 **Auto-rename sur rôles** : renommage automatique quand un membre obtient un rôle mappé
+- 🔄 **Restauration automatique** : remet le pseudo par défaut quand le rôle est retiré
+- 🎲 **Renommage aléatoire** : laisse le bot choisir un style au hasard
+- 🛠️ **Interface intuitive** : commandes simples et claires
 
 ---
 
@@ -54,8 +39,8 @@
 ## 📦 Installation
 
 ### 1. Pré-requis
-- Python **3.10+**
-- Une application bot Discord → [Créer un bot](https://discord.com/developers/applications)
+- **Bun 1.3.x** ([installation](https://bun.sh))
+- Une application bot Discord → [Discord Developer Portal](https://discord.com/developers/applications)
 
 ### 2. Cloner le projet
 ```bash
@@ -65,7 +50,7 @@ cd ReNamioos
 
 ### 3. Installer les dépendances
 ```bash
-pip install -r requirements.txt
+bun install
 ```
 
 ### 4. Configurer le bot
@@ -77,53 +62,59 @@ pip install -r requirements.txt
 4. Allez dans l'onglet **"Bot"**
 
 #### b) Activer les Intents Privilégiés ⚠️
-**IMPORTANT** : Dans l'onglet **Bot**, activez tous les **Privileged Gateway Intents** :
-- ✅ **PRESENCE INTENT**
-- ✅ **SERVER MEMBERS INTENT** (obligatoire pour l'auto-rename)
-- ✅ **MESSAGE CONTENT INTENT**
+Dans l'onglet **Bot**, activez **SERVER MEMBERS INTENT** (`GuildMembers`) : il est
+**obligatoire** pour l'auto-rename. Sans lui, l'événement `guildMemberUpdate` n'arrive jamais
+et l'auto-rename reste silencieusement inerte (cf. [`ARCHITECTURE.md`](ARCHITECTURE.md), § Auto-rename).
 
-#### c) Configurer le token
-1. Dans l'onglet **"Bot"**, copiez le token
-2. Créez un fichier `.env` à la racine du projet :
-```env
-TOKEN=votre_token_ici
-```
+#### c) Configurer l'environnement
+Copiez `.env.example` en `.env` à la racine et renseignez les variables (validées par zod
+au boot, cf. `src/config.ts`) :
 
-⚠️ **Ne partagez JAMAIS votre token !**
+| Variable | Rôle | Défaut |
+|---|---|---|
+| `DISCORD_TOKEN` | token du bot (jamais committé) | requis |
+| `DISCORD_APPLICATION_ID` | id de l'application | requis |
+| `DISCORD_GUILD_ID` | guilde de déploiement des commandes (dev) | optionnel |
+| `PORT` | port de l'API de supervision | `8199` |
+| `HOST` | interface d'écoute de l'API | `0.0.0.0` |
+| `AUTO_RENAME_CONFIG_PATH` | chemin du mapping auto-rename | `auto-rename.json` |
+| `NODE_ENV` | `development` / `production` / `test` | `development` |
+
+⚠️ **Ne partagez JAMAIS votre token.** Le fichier `.env` est dans `.gitignore`.
 
 #### d) Inviter le bot
-1. Allez dans l'onglet **"OAuth2"** → **"URL Generator"**
-2. Sélectionnez :
-   - ✅ `bot`
-   - ✅ `applications.commands`
-3. Permissions :
-   - ✅ `Manage Nicknames`
-   - ✅ `Send Messages`
-   - ✅ `Embed Links`
-4. Copiez l'URL et invitez le bot sur votre serveur
+1. Onglet **"OAuth2"** → **"URL Generator"**
+2. Scopes : `bot`, `applications.commands`
+3. Permissions : `Manage Nicknames`, `Send Messages`, `Embed Links`
+4. Copiez l'URL et invitez le bot
 
 ---
 
-## 🚀 Lancement
+## 🚀 Build & lancement
+
+Bun exécute le TypeScript directement, aucun build n'est requis pour lancer.
 
 ```bash
-python DiscordReNameStyle.py
+bun install               # installe les dépendances (lockfile bun.lock)
+bun run dev               # lance API + bot en watch (développement)
+bun run start             # lance API + bot (src/index.ts)
+bun run deploy-commands   # enregistre les commandes slash auprès de Discord
 ```
 
-Si tout fonctionne :
+Vérification (mêmes étapes que le gate CI) :
+
+```bash
+bun run typecheck         # tsc --noEmit, mode strict
+bun test                  # runner natif bun:test (suite de caractérisation + unitaires)
+docker build -t renamioos .   # image Bun + gate typecheck/test au build
 ```
-✅ ReNamioos#4970 est connecté !
-📊 Serveurs: 1
-🎨 Styles disponibles: 8
-🎭 Rôles avec auto-rename: 1
-✅ 6 commande(s) slash synchronisée(s)
-```
+
+L'API démarre **avant** le bot : `GET /health` répond même si le login Discord échoue
+(cf. [`ARCHITECTURE.md`](ARCHITECTURE.md), § Bootstrap et § Contrat de supervision).
 
 ---
 
 ## 📖 Commandes
-
-### Commandes Slash (/)
 
 | Commande | Description | Exemple |
 |----------|-------------|---------|
@@ -134,89 +125,93 @@ Si tout fonctionne :
 | `/random <@user> [nom]` | Style aléatoire | `/random @User` |
 | `/aide` | Affiche l'aide | `/aide` |
 
-### Commandes Prefix (!)
-
-Les commandes avec `!` sont aussi disponibles pour la compatibilité :
-- `!ping`, `!styles`, `!convert`, `!rename`, `!random`, `!aide`
-
 ---
 
 ## 🎭 Auto-Rename sur Rôles
 
-Le bot peut renommer automatiquement les membres quand ils obtiennent un rôle spécifique.
+Le bot peut renommer automatiquement les membres quand ils obtiennent un rôle mappé.
 
 ### Configuration
 
-Éditez le fichier `role.json` :
+Le mapping `roleId → styleName` vit dans **`auto-rename.json`** (exemple :
+[`auto-rename.example.json`](auto-rename.example.json)), chemin configurable via
+`AUTO_RENAME_CONFIG_PATH`. Il est chargé et validé par zod au boot (style inconnu, fichier
+absent ou JSON malformé ⇒ échec de boot explicite). Voir
+[`decisions/0004-auto-rename.md`](decisions/0004-auto-rename.md).
+
 ```json
 {
-    "cursive": ["Nom du Rôle 1"],
-    "gothique": ["Nom du Rôle 2", "Autre Rôle"],
-    "cercles": ["VIP"]
+  "123456789012345678": "cursive",
+  "234567890123456789": "gothique"
 }
 ```
 
+L'**ordre des clés** du fichier définit la priorité quand plusieurs rôles mappés sont gagnés
+en même temps.
+
 ### Fonctionnement
 
-1. **Membre obtient le rôle** → Son pseudo est converti avec le style associé
-2. **Membre perd le rôle** → Son pseudo est remis par défaut
+1. **Membre gagne un rôle mappé** → son pseudo est stylisé avec le style associé
+2. **Membre perd le rôle** → l'auto-rename n'agit que sur les gains (les retraits ne déclenchent rien)
 
 **Exemple** :
 ```
-Membre "Baptiste" obtient le rôle "Éclats d'Aether"
+Membre "Baptiste" gagne le rôle mappé sur "cursive"
 → Renommé en "𝓑𝓪𝓹𝓽𝓲𝓼𝓽𝓮"
-
-Membre perd le rôle
-→ Redevient "Baptiste"
 ```
 
 ---
 
-## ⚙️ Configuration
+## ⚙️ Structure du projet
 
-### Structure du projet
 ```
 ReNamioos/
-├── DiscordReNameStyle.py  # Code principal
-├── styles.json            # Définition des styles
-├── role.json             # Configuration auto-rename
-├── .env                  # Token (ne pas commit !)
-├── .gitignore           # Fichiers à ignorer
-├── requirements.txt     # Dépendances
-└── README.md           # Documentation
+├── src/                    # code TypeScript (domaine pur, adapters Discord, API)
+│   ├── index.ts            # bootstrap : API d'abord, puis bot
+│   ├── config.ts           # config zod (seule source d'env)
+│   ├── config/             # chargeur+validation du mapping auto-rename
+│   ├── client.ts           # BotClient (adapter Discord, StatsProvider)
+│   ├── deploy-commands.ts  # enregistrement des commandes slash
+│   ├── api/                # server.ts, stats-provider.ts (port), contract.test.ts
+│   ├── commands/           # ping, styles, convert, rename, random, aide + helpers
+│   ├── events/             # guild-member-update.ts (adapter auto-rename)
+│   └── domain/             # logique pure (stylisation, auto-rename) + data/styles.json
+├── docs/                   # caracterisation.md (archive legacy), stories.md
+├── decisions/              # ADR (0001 langage, 0002 pattern, 0003 corrections, 0004 auto-rename)
+├── auto-rename.json        # mapping auto-rename (roleId → styleName), versionné
+├── auto-rename.example.json
+├── Dockerfile              # image Bun (gate typecheck/test au build)
+├── .dockerignore
+├── .github/workflows/ci.yml # gate qualité + CD gated (tailnet → Dokploy)
+├── package.json            # runtime bun, scripts dev/start/test/typecheck/deploy-commands
+├── tsconfig.json           # strict, noEmit
+└── .env.example            # placeholders (jamais de secret réel)
 ```
 
 ### Ajouter un nouveau style
 
-1. Éditez `styles.json`
-2. Ajoutez votre style :
-```json
-"nouveau_style": {
-    "a": "𝕒", "b": "𝕓", "c": "𝕔",
-    "A": "𝔸", "B": "𝔹", "C": "ℂ"
-}
-```
-3. Redémarrez le bot
+Les tables de glyphes sont une config fichier versionnée dans
+`src/domain/data/styles.json`. Ajoutez votre style, puis ajustez le domaine de stylisation
+si nécessaire (cf. [`src/domain/README.md`](src/domain/README.md)) et relancez les tests.
 
 ---
 
 ## 🐛 Résolution de problèmes
 
 ### Le bot ne se connecte pas
-- Vérifiez le token dans `.env`
-- Vérifiez que tous les **intents** sont activés
+- Vérifiez `DISCORD_TOKEN` dans `.env`
 - Vérifiez votre connexion internet
 
 ### Les commandes slash n'apparaissent pas
-- Attendez quelques minutes (synchronisation Discord)
+- Relancez `bun run deploy-commands`
+- Attendez la synchronisation Discord (quelques minutes en global)
 - Réinvitez le bot avec le scope `applications.commands`
-- Redémarrez Discord
 
 ### L'auto-rename ne fonctionne pas
-- Vérifiez que **SERVER MEMBERS INTENT** est activé
+- Vérifiez que **SERVER MEMBERS INTENT** est activé dans le Dev Portal
 - Vérifiez que le bot a la permission **Manage Nicknames**
 - Vérifiez que le rôle du bot est **au-dessus** des membres à renommer
-- Vérifiez le nom exact du rôle dans `role.json`
+- Vérifiez les `roleId` mappés dans `auto-rename.json`
 
 ### "Permissions insuffisantes"
 - Le bot doit avoir **Manage Nicknames**
@@ -233,7 +228,7 @@ MIT License - Vous êtes libre d'utiliser, modifier et distribuer ce projet.
 
 ## 🤝 Contribution
 
-Les contributions sont bienvenues !
+Les contributions sont bienvenues :
 - 🐛 Signaler des bugs via [Issues](https://github.com/BaptisteLeDev/ReNamioos/issues)
 - 💡 Proposer des fonctionnalités
 - 🎨 Ajouter de nouveaux styles
@@ -241,25 +236,7 @@ Les contributions sont bienvenues !
 
 ---
 
-## 📞 Support
-
-- 🌐 [GitHub Issues](https://github.com/BaptisteLeDev/ReNamioos/issues)
-- 📧 [Créer une issue](https://github.com/BaptisteLeDev/ReNamioos/issues/new)
-
----
-
-## 🎉 Crédits
-
-Créé avec ❤️ par Baptiste pour la communauté Discord  
-Utilise [discord.py](https://github.com/Rapptz/discord.py)
-
----
-
 ## ⚠️ Avertissement de Sécurité
 
-**Ne partagez JAMAIS** :
-- Votre token Discord (`.env`)
-- Votre secret client
-- Vos clés API
-
+**Ne partagez JAMAIS** votre token Discord, votre secret client ni vos clés API.
 Le fichier `.env` est déjà dans `.gitignore` pour éviter les commits accidentels.
