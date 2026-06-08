@@ -23,6 +23,10 @@ RUN bun install --frozen-lockfile --production
 FROM base AS runtime
 ENV NODE_ENV=production
 # dotenvx dechiffre .env.production au demarrage (DOTENV_PRIVATE_KEY fournie par Dokploy, D7).
+# BUN_INSTALL=/usr/local : `bun add --global` tourne en root et, sans ca, depose le
+# binaire dans /root/.bun/bin, HORS du PATH de l'utilisateur `bun` (USER plus bas) ->
+# le CMD echoue avec "Script not found dotenvx". /usr/local/bin est sur le PATH de tous.
+ENV BUN_INSTALL=/usr/local
 RUN bun add --global @dotenvx/dotenvx
 COPY --from=prod-deps /app/node_modules ./node_modules
 # package.json est importe au runtime (src/client.ts : version de /stats).
