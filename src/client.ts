@@ -13,7 +13,10 @@ import {
   Collection,
   Events,
   GatewayIntentBits,
+  REST,
+  Routes,
   type Interaction,
+  type RESTPostAPIApplicationCommandsJSONBody,
 } from 'discord.js';
 import type { Command } from './commands/types';
 import { creerCommandes } from './commands/index';
@@ -21,25 +24,44 @@ import type { BotStats, StatsProvider } from './api/stats-provider';
 import { creerGestionnaireMembreMisAJour } from './events/guild-member-update';
 import type { MappingStore } from './mapping/store';
 import { creerFileMappingStore } from './mapping/file-store';
+import type { CommandSyncStore } from './command-sync/store';
+import { creerFileCommandSyncStore, creerFileIo } from './command-sync/file-store';
 import packageJson from '../package.json' with { type: 'json' };
+
+export interface OptionsBotClient {
+  /** Provenance UNIQUE de la config auto-rename (B8, ADR-0005). */
+  mappingStore?: MappingStore;
+  /** Provenance des commandes connues par serveur (/update). Defaut : fichier dev. */
+  commandSyncStore?: CommandSyncStore;
+  /**
+   * Identifiants Discord pour le PUT REST de /update (re-synchro par serveur). Absents
+   * (defaut en test) => /update repond une erreur propre au lieu de re-deployer.
+   */
+  discord?: { applicationId: string; token: string };
+}
 
 export class BotClient extends Client implements StatsProvider {
   public readonly commands = new Collection<string, Command>();
   private commandsToday = 0;
 
   /**
-   * @param mappingStore provenance UNIQUE de la config auto-rename (B8, ADR-0005) :
-   *   Neon par serveur, ou fichier en dev. Defaut : store fichier vide (auto-rename
-   *   inactif). Branche l'auto-rename sur guildMemberUpdate, alimente le compte de
-   *   /aide ET sert la commande /auto-rename (source unique). L'intent GuildMembers
-   *   (PRIVILEGIE) est requis pour recevoir l'evenement — a activer dans le Dev Portal.
+   * @param options injection de la composition (src/index.ts). Tous les champs sont
+   *   optionnels : sans argument, le bot demarre avec des stores fichier vides
+   *   (auto-rename inactif) et /update non operationnel (utile en test/typecheck).
+   *   L'intent GuildMembers (PRIVILEGIE) est requis pour guildMemberUpdate (auto-rename).
    */
-  constructor(mappingStore: MappingStore = creerFileMappingStore({})) {
+  constructor(options: OptionsBotClient = {}) {
     // GuildMembers est un intent PRIVILEGIE (a activer dans le Dev Portal) : sans
     // lui, guildMemberUpdate n'arrive jamais. On le demande car l'auto-rename en
     // depend ; les autres intents restent minimaux (cf. ARCHITECTURE.md).
     super({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
-    for (const cmd of creerCommandes(mappingStore)) {
+
+    const mappingStore = options.mappingStore ?? creerFileMappingStore({});
+    const commandSyncStore =
+      options.commandSyncStore ?? creerFileCommandSyncStore(creerFileIo('command-sync.json'));
+    const redeploy = this.construireRedeploy(options.discord);
+
+    for (const cmd of creerCommandes({ mappingStore, commandSyncStore, redeploy })) {
       this.commands.set(cmd.data.name, cmd);
     }
     // Auto-rename (B8, ADR-0005) : abonnement a guildMemberUpdate. L'evenement
@@ -87,6 +109,26 @@ export class BotClient extends Client implements StatsProvider {
         await interaction.reply(payload);
       }
     }
+  }
+
+  /**
+   * Construit la fonction de re-deploiement REST utilisee par /update. Sans
+   * identifiants Discord (test), renvoie une fonction qui echoue proprement :
+   * /update repondra alors son message d'erreur ephemere standard.
+   */
+  private construireRedeploy(
+    discord: OptionsBotClient['discord'],
+  ): (guildId: string, payload: RESTPostAPIApplicationCommandsJSONBody[]) => Promise<void> {
+    if (!discord) {
+      return () =>
+        Promise.reject(new Error('Re-deploiement indisponible : identifiants Discord absents.'));
+    }
+    const rest = new REST({ version: '10' }).setToken(discord.token);
+    return async (guildId, payload) => {
+      await rest.put(Routes.applicationGuildCommands(discord.applicationId, guildId), {
+        body: payload,
+      });
+    };
   }
 
   /** Implementation du port StatsProvider (contrat /stats). */

@@ -12,6 +12,9 @@ node_modules/
 *.tsbuildinfo
 .commitmsg.tmp
 
+# Synchro /update en mode fichier (dev, sans DATABASE_URL)
+command-sync.json
+
 # Cache Python
 __pycache__/
 *.py[cod]

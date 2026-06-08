@@ -13,6 +13,7 @@ import { chargerConfigAutoRename } from './config/auto-rename-config';
 import { createApiServer } from './api/server';
 import { BotClient } from './client';
 import { creerMappingStore } from './mapping/index';
+import { creerCommandSyncStore } from './command-sync/index';
 import { closeDb } from './db/client';
 
 async function bootstrap(): Promise<void> {
@@ -33,7 +34,17 @@ async function bootstrap(): Promise<void> {
       : `Auto-rename : mode fichier (dev), ${Object.keys(mappingFichier).length} role(s) mappe(s)`,
   );
 
-  const bot = new BotClient(mappingStore);
+  // Provenance des commandes connues par serveur (/update) : Neon en prod, JSON local en dev.
+  const commandSyncStore = creerCommandSyncStore({ databaseUrl: config.database.url });
+
+  const bot = new BotClient({
+    mappingStore,
+    commandSyncStore,
+    discord: {
+      applicationId: config.discord.applicationId,
+      token: config.discord.token,
+    },
+  });
 
   // 1. API d'abord.
   const api = await createApiServer({

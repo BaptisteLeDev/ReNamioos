@@ -10,13 +10,18 @@ import { REST, Routes } from 'discord.js';
 import { loadConfig } from './config';
 import { creerCommandes } from './commands/index';
 import { creerFileMappingStore } from './mapping/file-store';
+import { creerFileCommandSyncStore, creerFileIo } from './command-sync/file-store';
 
 async function deploy(): Promise<void> {
   const config = loadConfig();
-  // Le store auto-rename n'influe pas sur le SCHEMA des slash (il n'alimente que le
-  // texte d'aide et l'execution de /auto-rename) -> store fichier vide ici, suffisant
-  // pour produire le schema a deployer (aucune connexion Neon necessaire).
-  const body = creerCommandes(creerFileMappingStore({})).map((c) => c.data.toJSON());
+  // Les stores et le redeploy n'influent pas sur le SCHEMA des slash (ils n'alimentent
+  // que l'execution) -> stores fichier vides + redeploy no-op ici, suffisant pour
+  // produire le schema a deployer (aucune connexion Neon necessaire).
+  const body = creerCommandes({
+    mappingStore: creerFileMappingStore({}),
+    commandSyncStore: creerFileCommandSyncStore(creerFileIo('command-sync.json')),
+    redeploy: () => Promise.resolve(),
+  }).map((c) => c.data.toJSON());
   const rest = new REST({ version: '10' }).setToken(config.discord.token);
 
   if (config.discord.guildId) {

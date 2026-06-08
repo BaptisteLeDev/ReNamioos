@@ -31,3 +31,15 @@ export const autoRenameMappings = pgTable(
   },
   (t) => [primaryKey({ columns: [t.guildId, t.roleId] })],
 );
+
+/**
+ * Persistante. Une ligne par serveur : instantane des noms de commandes synchronises
+ * via /update, pour mettre en evidence les "nouvelles" a la synchro suivante. Minuscule
+ * par construction (~7 noms courts), politique de minimisation Neon respectee.
+ */
+export const guildCommandSync = pgTable('guild_command_sync', {
+  guildId: text('guild_id').primaryKey(),
+  /** Noms tries joints par virgule (les noms de slash-commands n'en contiennent jamais). */
+  commandNames: text('command_names').notNull(),
+  syncedAt: timestamp('synced_at', { withTimezone: true }).notNull().defaultNow(),
+});
