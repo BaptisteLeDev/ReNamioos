@@ -19,7 +19,7 @@ import type { MappingQueries } from './neon-store';
 export function creerNeonQueries(db: Db): MappingQueries {
   return {
     async selectByGuild(guildId) {
-      // ORDRE = anciennete d'ajout (updated_at croissant) => priorite ADR-0004 :
+      // ORDRE = anciennete d'ajout (updated_at croissant) => priorite ADR-0005 d.4 :
       // le rOle mappe en PREMIER l'emporte en cas de gains multiples.
       const lignes = await db
         .select({ roleId: autoRenameMappings.roleId, styleName: autoRenameMappings.styleName })
@@ -30,12 +30,16 @@ export function creerNeonQueries(db: Db): MappingQueries {
     },
 
     async upsert(guildId, roleId, styleName) {
+      // Sur conflit on remplace SEULEMENT le style. On ne touche PAS updated_at :
+      // bumper la date deplacerait le rOle en derniere position de priorite
+      // (ADR-0005 d.4 : « le rOle mappe en premier l'emporte ») a chaque reedition
+      // de style. L'ordre d'insertion d'origine doit etre preserve.
       await db
         .insert(autoRenameMappings)
         .values({ guildId, roleId, styleName })
         .onConflictDoUpdate({
           target: [autoRenameMappings.guildId, autoRenameMappings.roleId],
-          set: { styleName, updatedAt: new Date() },
+          set: { styleName },
         });
     },
 

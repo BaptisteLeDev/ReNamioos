@@ -26,7 +26,15 @@ const LETTRE = /\p{L}/u;
  *   (glyphes Unicode hors `[A-Za-z]` -> aucune lettre ASCII a transformer).
  *   Refus propre, pas de de-stylisation magique (ADR-0003, decision 3).
  */
-export type ErreurStylisation = 'style-inconnu' | 'rien-a-styliser';
+export type ErreurStylisation = 'style-inconnu' | 'rien-a-styliser' | 'texte-trop-long';
+
+/**
+ * Borne du texte d'entree de /convert (finding #24, CWE-20). Un embed Discord
+ * limite chaque field a 1024 caracteres ; on borne tres en deca pour eviter
+ * qu'un payload non controle ne soit injecte dans l'embed (et que la sortie
+ * stylisee, plus large que l'entree, ne depasse la limite Discord).
+ */
+export const LIMITE_TEXTE_CONVERT = 500;
 
 /** Vrai s'il existe au moins une lettre ASCII `[A-Za-z]` (seule matiere stylisable). */
 const LETTRE_ASCII = /[a-zA-Z]/;

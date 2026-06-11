@@ -8,8 +8,9 @@
  * vide ou fantaisiste.
  */
 import { EmbedBuilder, SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
-import { convertirTexte } from '../domain/stylisation';
+import { convertirTexte, LIMITE_TEXTE_CONVERT } from '../domain/stylisation';
 import type { Command } from './types';
+import { COULEUR_BLEU } from './couleurs';
 import { autocompleteStyle } from './style-autocomplete';
 import { capitaliser, estStyleConnu, messageErreur } from './styliser';
 
@@ -34,6 +35,13 @@ export const convertCommand: Command = {
     const texte = interaction.options.getString('texte', true);
     const style = interaction.options.getString('style', true);
 
+    // Borne l'entree AVANT toute construction d'embed (finding #24, CWE-20).
+    // Longueur par code point (coherent avec tronquerPseudo).
+    if ([...texte].length > LIMITE_TEXTE_CONVERT) {
+      await interaction.reply({ content: messageErreur('texte-trop-long'), ephemeral: true });
+      return;
+    }
+
     if (!estStyleConnu(style)) {
       await interaction.reply({ content: messageErreur('style-inconnu', style), ephemeral: true });
       return;
@@ -47,7 +55,7 @@ export const convertCommand: Command = {
 
     const embed = new EmbedBuilder()
       .setTitle(`✨ Conversion en ${capitaliser(style)}`)
-      .setColor(0x3498db)
+      .setColor(COULEUR_BLEU)
       .addFields(
         { name: '📝 Original', value: texte, inline: false },
         { name: '🎨 Résultat', value: resultat.texte, inline: false },

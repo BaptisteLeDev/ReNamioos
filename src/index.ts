@@ -50,6 +50,9 @@ async function bootstrap(): Promise<void> {
   const api = await createApiServer({
     statsProvider: bot,
     logger: config.isDevelopment,
+    statsToken: config.api.statsToken,
+    corsOrigins: config.api.corsOrigins,
+    rateLimit: config.api.rateLimit,
   });
   await api.listen({ port: config.api.port, host: config.api.host });
   console.log(`API a l'ecoute sur http://${config.api.host}:${config.api.port}`);

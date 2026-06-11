@@ -8,17 +8,21 @@
  * bot) repondent en ephemere sans renommage — ÉCART VOLONTAIRE B4 (ADR-0003 d.3).
  */
 import {
-  EmbedBuilder,
   PermissionFlagsBits,
   SlashCommandBuilder,
   type ChatInputCommandInteraction,
   type GuildMember,
 } from 'discord.js';
 import type { Command } from './types';
+import { COULEUR_VERT } from './couleurs';
 import { autocompleteStyle } from './style-autocomplete';
-import { appliquerRename, estStyleConnu, messageErreur, sourceRename } from './styliser';
-
-const COULEUR_VERT = 0x2ecc71;
+import {
+  appliquerRename,
+  embedRenameOk,
+  estStyleConnu,
+  messageErreur,
+  sourceRename,
+} from './styliser';
 
 export const renameCommand: Command = {
   data: new SlashCommandBuilder()
@@ -71,14 +75,7 @@ export const renameCommand: Command = {
       return;
     }
 
-    const embed = new EmbedBuilder()
-      .setTitle('✅ Membre renommé')
-      .setColor(COULEUR_VERT)
-      .addFields(
-        { name: '👤 Membre', value: membre.toString(), inline: true },
-        { name: '🎨 Style', value: resultat.style, inline: true },
-        { name: '📝 Nouveau pseudo', value: resultat.pseudo, inline: false },
-      );
+    const embed = embedRenameOk(membre, resultat.pseudo, resultat.style, COULEUR_VERT, '✅ Membre renommé');
     await interaction.reply({ embeds: [embed] });
   },
 };

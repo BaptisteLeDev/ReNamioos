@@ -18,6 +18,7 @@ import { creerAideCommand } from './aide';
 import { creerAutoRenameCommand } from './auto-rename';
 import { convertCommand } from './convert';
 import { pingCommand } from './ping';
+import { previewCommand } from './preview';
 import { randomCommand } from './random';
 import { renameCommand } from './rename';
 import { stylesCommand } from './styles';
@@ -41,6 +42,7 @@ export function creerCommandes(options: OptionsCommandes): Command[] {
     pingCommand,
     stylesCommand,
     convertCommand,
+    previewCommand,
     renameCommand,
     randomCommand,
     creerAutoRenameCommand(mappingStore),
