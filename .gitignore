@@ -40,3 +40,9 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+
+# Landing page Astro (website-src/) — dépendances & cache, jamais committés.
+# Le build statique vit dans website/ et reste versionné.
+website-src/node_modules/
+website-src/.astro/
+node_modules/

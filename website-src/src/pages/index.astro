@@ -1,0 +1,415 @@
+---
+import Base from "@bdf/design/layouts/Base.astro";
+import Nav from "@bdf/design/components/Nav.astro";
+import Hero from "@bdf/design/components/Hero.astro";
+import CommandCard from "@bdf/design/components/CommandCard.astro";
+import CommandGrid from "@bdf/design/components/CommandGrid.astro";
+import CtaBand from "@bdf/design/components/CtaBand.astro";
+import Footer from "@bdf/design/components/Footer.astro";
+import BlobShape from "@bdf/design/components/BlobShape.astro";
+
+import { STYLES, SAMPLE, HERO_SHOWCASE } from "../data/styles";
+
+// URL d'invitation Discord — PLACEHOLDER documenté.
+// À remplacer par l'OAuth2 réel (scopes bot + applications.commands,
+// permission Manage Nicknames) une fois l'application publiée.
+const INVITE_URL = "https://discord.com/oauth2/authorize?client_id=VOTRE_CLIENT_ID&scope=bot+applications.commands&permissions=134217728";
+const SUPPORT_URL = "https://github.com/BaptisteLeDev/ReNamioos/issues";
+
+const commands = [
+  { name: "/ping",    glyph: "📡", desc: "Vérifie que ReNamioos répond — un battement de cœur instantané." },
+  { name: "/styles",  glyph: "🎨", desc: "Affiche les styles disponibles, avec un aperçu de chacun." },
+  { name: "/convert", glyph: "🔤", desc: "Convertit n'importe quel texte dans le style de votre choix." },
+  { name: "/rename",  glyph: "✏️", desc: "Renomme un membre avec un style précis, ou un nom sur mesure." },
+  { name: "/random",  glyph: "🎲", desc: "Laisse le hasard choisir un style et l'applique à un membre." },
+  { name: "/aide",    glyph: "💡", desc: "Récapitule les commandes et la prise en main, en clair." },
+];
+---
+
+<Base
+  title="ReNamioos — des pseudos stylisés en Unicode pour votre Discord"
+  description="ReNamioos transforme les pseudos en typographies Unicode soignées : cursive, gothique, double, cercles… 8 styles, auto-rename par rôle, commandes slash. Le bot identité de la flotte BotDiscordFactory."
+  bot="renamioos"
+>
+  <Nav
+    brand="ReNamioos"
+    href="/"
+    glyph="𝓡"
+    links={[
+      { label: "Styles", href: "#styles" },
+      { label: "Commandes", href: "#commandes" },
+      { label: "Auto-rename", href: "#auto-rename" },
+      { label: "La flotte", href: "https://botdiscordfactory.com" },
+    ]}
+    cta={{ label: "Ajouter à Discord", href: INVITE_URL }}
+  />
+
+  <main id="main">
+    <!-- HERO : la stylisation Unicode montrée EN VRAI ------------------- -->
+    <Hero overline="ReNamioos · identité">
+      <Fragment slot="title">Un pseudo qui se <em>démarque</em>, sans copier-coller.</Fragment>
+      <Fragment slot="lead">
+        ReNamioos transforme les pseudos de vos membres en vraies typographies
+        Unicode. Une commande, et <strong>{SAMPLE}</strong> devient
+        <span class="ren-inline-preview" aria-hidden="true">𝓑𝓪𝓹𝓽𝓲𝓼𝓽𝓮</span>.
+        Huit styles soignés, posés directement dans Discord.
+      </Fragment>
+      <Fragment slot="actions">
+        <a class="bdf-btn bdf-btn--lg" href={INVITE_URL}>
+          Ajouter à Discord <span aria-hidden="true">→</span>
+        </a>
+        <a class="bdf-btn bdf-btn--ghost" href="#styles">Voir les styles</a>
+        <span class="ren-note">Gratuit · commandes slash · installation en 30 secondes</span>
+      </Fragment>
+
+      <Fragment slot="visual">
+        <div class="ren-showcase">
+          <BlobShape size="116px" float class="ren-showcase__mark"><span>𝓡</span></BlobShape>
+          <ul class="ren-showcase__list">
+            {HERO_SHOWCASE.map((s) => (
+              <li class="ren-chip">
+                <span class="ren-chip__preview" lang="und" translate="no" aria-hidden="true">{s.preview}</span>
+                <span class="ren-chip__meta">{s.label} · {s.style}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </Fragment>
+    </Hero>
+
+    <!-- LES 8 STYLES : aperçu de chacun sur un pseudo d'exemple --------- -->
+    <section class="bdf-section" id="styles">
+      <div class="bdf-wrap">
+        <div class="bdf-section__head">
+          <span class="bdf-overline">Huit styles officiels</span>
+          <h2 class="bdf-section__title">Un même pseudo, huit caractères.</h2>
+          <p class="bdf-section__sub">
+            Chaque style applique une police Unicode différente. Voici
+            « {SAMPLE} » décliné dans les huit — exactement ce que vos membres
+            verront dans le salon.
+          </p>
+        </div>
+
+        <ul class="ren-styles">
+          {STYLES.map((style) => (
+            <li class="ren-style">
+              <div class="ren-style__top">
+                <span class="ren-style__name">{style.name}</span>
+                <code class="ren-style__id">/convert {style.id}</code>
+              </div>
+              <p class="ren-style__preview" lang="und" translate="no">{style.preview}</p>
+              <p class="ren-style__blurb">{style.blurb}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+
+    <!-- COMMANDES ------------------------------------------------------- -->
+    <section class="bdf-section" id="commandes">
+      <div class="bdf-wrap">
+        <div class="bdf-section__head">
+          <span class="bdf-overline">Boîte à outils</span>
+          <h2 class="bdf-section__title">Six commandes, à portée de slash.</h2>
+          <p class="bdf-section__sub">
+            Une interface moderne avec auto-complétion. Tout se fait au clavier,
+            sans quitter la conversation.
+          </p>
+        </div>
+
+        <CommandGrid columns={3}>
+          {commands.map((cmd) => (
+            <CommandCard name={cmd.name} glyph={cmd.glyph}>{cmd.desc}</CommandCard>
+          ))}
+        </CommandGrid>
+      </div>
+    </section>
+
+    <!-- AUTO-RENAME PAR RÔLE -------------------------------------------- -->
+    <section class="bdf-section" id="auto-rename">
+      <div class="bdf-wrap">
+        <div class="ren-auto">
+          <div class="ren-auto__copy">
+            <span class="bdf-overline">Auto-rename par rôle</span>
+            <h2 class="ren-auto__title">Le bon style, automatiquement.</h2>
+            <p class="ren-auto__lead">
+              Associez un rôle à un style : dès qu'un membre l'obtient, son pseudo
+              est restylisé. Le rôle retiré, le pseudo d'origine revient — sans
+              intervention.
+            </p>
+            <ol class="ren-steps">
+              <li><span class="ren-steps__n" aria-hidden="true">1</span> Un membre reçoit le rôle configuré.</li>
+              <li><span class="ren-steps__n" aria-hidden="true">2</span> ReNamioos applique le style associé à son pseudo.</li>
+              <li><span class="ren-steps__n" aria-hidden="true">3</span> Le rôle retiré, le pseudo d'origine est restauré.</li>
+            </ol>
+          </div>
+
+          <figure class="ren-flow" aria-label="Exemple : un membre nommé Baptiste obtient un rôle et son pseudo devient cursive, puis revient à la normale">
+            <div class="ren-flow__row">
+              <span class="ren-flow__name">{SAMPLE}</span>
+              <span class="ren-flow__tag">pseudo d'origine</span>
+            </div>
+            <div class="ren-flow__arrow" aria-hidden="true">
+              <BlobShape size="40px" fill="tint"><span>🎭</span></BlobShape>
+              <span class="ren-flow__role">+ rôle « VIP »</span>
+            </div>
+            <div class="ren-flow__row ren-flow__row--styled">
+              <span class="ren-flow__name" lang="und" translate="no">𝓑𝓪𝓹𝓽𝓲𝓼𝓽𝓮</span>
+              <span class="ren-flow__tag">style cursive appliqué</span>
+            </div>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA ------------------------------------------------------------- -->
+    <section class="bdf-section" id="ajouter">
+      <div class="bdf-wrap">
+        <CtaBand overline="Prêt en 30 secondes" title="Donnez du style aux pseudos de votre serveur.">
+          <Fragment slot="lead">
+            Invitez ReNamioos, choisissez vos styles, et laissez vos membres se
+            démarquer. Gratuit, sans configuration obligatoire.
+          </Fragment>
+          <Fragment slot="actions">
+            <a class="bdf-btn bdf-btn--lg" href={INVITE_URL}>
+              Ajouter à Discord <span aria-hidden="true">→</span>
+            </a>
+          </Fragment>
+        </CtaBand>
+      </div>
+    </section>
+  </main>
+
+  <Footer
+    brand="ReNamioos"
+    href="/"
+    glyph="𝓡"
+    tagline="Le bot identité de la flotte BotDiscordFactory. Des pseudos stylisés en Unicode, en une commande."
+    columns={[
+      { title: "ReNamioos", links: [
+        { label: "Styles", href: "#styles" },
+        { label: "Commandes", href: "#commandes" },
+        { label: "Auto-rename", href: "#auto-rename" },
+        { label: "Ajouter à Discord", href: INVITE_URL },
+      ]},
+      { title: "Ressources", links: [
+        { label: "La flotte", href: "https://botdiscordfactory.com" },
+        { label: "Code source", href: "https://github.com/BaptisteLeDev/ReNamioos" },
+        { label: "Support", href: SUPPORT_URL },
+      ]},
+    ]}
+    legal="© 2026 ReNamioos — un bot BotDiscordFactory."
+    version="bdf-design · renamioos"
+  />
+</Base>
+
+<style>
+  /* Sections de contenu propres à ReNamioos. Aucune couleur en dur :
+     uniquement des tokens @bdf/design (« tokens seuls » du design system). */
+
+  /* --- Aperçu Unicode inline dans le chapeau du hero -------------------- */
+  .ren-inline-preview {
+    font-family: var(--font-mono);
+    color: var(--accent-600);
+    white-space: nowrap;
+  }
+  .ren-note { font-size: var(--fs-xs); color: var(--c-ink-400); }
+
+  /* --- Vitrine du hero : marque + chips de pseudos stylisés ------------- */
+  .ren-showcase {
+    display: grid;
+    gap: var(--sp-5);
+    place-items: center;
+    width: 100%;
+  }
+  .ren-showcase__mark :global(span) { font-family: var(--font-display); }
+  .ren-showcase__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--sp-3);
+    width: 100%;
+    max-width: 360px;
+  }
+  .ren-chip {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-1);
+    padding: var(--sp-4) var(--sp-5);
+    background: var(--c-paper-0);
+    border: 1px solid var(--c-line);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--dur-base) var(--ease-soft), box-shadow var(--dur-base) var(--ease-soft);
+  }
+  .ren-chip:nth-child(odd) { transform: translateX(8px); }
+  .ren-chip:hover { transform: translateX(0); box-shadow: var(--shadow-md); }
+  .ren-chip__preview {
+    font-size: var(--fs-xl);
+    color: var(--c-ink-900);
+    line-height: 1.2;
+  }
+  .ren-chip__meta {
+    font-family: var(--font-mono);
+    font-size: var(--fs-2xs);
+    letter-spacing: var(--ls-wide);
+    text-transform: uppercase;
+    color: var(--accent-600);
+  }
+
+  /* --- Grille des 8 styles --------------------------------------------- */
+  .ren-styles {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--sp-4);
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 640px) { .ren-styles { grid-template-columns: 1fr 1fr; } }
+  @media (min-width: 980px) { .ren-styles { grid-template-columns: repeat(4, 1fr); } }
+
+  .ren-style {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3);
+    padding: var(--sp-5);
+    background: var(--c-paper-0);
+    border: 1px solid var(--c-line);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-xs);
+    transition: transform var(--dur-base) var(--ease-soft),
+      box-shadow var(--dur-base) var(--ease-soft),
+      border-color var(--dur-base);
+  }
+  .ren-style:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--accent-200);
+  }
+  .ren-style__top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-2);
+    flex-wrap: wrap;
+  }
+  .ren-style__name {
+    font-family: var(--font-display);
+    font-weight: var(--fw-semibold);
+    color: var(--c-ink-900);
+    font-size: var(--fs-md);
+  }
+  .ren-style__id {
+    font-family: var(--font-mono);
+    font-size: var(--fs-2xs);
+    color: var(--accent-600);
+    background: color-mix(in srgb, var(--accent-100) 60%, var(--c-paper-0));
+    padding: var(--sp-1) var(--sp-2);
+    border-radius: var(--r-xs);
+    white-space: nowrap;
+  }
+  .ren-style__preview {
+    font-size: var(--fs-2xl);
+    line-height: 1.25;
+    color: var(--c-ink-900);
+    word-break: break-word;
+    padding-block: var(--sp-2);
+  }
+  .ren-style__blurb {
+    font-size: var(--fs-sm);
+    color: var(--c-ink-500);
+    line-height: var(--lh-relaxed);
+    margin-top: auto;
+  }
+
+  /* --- Auto-rename : copy + flux illustré ------------------------------- */
+  .ren-auto {
+    display: grid;
+    gap: var(--sp-7);
+    align-items: center;
+    grid-template-columns: 1fr;
+    background: var(--c-paper-0);
+    border: 1px solid var(--c-line);
+    border-radius: var(--r-xl);
+    box-shadow: var(--shadow-md);
+    padding: clamp(1.5rem, 5vw, var(--sp-8));
+  }
+  @media (min-width: 880px) { .ren-auto { grid-template-columns: 1.1fr 0.9fr; gap: var(--sp-8); } }
+  .ren-auto__title { font-size: clamp(1.6rem, 3.5vw, var(--fs-2xl)); margin-top: var(--sp-3); }
+  .ren-auto__lead {
+    margin-top: var(--sp-4);
+    font-size: var(--fs-lg);
+    color: var(--c-ink-500);
+    line-height: var(--lh-relaxed);
+    max-width: 46ch;
+  }
+  .ren-steps {
+    list-style: none;
+    margin: var(--sp-6) 0 0;
+    padding: 0;
+    display: grid;
+    gap: var(--sp-3);
+  }
+  .ren-steps li {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    font-size: var(--fs-sm);
+    color: var(--c-ink-700);
+  }
+  .ren-steps__n {
+    flex: none;
+    width: var(--sp-5);
+    height: var(--sp-5);
+    display: grid;
+    place-items: center;
+    border-radius: var(--bot-blob);
+    background: color-mix(in srgb, var(--accent-100) 70%, var(--c-paper-0));
+    border: 1px solid var(--accent-200);
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    color: var(--accent-600);
+  }
+
+  .ren-flow {
+    margin: 0;
+    display: grid;
+    gap: var(--sp-3);
+    padding: var(--sp-6);
+    border-radius: var(--r-lg);
+    background: color-mix(in srgb, var(--accent-100) 30%, var(--c-paper-0));
+    border: 1px solid var(--accent-200);
+  }
+  .ren-flow__row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-1);
+    padding: var(--sp-4) var(--sp-5);
+    background: var(--c-paper-0);
+    border: 1px solid var(--c-line);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-xs);
+  }
+  .ren-flow__row--styled { border-color: var(--accent-300); box-shadow: var(--shadow-sm); }
+  .ren-flow__name { font-size: var(--fs-xl); color: var(--c-ink-900); }
+  .ren-flow__tag {
+    font-family: var(--font-mono);
+    font-size: var(--fs-2xs);
+    letter-spacing: var(--ls-wide);
+    text-transform: uppercase;
+    color: var(--c-ink-400);
+  }
+  .ren-flow__arrow {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    padding-inline: var(--sp-2);
+  }
+  .ren-flow__role {
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    color: var(--accent-600);
+  }
+</style>

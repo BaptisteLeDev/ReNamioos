@@ -1,0 +1,19 @@
+{
+  "name": "@renamioos/website",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Landing page ReNamioos — Astro, consomme @bdf/design. Build statique sorti dans ../website.",
+  "scripts": {
+    "gen": "node scripts/gen-styles.mjs",
+    "predev": "node scripts/gen-styles.mjs",
+    "dev": "astro dev",
+    "prebuild": "node scripts/gen-styles.mjs",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@bdf/design": "file:../../../sites/bdf-design",
+    "astro": "^5.7.0"
+  }
+}
