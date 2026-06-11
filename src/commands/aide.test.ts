@@ -58,7 +58,7 @@ describe('commande /aide', () => {
     const { interaction, captured } = fakeInteraction();
     await creerAideCommand(SANS_ROLES).execute(interaction);
     const texte = (captured.embeds[0]?.data.fields ?? []).map((f) => f.value).join('\n');
-    for (const cmd of ['/styles', '/convert', '/rename', '/random', '/ping']) {
+    for (const cmd of ['/styles', '/convert', '/preview', '/rename', '/random', '/ping']) {
       expect(texte).toContain(cmd);
     }
   });

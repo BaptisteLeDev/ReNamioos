@@ -46,6 +46,12 @@ interface Scenario {
   roleId?: string;
   roleName?: string;
   style?: string;
+  /** Position du role cible (#29 faisabilite). */
+  rolePosition?: number;
+  /** Le bot a-t-il Manage Nicknames ? (#29 faisabilite). */
+  botManageNicknames?: boolean;
+  /** Position du role le plus haut du bot (#29 faisabilite). */
+  botRolePosition?: number;
 }
 
 interface Captured {
@@ -56,8 +62,16 @@ interface Captured {
 
 function fakeInteraction(s: Scenario) {
   const captured: Captured = { content: '', ephemeral: false, embeds: [] };
+  const botMembre = {
+    permissions: {
+      has: (perm: bigint) =>
+        perm === PermissionFlagsBits.ManageNicknames ? (s.botManageNicknames ?? true) : false,
+    },
+    roles: { highest: { position: s.botRolePosition ?? 100 } },
+  };
   const interaction = {
     guildId: s.guildId === undefined ? 'guild-1' : s.guildId,
+    guild: { members: { me: botMembre } },
     memberPermissions: {
       has: (perm: bigint) =>
         perm === PermissionFlagsBits.ManageGuild ? (s.canManageGuild ?? true) : false,
@@ -66,7 +80,12 @@ function fakeInteraction(s: Scenario) {
       getSubcommand: () => s.sub,
       getRole: (_name: string, _req?: boolean) =>
         s.roleId
-          ? { id: s.roleId, name: s.roleName ?? 'Role', toString: () => `<@&${s.roleId}>` }
+          ? {
+              id: s.roleId,
+              name: s.roleName ?? 'Role',
+              position: s.rolePosition ?? 1,
+              toString: () => `<@&${s.roleId}>`,
+            }
           : null,
       getString: (_name: string, _req?: boolean) => s.style ?? null,
     },
@@ -153,6 +172,55 @@ describe('commande /auto-rename', () => {
     expect(captured.ephemeral).toBe(true);
     expect(captured.content.toLowerCase()).toContain('inconnu');
     expect(await store.list('guild-1')).toEqual({});
+  });
+
+  it('add avec role trop haut -> mapping PERSISTE quand meme + alerte de faisabilite (#29)', async () => {
+    const store = fakeStore();
+    const { interaction, captured } = fakeInteraction({
+      sub: 'add',
+      roleId: 'role-haut',
+      style: 'cursive',
+      botRolePosition: 5,
+      rolePosition: 10, // cible au-dessus du bot
+    });
+    await creerAutoRenameCommand(store).execute(interaction);
+    // Pas de blocage : le mapping est bien enregistre.
+    expect(await store.styleForRole('guild-1', 'role-haut')).toBe('cursive');
+    // Mais l'admin est prevenu.
+    const texte = captured.content + JSON.stringify(captured.embeds);
+    expect(texte).toContain('⚠️');
+    expect(texte.toLowerCase()).toContain('au-dessus');
+  });
+
+  it('add sans Manage Nicknames -> mapping PERSISTE + alerte permission (#29)', async () => {
+    const store = fakeStore();
+    const { interaction, captured } = fakeInteraction({
+      sub: 'add',
+      roleId: 'role-x',
+      style: 'cursive',
+      botManageNicknames: false,
+    });
+    await creerAutoRenameCommand(store).execute(interaction);
+    expect(await store.styleForRole('guild-1', 'role-x')).toBe('cursive');
+    const texte = captured.content + JSON.stringify(captured.embeds);
+    expect(texte).toContain('⚠️');
+    expect(texte.toLowerCase()).toContain('pseudos');
+  });
+
+  it('add quand le bot peut renommer -> PAS d’alerte de faisabilite (#29)', async () => {
+    const store = fakeStore();
+    const { interaction, captured } = fakeInteraction({
+      sub: 'add',
+      roleId: 'role-ok',
+      style: 'cursive',
+      botManageNicknames: true,
+      botRolePosition: 100,
+      rolePosition: 1,
+    });
+    await creerAutoRenameCommand(store).execute(interaction);
+    expect(await store.styleForRole('guild-1', 'role-ok')).toBe('cursive');
+    const texte = captured.content + JSON.stringify(captured.embeds);
+    expect(texte).not.toContain('⚠️');
   });
 
   it('remove retire le mapping du role et confirme', async () => {

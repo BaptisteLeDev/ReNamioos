@@ -37,6 +37,7 @@ export function creerAideCommand(mappingStore: MappingStore): Command {
           value: [
             '`/styles` - Affiche tous les styles',
             '`/convert <texte> <style>` - Convertit du texte',
+            '`/preview <style> [texte]` - Aperçu privé d’un style',
             '`/rename <membre> <style> [nom]` - Renomme un membre',
             '`/random <membre> [nom]` - Style aléatoire',
             '`/ping` - Teste la connexion',
