@@ -11,7 +11,12 @@
  * et sans import de discord.js (invariant de l'ACL ciblee, ADR-0002).
  */
 import { EmbedBuilder, type GuildMember } from 'discord.js';
-import { convertirTexte, tronquerPseudo, type ErreurStylisation } from '../domain/stylisation';
+import {
+  convertirTexte,
+  tronquerPseudo,
+  LIMITE_TEXTE_CONVERT,
+  type ErreurStylisation,
+} from '../domain/stylisation';
 import { STYLE_NAMES, type StyleName } from '../domain/styles';
 
 /**
@@ -25,6 +30,8 @@ export function messageErreur(erreur: ErreurStylisation, style?: string): string
       return `❌ Style « ${style ?? '?'} » inconnu. Utilise \`/styles\` pour voir la liste.`;
     case 'rien-a-styliser':
       return '❌ Rien à styliser : ce texte est déjà stylisé (ou ne contient aucune lettre).';
+    case 'texte-trop-long':
+      return `❌ Texte trop long : ${LIMITE_TEXTE_CONVERT} caractères maximum.`;
   }
 }
 

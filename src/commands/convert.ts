@@ -8,7 +8,7 @@
  * vide ou fantaisiste.
  */
 import { EmbedBuilder, SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
-import { convertirTexte } from '../domain/stylisation';
+import { convertirTexte, LIMITE_TEXTE_CONVERT } from '../domain/stylisation';
 import type { Command } from './types';
 import { COULEUR_BLEU } from './couleurs';
 import { autocompleteStyle } from './style-autocomplete';
@@ -34,6 +34,13 @@ export const convertCommand: Command = {
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const texte = interaction.options.getString('texte', true);
     const style = interaction.options.getString('style', true);
+
+    // Borne l'entree AVANT toute construction d'embed (finding #24, CWE-20).
+    // Longueur par code point (coherent avec tronquerPseudo).
+    if ([...texte].length > LIMITE_TEXTE_CONVERT) {
+      await interaction.reply({ content: messageErreur('texte-trop-long'), ephemeral: true });
+      return;
+    }
 
     if (!estStyleConnu(style)) {
       await interaction.reply({ content: messageErreur('style-inconnu', style), ephemeral: true });
