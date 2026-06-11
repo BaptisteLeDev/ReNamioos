@@ -68,4 +68,22 @@ describe('commande /convert', () => {
     expect(captured.ephemeral).toBe(true);
     expect(captured.content.toLowerCase()).toContain('déjà stylisé');
   });
+
+  // Finding #24 (CWE-20) : texte non borne injecte dans l'embed. Au-dela de la
+  // limite, refus propre ephemere, aucun embed (pas d'injection de payload geant).
+  it('texte trop long -> refus ephemere, aucun embed (finding #24)', async () => {
+    const tropLong = 'a'.repeat(501);
+    const { interaction, captured } = fakeInteraction({ texte: tropLong, style: 'cursive' });
+    await convertCommand.execute(interaction);
+    expect(captured.embeds.length).toBe(0);
+    expect(captured.ephemeral).toBe(true);
+    expect(captured.content.toLowerCase()).toContain('trop long');
+  });
+
+  it('texte a la limite (500) -> stylise normalement', async () => {
+    const limite = 'a'.repeat(500);
+    const { interaction, captured } = fakeInteraction({ texte: limite, style: 'cursive' });
+    await convertCommand.execute(interaction);
+    expect(captured.embeds.length).toBe(1);
+  });
 });
