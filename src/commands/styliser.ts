@@ -10,7 +10,11 @@
  * domaine, et reposent le resultat via ces helpers. Le domaine reste sans mock
  * et sans import de discord.js (invariant de l'ACL ciblee, ADR-0002).
  */
-import { EmbedBuilder, type GuildMember } from 'discord.js';
+import { EmbedBuilder, PermissionFlagsBits, type GuildMember, type Role } from 'discord.js';
+import {
+  evaluerFaisabiliteRename,
+  type RaisonInfaisabilite,
+} from '../domain/faisabilite-rename';
 import { convertirTexte, tronquerPseudo, type ErreurStylisation } from '../domain/stylisation';
 import { STYLE_NAMES, type StyleName } from '../domain/styles';
 
@@ -111,4 +115,34 @@ export function sourceRename(membre: GuildMember, nouveauNom: string | null): st
 /** Capitalise la 1re lettre (affichage du nom de style dans les embeds). */
 export function capitaliser(mot: string): string {
   return mot.length > 0 ? mot[0]!.toUpperCase() + mot.slice(1) : mot;
+}
+
+/** Message d'alerte (FR) pour chaque raison d'infaisabilite d'un auto-rename (#29). */
+function messageInfaisabilite(raison: RaisonInfaisabilite): string {
+  switch (raison) {
+    case 'permission-manquante':
+      return '⚠️ Attention : il me manque la permission « Gérer les pseudos », je ne pourrai pas appliquer ce style.';
+    case 'role-trop-haut':
+      return '⚠️ Attention : ce rôle est au-dessus du mien, je ne pourrai pas renommer ses membres. Place mon rôle plus haut.';
+  }
+}
+
+/**
+ * Alerte de faisabilite d'un auto-rename pour un role (#29). Extrait les primitives
+ * (permission du bot, positions de role) et delegue au predicat PUR du domaine. Le
+ * mapping n'est PAS bloque : on renvoie juste un message d'alerte a afficher, ou
+ * `null` si le bot pourra renommer. `botMembre`/`role` nuls -> pas d'alerte (on ne
+ * sait pas, on ne crie pas a tort).
+ */
+export function avertissementFaisabilite(
+  botMembre: GuildMember | null,
+  role: Pick<Role, 'position'> | null,
+): string | null {
+  if (!botMembre || !role) return null;
+  const faisabilite = evaluerFaisabiliteRename({
+    botPeutGererPseudos: botMembre.permissions.has(PermissionFlagsBits.ManageNicknames),
+    positionRoleBot: botMembre.roles.highest.position,
+    positionRoleCible: role.position,
+  });
+  return faisabilite.ok ? null : messageInfaisabilite(faisabilite.raison);
 }

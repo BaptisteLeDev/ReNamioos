@@ -26,7 +26,13 @@ import { STYLE_NAMES } from '../domain/styles';
 import type { MappingStore } from '../mapping/store';
 import type { Command } from './types';
 import { COULEUR_VIOLET } from './couleurs';
-import { apercuStyle, capitaliser, estStyleConnu, messageErreur } from './styliser';
+import {
+  apercuStyle,
+  avertissementFaisabilite,
+  capitaliser,
+  estStyleConnu,
+  messageErreur,
+} from './styliser';
 
 /** Fabrique /auto-rename : le store (provenance) est injecte a la composition. */
 export function creerAutoRenameCommand(store: MappingStore): Command {
@@ -101,6 +107,11 @@ export function creerAutoRenameCommand(store: MappingStore): Command {
             { name: '🎨 Style', value: capitaliser(style), inline: true },
             { name: '👀 Aperçu', value: apercuStyle(style), inline: false },
           );
+        // #29 : on PREVIENT (sans bloquer) si le bot ne pourra pas appliquer ce style.
+        const alerte = avertissementFaisabilite(interaction.guild?.members.me ?? null, role);
+        if (alerte) {
+          embed.addFields({ name: '⚠️ Faisabilité', value: alerte, inline: false });
+        }
         await interaction.reply({ embeds: [embed], ephemeral: true });
         return;
       }
