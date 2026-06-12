@@ -18,7 +18,7 @@
  * Aucune migration generee depuis ce repo : la table existe deja. Ce schema sert
  * uniquement de typage pour les requetes drizzle (provenance des donnees centralisee).
  */
-import { pgTable, text, timestamp, primaryKey } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, primaryKey, bigint, index } from 'drizzle-orm/pg-core';
 
 /** Config persistante. Une ligne par (guild, role). Cle = style applique au gain du role. */
 export const autoRenameMappings = pgTable(
@@ -53,6 +53,71 @@ export const autoRenameOptouts = pgTable(
     memberId: text('member_id').notNull(),
   },
   (t) => [primaryKey({ columns: [t.guildId, t.memberId] })],
+);
+
+/**
+ * Pseudo SOURCE memorise avant un auto-rename (issue #25) — pour le ROUND-TRIP : quand le
+ * membre perd son dernier role mappe, on restaure ce pseudo. Cle (guild_id, member_id) :
+ * un seul pseudo d'origine memorise par membre et par serveur.
+ *
+ * Minimisation D8 : une ligne n'existe QUE tant qu'un membre est sous auto-rename actif ;
+ * la restauration au retrait du dernier role mappe SUPPRIME la ligne. Une re-stylisation
+ * ulterieure re-memorise (sans ecraser un original deja present). Table petite (seuls les
+ * membres actuellement stylises).
+ *
+ * DDL (a provisionner sur Neon, comme les autres tables — aucune migration generee ici) :
+ *
+ *   auto_rename_original_nicks(
+ *     guild_id      text,
+ *     member_id     text,
+ *     original_nick text not null,
+ *     PK (guild_id, member_id)
+ *   )
+ */
+export const autoRenameOriginalNicks = pgTable(
+  'auto_rename_original_nicks',
+  {
+    guildId: text('guild_id').notNull(),
+    memberId: text('member_id').notNull(),
+    originalNick: text('original_nick').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.memberId] })],
+);
+
+/**
+ * Journal d'auto-rename (issue #28) — N derniers evenements succes/echec PAR GUILDE.
+ *
+ * Donnee d'ACTIVITE (pas de config), bornee par construction : un ring-buffer cOte DB
+ * (purge des plus anciens au-dela de la capacite a chaque insert, cf. NeonAutoRenameLogStore)
+ * garde la table petite (capacite * nombre de guildes), minimisation D8. La metrique
+ * `autoRenameFailuresToday` de /stats se DERIVE d'un compteur memoire, pas de cette table.
+ *
+ * DDL (a provisionner sur Neon, comme les autres tables — aucune migration generee ici) :
+ *
+ *   auto_rename_log(
+ *     id        bigint generated always as identity primary key,
+ *     guild_id  text not null,
+ *     member_id text not null,
+ *     style     text not null,
+ *     outcome   text not null,   -- 'succes' | 'echec'
+ *     detail    text not null,   -- pseudo applique (succes) ou raison (echec)
+ *     at        timestamptz not null default now()
+ *   );
+ *   create index auto_rename_log_guild_at on auto_rename_log (guild_id, at desc);
+ */
+export const autoRenameLog = pgTable(
+  'auto_rename_log',
+  {
+    id: bigint('id', { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity(),
+    guildId: text('guild_id').notNull(),
+    memberId: text('member_id').notNull(),
+    style: text('style').notNull(),
+    /** 'succes' | 'echec' (cf. AutoRenameOutcome, domain/auto-rename-log.ts). */
+    outcome: text('outcome').notNull(),
+    detail: text('detail').notNull(),
+    at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('auto_rename_log_guild_at').on(t.guildId, t.at.desc())],
 );
 
 /**

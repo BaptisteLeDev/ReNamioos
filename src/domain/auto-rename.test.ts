@@ -18,6 +18,7 @@ import {
   styleDeclenche,
   rolesAjoutes,
   styleAvecConsentement,
+  aPerduDernierRoleMappe,
   type MappingRoleStyle,
 } from './auto-rename';
 
@@ -103,5 +104,37 @@ describe('styleAvecConsentement — faut-il appliquer l auto-rename ? (issue #27
 
   it('aucun style declenche + opt-out -> null', () => {
     expect(styleAvecConsentement(null, true)).toBeNull();
+  });
+});
+
+describe('aPerduDernierRoleMappe — faut-il restaurer le pseudo d origine ? (issue #25)', () => {
+  it('perd son SEUL role mappe -> true (plus aucun mappe, restauration due)', () => {
+    expect(aPerduDernierRoleMappe(['role_cursive', 'x'], ['x'], MAPPING)).toBe(true);
+  });
+
+  it('perd un role mappe mais en garde un autre -> false (encore stylise)', () => {
+    expect(
+      aPerduDernierRoleMappe(['role_cursive', 'role_gothique'], ['role_gothique'], MAPPING),
+    ).toBe(false);
+  });
+
+  it('ne perd aucun role mappe (perd un role non mappe) -> false', () => {
+    expect(aPerduDernierRoleMappe(['role_cursive', 'x'], ['role_cursive'], MAPPING)).toBe(false);
+  });
+
+  it('n avait aucun role mappe -> false (rien a restaurer)', () => {
+    expect(aPerduDernierRoleMappe(['x', 'y'], ['x'], MAPPING)).toBe(false);
+  });
+
+  it('gagne un role (aucun retrait) -> false : ce n est pas un retrait', () => {
+    expect(aPerduDernierRoleMappe(['x'], ['x', 'role_cursive'], MAPPING)).toBe(false);
+  });
+
+  it('echange : perd son dernier mappe ET gagne un non-mappe -> true', () => {
+    expect(aPerduDernierRoleMappe(['role_cursive'], ['autre'], MAPPING)).toBe(true);
+  });
+
+  it('echange : perd un mappe mais en GAGNE un autre mappe -> false (toujours stylise)', () => {
+    expect(aPerduDernierRoleMappe(['role_cursive'], ['role_gothique'], MAPPING)).toBe(false);
   });
 });

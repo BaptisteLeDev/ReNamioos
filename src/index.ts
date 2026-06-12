@@ -14,6 +14,8 @@ import { createApiServer } from './api/server';
 import { BotClient } from './client';
 import { creerMappingStore } from './mapping/index';
 import { creerOptOutStore } from './optout/index';
+import { creerAutoRenameLogStore } from './auto-rename-log/index';
+import { creerOriginalNickStore } from './original-nick/index';
 import { creerCommandSyncStore } from './command-sync/index';
 import { closeDb } from './db/client';
 
@@ -40,12 +42,24 @@ async function bootstrap(): Promise<void> {
   // membre opt-out (minimisation D8).
   const optOutStore = creerOptOutStore({ databaseUrl: config.database.url });
 
+  // Provenance du journal d'auto-rename (issue #28) : ring-buffer Neon en prod (borne par
+  // guilde), memoire en dev. Alimente le diagnostic /auto-rename log et la metrique
+  // autoRenameFailuresToday de /stats.
+  const autoRenameLogStore = creerAutoRenameLogStore({ databaseUrl: config.database.url });
+
+  // Provenance du pseudo d'origine (issue #25) pour le round-trip : on memorise le pseudo
+  // source au rename, on le restaure au retrait du dernier role mappe. Neon en prod (par
+  // serveur), memoire en dev. Une ligne n'existe que tant qu'un membre est stylise (D8).
+  const originalNickStore = creerOriginalNickStore({ databaseUrl: config.database.url });
+
   // Provenance des commandes connues par serveur (/update) : Neon en prod, JSON local en dev.
   const commandSyncStore = creerCommandSyncStore({ databaseUrl: config.database.url });
 
   const bot = new BotClient({
     mappingStore,
     optOutStore,
+    autoRenameLogStore,
+    originalNickStore,
     commandSyncStore,
     discord: {
       applicationId: config.discord.applicationId,

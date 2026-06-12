@@ -96,6 +96,37 @@ export async function appliquerRename(
   return { ok: true, pseudo, style };
 }
 
+/**
+ * Resultat d'une restauration de pseudo (issue #25). Distinct de ResultatRename : on ne
+ * stylise PAS, on repose un pseudo memorise tel quel. Etats invalides irrepresentables.
+ */
+export type ResultatRestauration = { ok: true; pseudo: string } | { ok: false; message: string };
+
+/**
+ * Repose un pseudo MEMORISE (round-trip #25) — sans passer par la stylisation. Verifie la
+ * hierarchie (comme appliquerRename), tronque a 32 code points par securite, edite le nick.
+ * Aucune regle de domaine ici (le pseudo a deja ete valide a la memorisation) ; c'est le
+ * pendant « retour » de appliquerRename, partage avec l'evenement guildMemberUpdate.
+ */
+export async function restaurerPseudo(
+  membre: GuildMember,
+  pseudo: string,
+): Promise<ResultatRestauration> {
+  if (!membre.manageable) {
+    return {
+      ok: false,
+      message: '❌ Hiérarchie de rôles : je ne peux pas restaurer le pseudo de ce membre.',
+    };
+  }
+  const tronque = tronquerPseudo(pseudo);
+  try {
+    await membre.edit({ nick: tronque });
+  } catch {
+    return { ok: false, message: '❌ Je n’ai pas la permission de restaurer ce pseudo.' };
+  }
+  return { ok: true, pseudo: tronque };
+}
+
 /** Embed de confirmation d'un rename (couleur configurable : vert /rename, violet /random). */
 export function embedRenameOk(
   membre: GuildMember,

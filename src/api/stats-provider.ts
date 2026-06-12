@@ -16,6 +16,8 @@ export interface BotStats {
   userCount: number;
   /** Commandes executees depuis minuit (fuseau du bot). */
   commandsToday: number;
+  /** Echecs d'auto-rename depuis minuit (issue #28) : derive du journal, compteur memoire. */
+  autoRenameFailuresToday: number;
   /** Latence WebSocket vers Discord en ms (-1 si non connecte). */
   discordLatencyMs: number;
   /** Version deployee du bot. */

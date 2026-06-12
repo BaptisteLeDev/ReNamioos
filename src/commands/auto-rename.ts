@@ -15,6 +15,8 @@
  *  - add <role> <style> : mappe un rOle natif a un style (choix natifs = STYLE_NAMES).
  *  - remove <role>      : retire le mapping d'un rOle.
  *  - list               : liste les mappings de la guild, avec apercu (apercuStyle).
+ *  - log                : journal des derniers auto-renames de la guild (issue #28),
+ *                         lu via AutoRenameLogStore (provenance unique du journal).
  */
 import {
   EmbedBuilder,
@@ -24,6 +26,8 @@ import {
 } from 'discord.js';
 import { STYLE_NAMES } from '../domain/styles';
 import type { MappingStore } from '../mapping/store';
+import type { AutoRenameLogStore } from '../auto-rename-log/store';
+import type { AutoRenameLogEntry } from '../domain/auto-rename-log';
 import type { Command } from './types';
 import { COULEUR_VIOLET } from './couleurs';
 import {
@@ -34,8 +38,14 @@ import {
   messageErreur,
 } from './styliser';
 
-/** Fabrique /auto-rename : le store (provenance) est injecte a la composition. */
-export function creerAutoRenameCommand(store: MappingStore): Command {
+/** Nombre d'evenements affiches par /auto-rename log (les plus recents). */
+const LIMITE_LOG = 10;
+
+/** Fabrique /auto-rename : les stores (provenance) sont injectes a la composition. */
+export function creerAutoRenameCommand(
+  store: MappingStore,
+  logStore: AutoRenameLogStore,
+): Command {
   return {
     data: new SlashCommandBuilder()
       .setName('auto-rename')
@@ -66,6 +76,11 @@ export function creerAutoRenameCommand(store: MappingStore): Command {
       )
       .addSubcommand((sub) =>
         sub.setName('list').setDescription('Liste les mappings rôle → style de ce serveur.'),
+      )
+      .addSubcommand((sub) =>
+        sub
+          .setName('log')
+          .setDescription('Affiche les derniers auto-renames (succès/échec) de ce serveur.'),
       ),
 
     async execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -127,6 +142,26 @@ export function creerAutoRenameCommand(store: MappingStore): Command {
         return;
       }
 
+      if (sub === 'log') {
+        const evenements = await logStore.recent(guildId, LIMITE_LOG);
+        if (evenements.length === 0) {
+          await interaction.reply({
+            content:
+              'ℹ️ Aucun auto-rename enregistré sur ce serveur pour le moment. ' +
+              'Le journal se remplit quand un membre gagne un rôle mappé.',
+            ephemeral: true,
+          });
+          return;
+        }
+        const embed = new EmbedBuilder()
+          .setTitle('📜 Journal d’auto-rename')
+          .setColor(COULEUR_VIOLET)
+          .setDescription(`Les ${evenements.length} derniers événements (récent → ancien).`)
+          .addFields(evenements.map(ligneJournal));
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+        return;
+      }
+
       // sub === 'list'
       const mapping = await store.list(guildId);
       const entrees = Object.entries(mapping);
@@ -150,5 +185,16 @@ export function creerAutoRenameCommand(store: MappingStore): Command {
         );
       await interaction.reply({ embeds: [embed], ephemeral: true });
     },
+  };
+}
+
+/** Une ligne d'embed pour un evenement du journal (issue #28) : statut + membre + detail. */
+function ligneJournal(e: AutoRenameLogEntry): { name: string; value: string; inline: boolean } {
+  const icone = e.outcome === 'succes' ? '✅' : '❌';
+  const quand = e.at.toISOString().replace('T', ' ').slice(0, 16); // AAAA-MM-JJ hh:mm
+  return {
+    name: `${icone} ${capitaliser(e.style)} · ${quand} UTC`,
+    value: `<@${e.memberId}> — ${e.detail}`,
+    inline: false,
   };
 }

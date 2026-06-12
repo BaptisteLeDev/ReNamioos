@@ -22,6 +22,7 @@ const offlineProvider: StatsProvider = {
     guildCount: 0,
     userCount: 0,
     commandsToday: 0,
+    autoRenameFailuresToday: 0,
     discordLatencyMs: -1,
     version: '0.1.0',
   }),
@@ -64,6 +65,8 @@ describe('contrat cibles ↔ bdf-monitor', () => {
     // Le contrat impose les noms guildCount / userCount (PAS guilds / users).
     expect(typeof body['guildCount']).toBe('number');
     expect(typeof body['userCount']).toBe('number');
+    // #28 : compteur d'echecs d'auto-rename du jour, expose comme number.
+    expect(typeof body['autoRenameFailuresToday']).toBe('number');
     await app.close();
   });
 
