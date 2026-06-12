@@ -17,6 +17,7 @@ import { creerOptOutStore } from './optout/index';
 import { creerAutoRenameLogStore } from './auto-rename-log/index';
 import { creerOriginalNickStore } from './original-nick/index';
 import { creerCommandSyncStore } from './command-sync/index';
+import { creerCommandUsageStore } from './command-usage/index';
 import { closeDb } from './db/client';
 
 async function bootstrap(): Promise<void> {
@@ -55,12 +56,19 @@ async function bootstrap(): Promise<void> {
   // Provenance des commandes connues par serveur (/update) : Neon en prod, JSON local en dev.
   const commandSyncStore = creerCommandSyncStore({ databaseUrl: config.database.url });
 
+  // Provenance du suivi d'usage des commandes (issue #27) : compteur par jour persiste en
+  // Neon (prod), memoire en dev. Alimente la serie commandsDaily (30j) de /stats. On hydrate
+  // le cache memoire au boot pour que /stats reflete l'historique sans round-trip ensuite.
+  const commandUsageStore = creerCommandUsageStore({ databaseUrl: config.database.url });
+  await commandUsageStore.load();
+
   const bot = new BotClient({
     mappingStore,
     optOutStore,
     autoRenameLogStore,
     originalNickStore,
     commandSyncStore,
+    commandUsageStore,
     discord: {
       applicationId: config.discord.applicationId,
       token: config.discord.token,

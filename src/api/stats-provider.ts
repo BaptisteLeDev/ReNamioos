@@ -18,6 +18,12 @@ export interface BotStats {
   commandsToday: number;
   /** Echecs d'auto-rename depuis minuit (issue #28) : derive du journal, compteur memoire. */
   autoRenameFailuresToday: number;
+  /**
+   * Commandes executees par jour sur les 30 derniers jours (issue #27). Tableau ascendant
+   * (du plus ancien au plus recent), `[]` si rien. Alimente depuis un cache memoire (pas
+   * de round-trip dans getStats()).
+   */
+  commandsDaily: Array<{ day: string; count: number }>;
   /** Latence WebSocket vers Discord en ms (-1 si non connecte). */
   discordLatencyMs: number;
   /** Version deployee du bot. */
