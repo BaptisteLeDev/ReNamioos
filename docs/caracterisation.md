@@ -6,7 +6,7 @@
 
 > **But.** Inventorier de façon exhaustive le comportement **observable et actuel**
 > de ReNamioos (version Python, `bot.py`) AVANT sa réécriture en Bun/TypeScript
-> (cf. [`decisions/0001-langage-cible-reecriture.md`](../decisions/0001-langage-cible-reecriture.md)).
+> (cf. [`decisions/0001-langage-cible-reecriture.md`](decisions/0001-langage-cible-reecriture.md)).
 > Ce document est le **cahier des charges de la réécriture** : la nouvelle
 > implémentation doit reproduire ces comportements à l'identique, sauf décision
 > explicite de correction (voir § Bugs pinnés).

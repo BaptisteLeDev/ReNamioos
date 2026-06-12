@@ -2,11 +2,11 @@
 
 ReNamioos est un bot Discord en **Bun / TypeScript** (Discord.js 14) qui transforme
 automatiquement les pseudos en versions stylisées grâce à l'Unicode. C'est le bot **pilote**
-de la flotte (cf. [`decisions/0001`](decisions/0001-langage-cible-reecriture.md) langage cible,
-[`decisions/0002`](decisions/0002-pattern-starter.md) pattern du pilote).
+de la flotte (cf. [`decisions/0001`](docs/decisions/0001-langage-cible-reecriture.md) langage cible,
+[`decisions/0002`](docs/decisions/0002-pattern-starter.md) pattern du pilote).
 
 Le bot est doublé d'une **API HTTP de supervision** (`/health` + `/stats`) consommée par le
-monitoring de la flotte. Voir [`ARCHITECTURE.md`](ARCHITECTURE.md) (DDD : domaine pur isolé,
+monitoring de la flotte. Voir [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) (DDD : domaine pur isolé,
 ACL ciblée Discord, contrat monitoring) et [`src/domain/README.md`](src/domain/README.md)
 (langage ubiquitaire du domaine de stylisation, API, invariants).
 
@@ -64,7 +64,7 @@ bun install
 #### b) Activer les Intents Privilégiés ⚠️
 Dans l'onglet **Bot**, activez **SERVER MEMBERS INTENT** (`GuildMembers`) : il est
 **obligatoire** pour l'auto-rename. Sans lui, l'événement `guildMemberUpdate` n'arrive jamais
-et l'auto-rename reste silencieusement inerte (cf. [`ARCHITECTURE.md`](ARCHITECTURE.md), § Auto-rename).
+et l'auto-rename reste silencieusement inerte (cf. [`ARCHITECTURE.md`](docs/ARCHITECTURE.md), § Auto-rename).
 
 #### c) Configurer l'environnement
 Copiez `.env.example` en `.env` à la racine et renseignez les variables (validées par zod
@@ -111,7 +111,7 @@ docker build -t renamioos .   # image Bun + gate typecheck/test au build
 ```
 
 L'API démarre **avant** le bot : `GET /health` répond même si le login Discord échoue
-(cf. [`ARCHITECTURE.md`](ARCHITECTURE.md), § Bootstrap et § Contrat de supervision).
+(cf. [`ARCHITECTURE.md`](docs/ARCHITECTURE.md), § Bootstrap et § Contrat de supervision).
 
 ---
 
@@ -133,8 +133,8 @@ L'API démarre **avant** le bot : `GET /health` répond même si le login Discor
 
 Le bot renomme automatiquement les membres quand ils obtiennent un rôle mappé. La config est
 **par serveur** et **modifiable depuis Discord** (depuis le lot B8 ; voir
-[`decisions/0005-config-auto-rename-neon.md`](decisions/0005-config-auto-rename-neon.md), qui
-supersède la config fichier d'[ADR-0004](decisions/0004-auto-rename.md)).
+[`decisions/0005-config-auto-rename-neon.md`](docs/decisions/0005-config-auto-rename-neon.md), qui
+supersède la config fichier d'[ADR-0004](docs/decisions/0004-auto-rename.md)).
 
 ### Configuration depuis Discord (mode Neon)
 
@@ -150,7 +150,7 @@ Avec `DATABASE_URL` défini (production), un admin (`Manage Server`) configure t
 La config vit dans une table **Neon** (`auto_rename_mappings`, clé `(guild_id, role_id)`) :
 multi-serveur par construction, persistante, sans redéploiement. La **provenance des données** est
 centralisée derrière un port unique (`MappingStore`) : `/auto-rename`, `/aide` et l'événement
-`guildMemberUpdate` lisent tous la même source (cf. [`ARCHITECTURE.md`](ARCHITECTURE.md),
+`guildMemberUpdate` lisent tous la même source (cf. [`ARCHITECTURE.md`](docs/ARCHITECTURE.md),
 § Auto-rename). L'**ordre d'ajout** définit la priorité quand plusieurs rôles mappés sont gagnés
 en même temps.
 

@@ -3,14 +3,14 @@
 - **Statut** : accepté · **Date** : 2026-06-04
 - **Contexte amont** : [ADR-0001](0001-langage-cible-reecriture.md) (Bun/TS, ReNamioos pilote),
   [ADR-0002](0002-pattern-starter.md) (domaine pur, ACL ciblée),
-  [`docs/caracterisation.md`](../docs/caracterisation.md) (§ Bugs pinnés).
+  [`docs/caracterisation.md`](../caracterisation.md) (§ Bugs pinnés).
 
 ## Contexte
 
 Le domaine de stylisation (B3) a été porté à **parité stricte** avec le `bot.py` legacy,
 **bugs pinnés compris** : le harnais de caractérisation (`stylisation.test.ts`) fige le
 comportement *actuel*, pas le comportement *souhaité*. Les sept comportements surprenants
-listés dans [`docs/caracterisation.md`](../docs/caracterisation.md) (§ Bugs pinnés) étaient
+listés dans [`docs/caracterisation.md`](../caracterisation.md) (§ Bugs pinnés) étaient
 en attente d'une décision **explicite** : reproduire à l'identique, ou corriger en connaissance
 de cause (jamais par accident — c'est le mandat d'ADR-0001/0002).
 

@@ -154,7 +154,7 @@ confirme.
 
 ### Écarts et intent (inchangés vs B6)
 
-- **Écarts volontaires vs legacy archivé** (cf. [`docs/caracterisation.md`](docs/caracterisation.md),
+- **Écarts volontaires vs legacy archivé** (cf. [`docs/caracterisation.md`](caracterisation.md),
   bugs n°6 et n°7) : (1) source = pseudo **serveur** sinon nom global (legacy : `after.name`
   toujours) ; (2) détection par **diff d'ensembles** (legacy : cardinalité). Les **retraits** ne
   déclenchent rien (auto-rename piloté par les **gains**).

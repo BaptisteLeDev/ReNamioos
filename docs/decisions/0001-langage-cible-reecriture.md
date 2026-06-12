@@ -7,7 +7,7 @@
 Les bots Discord de la flotte BotDiscordFactory existent dans des états hétérogènes.
 ReNamioos est écrit en **Python** (`discord.py`), sans tests, avec une logique métier
 mêlée à la couche Discord et plusieurs comportements non documentés (voir
-[`docs/caracterisation.md`](../docs/caracterisation.md)). Une réécriture est décidée ;
+[`docs/caracterisation.md`](../caracterisation.md)). Une réécriture est décidée ;
 il faut trancher le **langage et l'écosystème cibles** pour l'ensemble des bots, et
 choisir un **bot pilote** qui fige le pattern.
 
@@ -42,7 +42,7 @@ Raisons :
 
 - La logique pure de ReNamioos (pipeline `convertir_texte` : nettoyage → conversion
   chiffres → capitalisation → mappage de style) est réécrite en TS **derrière les tests
-  de caractérisation** ([`tests/`](../tests/)), qui décrivent le comportement **actuel**
+  de caractérisation** ([`tests/`](../../tests/)), qui décrivent le comportement **actuel**
   et servent de filet pour la nouvelle implémentation.
 - Le pattern figé par ReNamioos (structure, ACL, packaging starter-vs-lib) devient la
   **référence** des réécritures suivantes — un seul endroit pour faire évoluer le socle.

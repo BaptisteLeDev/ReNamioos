@@ -1,7 +1,7 @@
 # Patterns d'architecture appliqués — ReNamioos
 
 > Patterns réellement présents dans CE repo, avec fichiers d'ancrage. Détail prose dans
-> [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md), [`../../src/domain/README.md`](../../src/domain/README.md),
+> [`../../ARCHITECTURE.md`](../../docs/ARCHITECTURE.md), [`../../src/domain/README.md`](../../src/domain/README.md),
 > [`../../src/mapping/README.md`](../../src/mapping/README.md).
 
 ## Ports & adapters (hexagonal)

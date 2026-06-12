@@ -9,7 +9,7 @@
 | Ressource | Hook |
 |---|---|
 | [`../README.md`](../README.md) | Quoi/pourquoi, install Discord, commandes, modes auto-rename (fichier/Neon), structure projet. |
-| [`../ARCHITECTURE.md`](../ARCHITECTURE.md) | Couches (domaine pur, mapping, adapters Discord, API), ACL ciblée, flux de données, contrat monitoring, bootstrap API-d'abord, déploiement Docker/CI/CD. |
+| [`../ARCHITECTURE.md`](../docs/ARCHITECTURE.md) | Couches (domaine pur, mapping, adapters Discord, API), ACL ciblée, flux de données, contrat monitoring, bootstrap API-d'abord, déploiement Docker/CI/CD. |
 | [`../CONFIG.md`](../CONFIG.md) | Variables d'environnement (référence courte). |
 | [`../EXEMPLES.md`](../EXEMPLES.md) | Exemples d'usage des commandes/styles. |
 | [`../src/domain/README.md`](../src/domain/README.md) | Bounded context **stylisation** : langage ubiquitaire, API pure (`convertirTexte`), invariants, écarts B4 vs legacy. |
@@ -19,11 +19,11 @@
 
 | ADR | Hook |
 |---|---|
-| [`../decisions/0001-langage-cible-reecriture.md`](../decisions/0001-langage-cible-reecriture.md) | Choix Bun/TypeScript pour la réécriture du pilote (legacy Python). |
-| [`../decisions/0002-pattern-starter.md`](../decisions/0002-pattern-starter.md) | Pattern du bot pilote : domaine pur, ACL ciblée, config fichier versionnée. |
-| [`../decisions/0003-corrections-comportements-pinnes.md`](../decisions/0003-corrections-comportements-pinnes.md) | Lot B4 : 4 corrections vs comportements pinnés du legacy (accents, refus propre, chiffres, scriptify). |
-| [`../decisions/0004-auto-rename.md`](../decisions/0004-auto-rename.md) | Auto-rename par rôles (config fichier). **Superseded par 0005.** |
-| [`../decisions/0005-config-auto-rename-neon.md`](../decisions/0005-config-auto-rename-neon.md) | Config auto-rename par serveur en Neon (commande admin, cache, fallback fichier). |
+| [`../decisions/0001-langage-cible-reecriture.md`](../docs/decisions/0001-langage-cible-reecriture.md) | Choix Bun/TypeScript pour la réécriture du pilote (legacy Python). |
+| [`../decisions/0002-pattern-starter.md`](../docs/decisions/0002-pattern-starter.md) | Pattern du bot pilote : domaine pur, ACL ciblée, config fichier versionnée. |
+| [`../decisions/0003-corrections-comportements-pinnes.md`](../docs/decisions/0003-corrections-comportements-pinnes.md) | Lot B4 : 4 corrections vs comportements pinnés du legacy (accents, refus propre, chiffres, scriptify). |
+| [`../decisions/0004-auto-rename.md`](../docs/decisions/0004-auto-rename.md) | Auto-rename par rôles (config fichier). **Superseded par 0005.** |
+| [`../decisions/0005-config-auto-rename-neon.md`](../docs/decisions/0005-config-auto-rename-neon.md) | Config auto-rename par serveur en Neon (commande admin, cache, fallback fichier). |
 | ADR-0006 (branche `fix/security-v1`) | Durcissement API HTTP : auth Bearer `/stats`, CORS allowlist, rate limit, borne `/convert`. Pas encore sur `main`. |
 
 ## Stores machine
