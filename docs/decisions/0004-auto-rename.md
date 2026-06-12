@@ -4,7 +4,7 @@
 - **Contexte amont** : [ADR-0001](0001-langage-cible-reecriture.md) (Bun/TS, ReNamioos pilote),
   [ADR-0002](0002-pattern-starter.md) (domaine pur, ACL ciblée, config fichier sans DB),
   [ADR-0003](0003-corrections-comportements-pinnes.md) (corrections B4),
-  [`docs/caracterisation.md`](../docs/caracterisation.md) (§ Auto-rename, bugs pinnés n°6 et n°7).
+  [`docs/caracterisation.md`](../caracterisation.md) (§ Auto-rename, bugs pinnés n°6 et n°7).
 
 ## Contexte
 
@@ -33,7 +33,7 @@ son **nom global** (`user.username`). Le `after.name` systématique du legacy es
 écrasait un surnom serveur que l'utilisateur (ou un admin) avait délibérément posé.
 
 Concrètement, l'adapter délègue à `sourceRename(membre, null)` (déjà partagé par `/rename` et
-`/random`, cf. [`src/commands/styliser.ts`](../src/commands/styliser.ts)) : `nickname ?? username`.
+`/random`, cf. [`src/commands/styliser.ts`](../../src/commands/styliser.ts)) : `nickname ?? username`.
 La sémantique de la source est donc **identique** à celle des commandes manuelles — un seul
 endroit décide « quel texte styliser ».
 
@@ -79,7 +79,7 @@ qu'un rôle l'emporte, on le place plus haut dans `auto-rename.json`. L'ordre d'
 Discord n'a aucune influence.
 
 **Chemin configurable** : `AUTO_RENAME_CONFIG_PATH` (défaut `auto-rename.json` à la racine). Un
-exemple committé documente la forme : [`auto-rename.example.json`](../auto-rename.example.json).
+exemple committé documente la forme : [`auto-rename.example.json`](../../auto-rename.example.json).
 
 ## Conséquences
 

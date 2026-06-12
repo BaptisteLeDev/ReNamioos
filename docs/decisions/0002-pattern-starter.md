@@ -17,7 +17,7 @@ ouvertes, à trancher **sur preuve** plutôt que par anticipation :
 3. **Persistance** du mapping rôles→styles (successeur de `role.json`) : base de données
    (Neon) ou config fichier versionnée ?
 
-Le domaine de ReNamioos (cf. [`docs/caracterisation.md`](../docs/caracterisation.md)) est
+Le domaine de ReNamioos (cf. [`docs/caracterisation.md`](../caracterisation.md)) est
 un **mappage de caractères pur** (pipeline `convertir_texte` : nettoyage → conversion
 chiffres → capitalisation → mappage de style) plus une poignée de handlers Discord. Il ne
 réclame ni les perfs ni une persistance riche.
@@ -74,7 +74,7 @@ Neon** pour le pilote :
   le domaine, jamais les fichiers JSON bruts.
 - **Évolution flotte** : si un 2ᵉ bot réécrit duplique ce socle, la règle de 3 déclenchera
   l'extraction d'une lib partagée — décision future, ADR dédié. Le pilote ne la pré-câble pas.
-- **Bugs pinnés** ([`docs/caracterisation.md`](../docs/caracterisation.md), § Bugs pinnés) :
+- **Bugs pinnés** ([`docs/caracterisation.md`](../caracterisation.md), § Bugs pinnés) :
   reproduits ou corrigés **explicitement** en B3, jamais par accident — le harnais porté les fige.
 - **Coexistence legacy/rewrite** : le `bot.py` Python reste **intact** jusqu'à la bascule (B7).
   Le scaffold TS coexiste à la racine sans toucher au legacy.

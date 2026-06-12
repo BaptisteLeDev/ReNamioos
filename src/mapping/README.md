@@ -3,8 +3,8 @@
 > **Responsabilité unique** : savoir *d'où vient* la config auto-rename (rôle → style) et la lire /
 > l'écrire, sans que les adapters Discord connaissent la source. C'est le point de **provenance
 > centralisée** du mandat `ARCHITECTURE.md`. Introduit en B8
-> ([ADR-0005](../../decisions/0005-config-auto-rename-neon.md), supersède
-> [ADR-0004](../../decisions/0004-auto-rename.md), config fichier).
+> ([ADR-0005](../../docs/decisions/0005-config-auto-rename-neon.md), supersède
+> [ADR-0004](../../docs/decisions/0004-auto-rename.md), config fichier).
 
 ## Langage ubiquitaire
 
