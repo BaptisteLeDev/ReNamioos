@@ -24,6 +24,8 @@ import type { BotStats, StatsProvider } from './api/stats-provider';
 import { creerGestionnaireMembreMisAJour } from './events/guild-member-update';
 import type { MappingStore } from './mapping/store';
 import { creerFileMappingStore } from './mapping/file-store';
+import type { OptOutStore } from './optout/store';
+import { creerMemoryOptOutStore } from './optout/memory-store';
 import type { CommandSyncStore } from './command-sync/store';
 import { creerFileCommandSyncStore, creerFileIo } from './command-sync/file-store';
 import packageJson from '../package.json' with { type: 'json' };
@@ -31,6 +33,8 @@ import packageJson from '../package.json' with { type: 'json' };
 export interface OptionsBotClient {
   /** Provenance UNIQUE de la config auto-rename (B8, ADR-0005). */
   mappingStore?: MappingStore;
+  /** Provenance UNIQUE du consentement membre a l'auto-rename (issue #27). */
+  optOutStore?: OptOutStore;
   /** Provenance des commandes connues par serveur (/update). Defaut : fichier dev. */
   commandSyncStore?: CommandSyncStore;
   /**
@@ -57,16 +61,18 @@ export class BotClient extends Client implements StatsProvider {
     super({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers] });
 
     const mappingStore = options.mappingStore ?? creerFileMappingStore({});
+    const optOutStore = options.optOutStore ?? creerMemoryOptOutStore();
     const commandSyncStore =
       options.commandSyncStore ?? creerFileCommandSyncStore(creerFileIo('command-sync.json'));
     const redeploy = this.construireRedeploy(options.discord);
 
-    for (const cmd of creerCommandes({ mappingStore, commandSyncStore, redeploy })) {
+    for (const cmd of creerCommandes({ mappingStore, optOutStore, commandSyncStore, redeploy })) {
       this.commands.set(cmd.data.name, cmd);
     }
     // Auto-rename (B8, ADR-0005) : abonnement a guildMemberUpdate. L'evenement
     // n'arrive que si l'intent privilegie GuildMembers est active (Dev Portal).
-    const onMembreMisAJour = creerGestionnaireMembreMisAJour({ store: mappingStore });
+    // Le consentement membre (issue #27) est consulte avant tout rename via optOutStore.
+    const onMembreMisAJour = creerGestionnaireMembreMisAJour({ store: mappingStore, optOutStore });
     this.on(Events.GuildMemberUpdate, (oldMember, newMember) => {
       void onMembreMisAJour(oldMember, newMember);
     });
