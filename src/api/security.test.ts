@@ -23,6 +23,7 @@ const offlineProvider: StatsProvider = {
     userCount: 0,
     commandsToday: 0,
     autoRenameFailuresToday: 0,
+    commandsDaily: [],
     discordLatencyMs: -1,
     version: '0.0.0-test',
   }),

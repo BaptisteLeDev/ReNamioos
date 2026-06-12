@@ -23,6 +23,7 @@ const offlineProvider: StatsProvider = {
     userCount: 0,
     commandsToday: 0,
     autoRenameFailuresToday: 0,
+    commandsDaily: [],
     discordLatencyMs: -1,
     version: '0.1.0',
   }),
@@ -67,6 +68,13 @@ describe('contrat cibles ↔ bdf-monitor', () => {
     expect(typeof body['userCount']).toBe('number');
     // #28 : compteur d'echecs d'auto-rename du jour, expose comme number.
     expect(typeof body['autoRenameFailuresToday']).toBe('number');
+    // #27 : serie commandsDaily, tableau d'objets { day: string, count: number }.
+    const daily = body['commandsDaily'];
+    expect(Array.isArray(daily)).toBe(true);
+    for (const point of daily as Array<Record<string, unknown>>) {
+      expect(typeof point['day']).toBe('string');
+      expect(typeof point['count']).toBe('number');
+    }
     await app.close();
   });
 

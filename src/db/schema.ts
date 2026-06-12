@@ -18,7 +18,16 @@
  * Aucune migration generee depuis ce repo : la table existe deja. Ce schema sert
  * uniquement de typage pour les requetes drizzle (provenance des donnees centralisee).
  */
-import { pgTable, text, timestamp, primaryKey, bigint, index } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  text,
+  timestamp,
+  primaryKey,
+  bigint,
+  integer,
+  date,
+  index,
+} from 'drizzle-orm/pg-core';
 
 /** Config persistante. Une ligne par (guild, role). Cle = style applique au gain du role. */
 export const autoRenameMappings = pgTable(
@@ -130,4 +139,24 @@ export const guildCommandSync = pgTable('guild_command_sync', {
   /** Noms tries joints par virgule (les noms de slash-commands n'en contiennent jamais). */
   commandNames: text('command_names').notNull(),
   syncedAt: timestamp('synced_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Suivi d'usage des commandes (issue #27) — un compteur PAR JOUR (UTC), toutes guildes
+ * confondues. Alimente la serie `commandsDaily` de /stats (30 derniers jours). Donnee
+ * d'ACTIVITE agregee : une ligne par jour, jamais par commande ni par membre — la table
+ * croit d'une ligne/jour et reste minuscule (minimisation D8). Le bot ne purge pas : un
+ * historique de comptes journaliers est negligeable.
+ *
+ * DDL (a provisionner sur Neon, comme les autres tables — aucune migration generee ici) :
+ *
+ *   command_daily(
+ *     day   date primary key,   -- jour UTC
+ *     count integer not null default 0
+ *   );
+ */
+export const commandDaily = pgTable('command_daily', {
+  /** Jour UTC (cle). Stocke en `date` Postgres ; rendu "AAAA-MM-JJ" cote requete. */
+  day: date('day').primaryKey(),
+  count: integer('count').notNull().default(0),
 });

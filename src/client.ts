@@ -33,6 +33,8 @@ import type { OriginalNickStore } from './original-nick/store';
 import { creerMemoryOriginalNickStore } from './original-nick/memory-store';
 import type { CommandSyncStore } from './command-sync/store';
 import { creerFileCommandSyncStore, creerFileIo } from './command-sync/file-store';
+import type { CommandUsageStore } from './command-usage/store';
+import { creerMemoryCommandUsageStore } from './command-usage/memory-store';
 import packageJson from '../package.json' with { type: 'json' };
 
 export interface OptionsBotClient {
@@ -46,6 +48,8 @@ export interface OptionsBotClient {
   originalNickStore?: OriginalNickStore;
   /** Provenance des commandes connues par serveur (/update). Defaut : fichier dev. */
   commandSyncStore?: CommandSyncStore;
+  /** Provenance UNIQUE du suivi d'usage des commandes (issue #27). Defaut : memoire (dev). */
+  commandUsageStore?: CommandUsageStore;
   /**
    * Identifiants Discord pour le PUT REST de /update (re-synchro par serveur). Absents
    * (defaut en test) => /update repond une erreur propre au lieu de re-deployer.
@@ -58,6 +62,8 @@ export class BotClient extends Client implements StatsProvider {
   private commandsToday = 0;
   /** Source du compteur d'echecs d'auto-rename du jour expose dans /stats (issue #28). */
   private readonly autoRenameLogStore: AutoRenameLogStore;
+  /** Source de la serie commandsDaily (30j) exposee dans /stats (issue #27). */
+  private readonly commandUsageStore: CommandUsageStore;
 
   /**
    * @param options injection de la composition (src/index.ts). Tous les champs sont
@@ -80,6 +86,7 @@ export class BotClient extends Client implements StatsProvider {
     const originalNickStore = options.originalNickStore ?? creerMemoryOriginalNickStore();
     const commandSyncStore =
       options.commandSyncStore ?? creerFileCommandSyncStore(creerFileIo('command-sync.json'));
+    this.commandUsageStore = options.commandUsageStore ?? creerMemoryCommandUsageStore();
     const redeploy = this.construireRedeploy(options.discord);
 
     for (const cmd of creerCommandes({
@@ -133,6 +140,12 @@ export class BotClient extends Client implements StatsProvider {
     }
     try {
       this.commandsToday += 1;
+      // Suivi d'usage par jour (issue #27) : alimente la serie commandsDaily de /stats.
+      // Tir-and-forget : ne bloque pas l'execution de la commande, ne la fait pas echouer
+      // si la persistance Neon a un souci (le cache memoire a deja ete incremente).
+      void this.commandUsageStore
+        .record()
+        .catch((err) => console.error('Echec persistance suivi usage commande :', err));
       await command.execute(interaction);
     } catch (err) {
       console.error(`Erreur a l'execution de /${interaction.commandName} :`, err);
@@ -172,6 +185,7 @@ export class BotClient extends Client implements StatsProvider {
       userCount: this.guilds.cache.reduce((acc, g) => acc + g.memberCount, 0),
       commandsToday: this.commandsToday,
       autoRenameFailuresToday: this.autoRenameLogStore.failuresToday(),
+      commandsDaily: this.commandUsageStore.commandsDaily(),
       discordLatencyMs: this.isReady() ? Math.round(this.ws.ping) : -1,
       version: packageJson.version,
     };
