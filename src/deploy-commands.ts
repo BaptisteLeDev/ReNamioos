@@ -10,6 +10,7 @@ import { REST, Routes } from 'discord.js';
 import { loadConfig } from './config';
 import { creerCommandes } from './commands/index';
 import { creerFileMappingStore } from './mapping/file-store';
+import { creerMemoryOptOutStore } from './optout/memory-store';
 import { creerFileCommandSyncStore, creerFileIo } from './command-sync/file-store';
 
 async function deploy(): Promise<void> {
@@ -19,6 +20,7 @@ async function deploy(): Promise<void> {
   // produire le schema a deployer (aucune connexion Neon necessaire).
   const body = creerCommandes({
     mappingStore: creerFileMappingStore({}),
+    optOutStore: creerMemoryOptOutStore(),
     commandSyncStore: creerFileCommandSyncStore(creerFileIo('command-sync.json')),
     redeploy: () => Promise.resolve(),
   }).map((c) => c.data.toJSON());

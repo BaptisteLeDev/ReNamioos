@@ -21,10 +21,11 @@
  * d'exception remontee, jamais de silence (mandat : aucun catch silencieux).
  */
 import type { GuildMember, PartialGuildMember } from 'discord.js';
-import { styleDeclenche } from '../domain/auto-rename';
+import { styleAvecConsentement, styleDeclenche } from '../domain/auto-rename';
 import { appliquerRename, sourceRename } from '../commands/styliser';
 import type { StyleName } from '../domain/styles';
 import type { MappingStore } from '../mapping/store';
+import type { OptOutStore } from '../optout/store';
 
 /** Seam de log structure : injectable pour les tests, console.warn par defaut. */
 export interface LoggerAutoRename {
@@ -42,6 +43,12 @@ export interface DepsAutoRename {
    * que lire le mapping ordonne de la guild et le donner au domaine pur.
    */
   store: MappingStore;
+  /**
+   * Consentement membre (issue #27). Provenance UNIQUE de l'etat opt-out PAR SERVEUR.
+   * Consulte AVANT d'appliquer un rename declenche : un membre opt-out n'est jamais
+   * renomme automatiquement, quel que soit le style declenche par ses roles.
+   */
+  optOutStore: OptOutStore;
   log?: LoggerAutoRename;
 }
 
@@ -65,12 +72,19 @@ export function creerGestionnaireMembreMisAJour(deps: DepsAutoRename) {
     // Provenance par serveur : on lit le mapping ORDONNE de cette guild (cache cOte
     // store). Le domaine pur tranche le style a appliquer (priorite = ordre).
     const mapping = await deps.store.list(newMember.guild.id);
-    const style: StyleName | null = styleDeclenche(
+    const declenche: StyleName | null = styleDeclenche(
       roleIds(oldMember),
       roleIds(newMember),
       mapping,
     );
-    if (style === null) return; // aucun role mappe ajoute : rien a faire.
+    if (declenche === null) return; // aucun role mappe ajoute : rien a faire.
+
+    // Consentement (issue #27) : un membre opt-out n'est jamais auto-renomme. On ne lit
+    // l'etat opt-out QUE si un style est declenche (pas de round-trip pour rien). Le
+    // domaine pur tranche : opt-out => null, sinon le style declenche.
+    const estOptOut = await deps.optOutStore.isOptOut(newMember.guild.id, newMember.id);
+    const style = styleAvecConsentement(declenche, estOptOut);
+    if (style === null) return; // membre opt-out : refus de consentement, rien a faire.
 
     // Source = pseudo serveur sinon nom global (ECART B6 #1, via sourceRename).
     const source = sourceRename(newMember, null);

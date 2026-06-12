@@ -125,6 +125,7 @@ L'API démarre **avant** le bot : `GET /health` répond même si le login Discor
 | `/rename <@user> <style> [nom]` | Renomme un membre | `/rename @User cursive` |
 | `/random <@user> [nom]` | Style aléatoire | `/random @User` |
 | `/auto-rename add\|remove\|list` | Configure l'auto-rename du serveur (admin `Manage Server`) | `/auto-rename add role:@VIP style:Cursive` |
+| `/renamioos opt-out\|opt-in` | Refuse / réactive l'auto-rename te concernant sur ce serveur | `/renamioos opt-out` |
 | `/aide` | Affiche l'aide | `/aide` |
 
 ---
@@ -153,6 +154,14 @@ centralisée derrière un port unique (`MappingStore`) : `/auto-rename`, `/aide`
 `guildMemberUpdate` lisent tous la même source (cf. [`ARCHITECTURE.md`](docs/ARCHITECTURE.md),
 § Auto-rename). L'**ordre d'ajout** définit la priorité quand plusieurs rôles mappés sont gagnés
 en même temps.
+
+### Consentement membre (opt-out)
+
+Chaque membre peut **refuser** l'auto-rename sur lui avec `/renamioos opt-out` (et le réactiver avec
+`/renamioos opt-in`), **par serveur**. Un membre opt-out n'est jamais renommé automatiquement, quel
+que soit le style déclenché par ses rôles. Le consentement a sa propre provenance centralisée (port
+`OptOutStore`, table Neon `auto_rename_optouts`) ; une ligne n'existe **que** pour un membre opt-out
+(minimisation D8). Voir [`decisions/0007-opt-out-membre.md`](decisions/0007-opt-out-membre.md).
 
 ### Mode fichier (développement)
 

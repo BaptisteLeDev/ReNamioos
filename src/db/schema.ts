@@ -33,6 +33,29 @@ export const autoRenameMappings = pgTable(
 );
 
 /**
+ * Consentement membre a l'auto-rename (issue #27). Une ligne EXISTE uniquement pour un
+ * membre qui a REFUSE l'auto-rename sur ce serveur (`/renamioos opt-out`). Le defaut =
+ * consentement = ABSENCE de ligne ; `opt-in` supprime la ligne. Minimisation D8
+ * respectee : seuls les refus (rares) sont stockes, jamais l'ensemble des membres.
+ *
+ * DDL (a provisionner sur Neon, comme les autres tables — aucune migration generee ici) :
+ *
+ *   auto_rename_optouts(
+ *     guild_id   text,
+ *     member_id  text,
+ *     PK (guild_id, member_id)
+ *   )
+ */
+export const autoRenameOptouts = pgTable(
+  'auto_rename_optouts',
+  {
+    guildId: text('guild_id').notNull(),
+    memberId: text('member_id').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.memberId] })],
+);
+
+/**
  * Persistante. Une ligne par serveur : instantane des noms de commandes synchronises
  * via /update, pour mettre en evidence les "nouvelles" a la synchro suivante. Minuscule
  * par construction (~7 noms courts), politique de minimisation Neon respectee.

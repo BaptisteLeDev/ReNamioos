@@ -15,6 +15,7 @@
 import { describe, expect, it } from 'bun:test';
 import type { MappingRoleStyle } from '../domain/auto-rename';
 import type { MappingStore } from '../mapping/store';
+import type { OptOutStore } from '../optout/store';
 import { creerGestionnaireMembreMisAJour } from './guild-member-update';
 
 const MAPPING: MappingRoleStyle = {
@@ -51,6 +52,21 @@ interface Capture {
   warns: Array<{ message: string; contexte: Record<string, unknown> }>;
 }
 
+/** Store opt-out fake : ensemble de cles `${guildId}:${memberId}` opt-out. */
+function fakeOptOutStore(optOut: Set<string> = new Set()): OptOutStore {
+  return {
+    isOptOut: (g, m) => Promise.resolve(optOut.has(`${g}:${m}`)),
+    optOut: (g, m) => {
+      optOut.add(`${g}:${m}`);
+      return Promise.resolve();
+    },
+    optIn: (g, m) => {
+      optOut.delete(`${g}:${m}`);
+      return Promise.resolve();
+    },
+  };
+}
+
 function fakeMember(m: MembreFake) {
   return {
     guild: { id: m.guildId ?? 'guild-1' },
@@ -62,7 +78,7 @@ function fakeMember(m: MembreFake) {
   };
 }
 
-function setup(old: MembreFake, neuf: MembreFake) {
+function setup(old: MembreFake, neuf: MembreFake, optOut: Set<string> = new Set()) {
   const capture: Capture = { editCalled: false, editedNick: undefined, warns: [] };
   const oldMember = fakeMember(old);
   const newMember = {
@@ -76,6 +92,7 @@ function setup(old: MembreFake, neuf: MembreFake) {
   };
   const gestionnaire = creerGestionnaireMembreMisAJour({
     store: fakeStore(MAPPING),
+    optOutStore: fakeOptOutStore(optOut),
     log: {
       warn: (message, contexte) => capture.warns.push({ message, contexte }),
     },
@@ -166,10 +183,32 @@ describe('adapter guildMemberUpdate — auto-rename', () => {
     expect(capture.warns[0]!.contexte).toMatchObject({ guildId: 'gz', memberId: 'mz', style: 'cursive' });
   });
 
+  it('membre OPT-OUT + role mappe ajoute -> AUCUN edit (consentement refuse, issue #27)', async () => {
+    const { gestionnaire, oldMember, newMember, capture } = setup(
+      { roleIds: ['x'], nickname: 'bob' },
+      { roleIds: ['x', 'role_cursive'], nickname: 'bob', guildId: 'g1', memberId: 'm-opt' },
+      new Set(['g1:m-opt']),
+    );
+    await gestionnaire(oldMember as never, newMember as never);
+    expect(capture.editCalled).toBe(false);
+    expect(capture.warns.length).toBe(0); // refus de consentement = normal, pas un echec
+  });
+
+  it('opt-out CIBLE : un autre membre NON opt-out est bien renomme', async () => {
+    const { gestionnaire, oldMember, newMember, capture } = setup(
+      { roleIds: ['x'], nickname: 'bob' },
+      { roleIds: ['x', 'role_cursive'], nickname: 'bob', guildId: 'g1', memberId: 'm-ok' },
+      new Set(['g1:un-autre']),
+    );
+    await gestionnaire(oldMember as never, newMember as never);
+    expect(capture.editCalled).toBe(true);
+  });
+
   it('mapping vide -> jamais d auto-rename', async () => {
     const capture: Capture = { editCalled: false, editedNick: undefined, warns: [] };
     const gestionnaire = creerGestionnaireMembreMisAJour({
       store: fakeStore({}),
+      optOutStore: fakeOptOutStore(),
       log: { warn: (message, contexte) => capture.warns.push({ message, contexte }) },
     });
     const oldMember = fakeMember({ roleIds: ['x'] });
