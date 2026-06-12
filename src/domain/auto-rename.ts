@@ -77,3 +77,27 @@ export function styleAvecConsentement(
   if (estOptOut) return null;
   return styleDeclenche;
 }
+
+/** Roles mappes presents dans une liste (intersection avec les cles du mapping). */
+function rolesMappes(roles: readonly string[], mapping: MappingRoleStyle): string[] {
+  return roles.filter((roleId) => roleId in mapping);
+}
+
+/**
+ * Le membre vient-il de perdre son DERNIER role mappe ? (issue #25, round-trip)
+ *
+ * Vrai SSI : il avait au moins un role mappe AVANT, il n'en a plus aucun APRES.
+ * C'est la condition PURE qui declenche la restauration du pseudo d'origine : tant
+ * qu'un role mappe subsiste (ou qu'un autre est gagne en echange), le membre reste
+ * stylise, on ne restaure pas. Si la condition est vraie mais qu'aucun pseudo source
+ * n'a ete memorise, l'adapter ne fait simplement rien (aucune restauration possible).
+ */
+export function aPerduDernierRoleMappe(
+  avant: readonly string[],
+  apres: readonly string[],
+  mapping: MappingRoleStyle,
+): boolean {
+  const avaitMappe = rolesMappes(avant, mapping).length > 0;
+  const aEncoreMappe = rolesMappes(apres, mapping).length > 0;
+  return avaitMappe && !aEncoreMappe;
+}

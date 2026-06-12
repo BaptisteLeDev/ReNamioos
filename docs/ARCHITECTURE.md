@@ -75,6 +75,12 @@ complet de Discord.js. Elle protège **un seul invariant** : le modèle Discord 
   cache par guild invalidé à l'écriture), sinon **fichier** `auto-rename.json` (dev). En mode
   Neon, le fichier sert de **fallback lecture** tant qu'une guild n'a rien en base (transition).
   `/auto-rename`, `/aide` et `guildMemberUpdate` lisent **tous** ce port — jamais la source brute.
+- **Round-trip du pseudo** (issue #25) : le pseudo source est **mémorisé** au rename (port
+  `OriginalNickStore`, `src/original-nick/`, table `auto_rename_original_nicks`) puis **restauré**
+  quand le membre perd son dernier rôle mappé. La décision pure « faut-il restaurer ? »
+  (`aPerduDernierRoleMappe`) vit dans le domaine ; la restauration passe par `restaurerPseudo`
+  (`src/commands/styliser.ts`), pendant « retour » du flux partagé `appliquerRename`. Une ligne
+  n'existe que tant qu'un membre est stylisé (minimisation D8) ; la restauration la supprime.
 - **Journal d'auto-rename** (issue #28) : chaque tentative effective (succès/échec) est tracée
   derrière le **port unique** `AutoRenameLogStore` (`src/auto-rename-log/`) : ring-buffer **par
   guilde** (table `auto_rename_log`, purge au-delà de `CAPACITE_JOURNAL_PAR_GUILD`) en Neon, mémoire

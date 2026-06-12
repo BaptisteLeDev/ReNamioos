@@ -29,6 +29,8 @@ import { creerMemoryOptOutStore } from './optout/memory-store';
 import type { AutoRenameLogStore } from './auto-rename-log/store';
 import { creerMemoryAutoRenameLogStore } from './auto-rename-log/memory-store';
 import { CAPACITE_JOURNAL_PAR_GUILD } from './auto-rename-log/index';
+import type { OriginalNickStore } from './original-nick/store';
+import { creerMemoryOriginalNickStore } from './original-nick/memory-store';
 import type { CommandSyncStore } from './command-sync/store';
 import { creerFileCommandSyncStore, creerFileIo } from './command-sync/file-store';
 import packageJson from '../package.json' with { type: 'json' };
@@ -40,6 +42,8 @@ export interface OptionsBotClient {
   optOutStore?: OptOutStore;
   /** Provenance UNIQUE du journal d'auto-rename (issue #28). Defaut : memoire (dev). */
   autoRenameLogStore?: AutoRenameLogStore;
+  /** Provenance UNIQUE du pseudo d'origine pour le round-trip (issue #25). Defaut : memoire. */
+  originalNickStore?: OriginalNickStore;
   /** Provenance des commandes connues par serveur (/update). Defaut : fichier dev. */
   commandSyncStore?: CommandSyncStore;
   /**
@@ -73,6 +77,7 @@ export class BotClient extends Client implements StatsProvider {
       options.autoRenameLogStore ??
       creerMemoryAutoRenameLogStore({ capaciteParGuild: CAPACITE_JOURNAL_PAR_GUILD });
     this.autoRenameLogStore = autoRenameLogStore;
+    const originalNickStore = options.originalNickStore ?? creerMemoryOriginalNickStore();
     const commandSyncStore =
       options.commandSyncStore ?? creerFileCommandSyncStore(creerFileIo('command-sync.json'));
     const redeploy = this.construireRedeploy(options.discord);
@@ -94,6 +99,7 @@ export class BotClient extends Client implements StatsProvider {
       store: mappingStore,
       optOutStore,
       logStore: autoRenameLogStore,
+      originalNickStore,
     });
     this.on(Events.GuildMemberUpdate, (oldMember, newMember) => {
       void onMembreMisAJour(oldMember, newMember);

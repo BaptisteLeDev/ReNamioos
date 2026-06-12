@@ -18,6 +18,8 @@ import type { MappingStore } from '../mapping/store';
 import type { OptOutStore } from '../optout/store';
 import type { AutoRenameLogStore } from '../auto-rename-log/store';
 import type { AutoRenameLogEntry } from '../domain/auto-rename-log';
+import type { OriginalNickStore } from '../original-nick/store';
+import { creerMemoryOriginalNickStore } from '../original-nick/memory-store';
 import { creerGestionnaireMembreMisAJour } from './guild-member-update';
 
 const MAPPING: MappingRoleStyle = {
@@ -93,7 +95,12 @@ function fakeMember(m: MembreFake) {
   };
 }
 
-function setup(old: MembreFake, neuf: MembreFake, optOut: Set<string> = new Set()) {
+function setup(
+  old: MembreFake,
+  neuf: MembreFake,
+  optOut: Set<string> = new Set(),
+  nickStore: OriginalNickStore = creerMemoryOriginalNickStore(),
+) {
   const capture: Capture = { editCalled: false, editedNick: undefined, warns: [], journal: [] };
   const oldMember = fakeMember(old);
   const newMember = {
@@ -109,11 +116,12 @@ function setup(old: MembreFake, neuf: MembreFake, optOut: Set<string> = new Set(
     store: fakeStore(MAPPING),
     optOutStore: fakeOptOutStore(optOut),
     logStore: fakeLogStore(capture.journal),
+    originalNickStore: nickStore,
     log: {
       warn: (message, contexte) => capture.warns.push({ message, contexte }),
     },
   });
-  return { gestionnaire, oldMember, newMember, capture };
+  return { gestionnaire, oldMember, newMember, capture, nickStore };
 }
 
 describe('adapter guildMemberUpdate — auto-rename', () => {
@@ -233,6 +241,7 @@ describe('adapter guildMemberUpdate — auto-rename', () => {
       store: fakeStore({}),
       optOutStore: fakeOptOutStore(),
       logStore: fakeLogStore(capture.journal),
+      originalNickStore: creerMemoryOriginalNickStore(),
       log: { warn: (message, contexte) => capture.warns.push({ message, contexte }) },
     });
     const oldMember = fakeMember({ roleIds: ['x'] });
@@ -240,6 +249,60 @@ describe('adapter guildMemberUpdate — auto-rename', () => {
       capture.editCalled = true;
       return Promise.resolve();
     } };
+    await gestionnaire(oldMember as never, newMember as never);
+    expect(capture.editCalled).toBe(false);
+    expect(capture.warns.length).toBe(0);
+  });
+
+  // ---- Round-trip : restauration du pseudo d'origine (issue #25) ----
+
+  it('au rename, MEMORISE le pseudo source avant stylisation (#25)', async () => {
+    const nick = creerMemoryOriginalNickStore();
+    const { gestionnaire, oldMember, newMember } = setup(
+      { roleIds: ['x'], nickname: 'bob', guildId: 'g1', memberId: 'm1' },
+      { roleIds: ['x', 'role_cursive'], nickname: 'bob', guildId: 'g1', memberId: 'm1' },
+      new Set(),
+      nick,
+    );
+    await gestionnaire(oldMember as never, newMember as never);
+    // Le pseudo SOURCE (avant stylisation) est memorise pour le round-trip.
+    expect(await nick.get('g1', 'm1')).toBe('bob');
+  });
+
+  it('retrait du DERNIER role mappe + pseudo memorise -> RESTAURE l original et oublie (#25)', async () => {
+    const nick = creerMemoryOriginalNickStore();
+    await nick.rememberIfAbsent('g1', 'm1', 'bob');
+    const { gestionnaire, oldMember, newMember, capture } = setup(
+      { roleIds: ['x', 'role_cursive'], nickname: '𝓑𝓸𝓫', guildId: 'g1', memberId: 'm1' },
+      { roleIds: ['x'], nickname: '𝓑𝓸𝓫', guildId: 'g1', memberId: 'm1' },
+      new Set(),
+      nick,
+    );
+    await gestionnaire(oldMember as never, newMember as never);
+    expect(capture.editCalled).toBe(true);
+    expect(capture.editedNick).toBe('bob'); // pseudo d origine restaure tel quel
+    expect(await nick.get('g1', 'm1')).toBeNull(); // oublie apres restauration (D8)
+  });
+
+  it('retrait d UN role mappe mais il en reste un -> AUCUNE restauration (#25)', async () => {
+    const nick = creerMemoryOriginalNickStore();
+    await nick.rememberIfAbsent('g1', 'm1', 'bob');
+    const { gestionnaire, oldMember, newMember, capture } = setup(
+      { roleIds: ['role_cursive', 'role_scriptify'], nickname: '𝓑𝓸𝓫', guildId: 'g1', memberId: 'm1' },
+      { roleIds: ['role_scriptify'], nickname: '𝓑𝓸𝓫', guildId: 'g1', memberId: 'm1' },
+      new Set(),
+      nick,
+    );
+    await gestionnaire(oldMember as never, newMember as never);
+    expect(capture.editCalled).toBe(false); // encore stylise -> on ne restaure pas
+    expect(await nick.get('g1', 'm1')).toBe('bob'); // memoire conservee
+  });
+
+  it('retrait du dernier role mappe SANS pseudo memorise -> AUCUN edit (rien a restaurer)', async () => {
+    const { gestionnaire, oldMember, newMember, capture } = setup(
+      { roleIds: ['x', 'role_cursive'], guildId: 'g1', memberId: 'm1' },
+      { roleIds: ['x'], guildId: 'g1', memberId: 'm1' },
+    );
     await gestionnaire(oldMember as never, newMember as never);
     expect(capture.editCalled).toBe(false);
     expect(capture.warns.length).toBe(0);

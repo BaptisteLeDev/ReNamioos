@@ -56,6 +56,35 @@ export const autoRenameOptouts = pgTable(
 );
 
 /**
+ * Pseudo SOURCE memorise avant un auto-rename (issue #25) — pour le ROUND-TRIP : quand le
+ * membre perd son dernier role mappe, on restaure ce pseudo. Cle (guild_id, member_id) :
+ * un seul pseudo d'origine memorise par membre et par serveur.
+ *
+ * Minimisation D8 : une ligne n'existe QUE tant qu'un membre est sous auto-rename actif ;
+ * la restauration au retrait du dernier role mappe SUPPRIME la ligne. Une re-stylisation
+ * ulterieure re-memorise (sans ecraser un original deja present). Table petite (seuls les
+ * membres actuellement stylises).
+ *
+ * DDL (a provisionner sur Neon, comme les autres tables — aucune migration generee ici) :
+ *
+ *   auto_rename_original_nicks(
+ *     guild_id      text,
+ *     member_id     text,
+ *     original_nick text not null,
+ *     PK (guild_id, member_id)
+ *   )
+ */
+export const autoRenameOriginalNicks = pgTable(
+  'auto_rename_original_nicks',
+  {
+    guildId: text('guild_id').notNull(),
+    memberId: text('member_id').notNull(),
+    originalNick: text('original_nick').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.memberId] })],
+);
+
+/**
  * Journal d'auto-rename (issue #28) — N derniers evenements succes/echec PAR GUILDE.
  *
  * Donnee d'ACTIVITE (pas de config), bornee par construction : un ring-buffer cOte DB

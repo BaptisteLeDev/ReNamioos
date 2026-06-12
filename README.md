@@ -124,7 +124,7 @@ L'API démarre **avant** le bot : `GET /health` répond même si le login Discor
 | `/convert <style> <texte>` | Convertit un texte | `/convert cursive Bonjour` |
 | `/rename <@user> <style> [nom]` | Renomme un membre | `/rename @User cursive` |
 | `/random <@user> [nom]` | Style aléatoire | `/random @User` |
-| `/auto-rename add\|remove\|list` | Configure l'auto-rename du serveur (admin `Manage Server`) | `/auto-rename add role:@VIP style:Cursive` |
+| `/auto-rename add\|remove\|list\|log` | Configure l'auto-rename du serveur + journal (admin `Manage Server`) | `/auto-rename add role:@VIP style:Cursive` |
 | `/renamioos opt-out\|opt-in` | Refuse / réactive l'auto-rename te concernant sur ce serveur | `/renamioos opt-out` |
 | `/aide` | Affiche l'aide | `/aide` |
 
@@ -147,6 +147,7 @@ Avec `DATABASE_URL` défini (production), un admin (`Manage Server`) configure t
 | `/auto-rename add role:<@rôle> style:<style>` | mappe un rôle à un style (sélecteur de rôle natif + choix de style) |
 | `/auto-rename remove role:<@rôle>` | retire le mapping d'un rôle |
 | `/auto-rename list` | liste les mappings du serveur avec un aperçu de chaque style |
+| `/auto-rename log` | journal éphémère des derniers auto-renames (succès/échec) du serveur (issue #28) |
 
 La config vit dans une table **Neon** (`auto_rename_mappings`, clé `(guild_id, role_id)`) :
 multi-serveur par construction, persistante, sans redéploiement. La **provenance des données** est
@@ -162,6 +163,23 @@ Chaque membre peut **refuser** l'auto-rename sur lui avec `/renamioos opt-out` (
 que soit le style déclenché par ses rôles. Le consentement a sa propre provenance centralisée (port
 `OptOutStore`, table Neon `auto_rename_optouts`) ; une ligne n'existe **que** pour un membre opt-out
 (minimisation D8). Voir [`decisions/0007-opt-out-membre.md`](decisions/0007-opt-out-membre.md).
+
+### Restauration du pseudo d'origine (round-trip, issue #25)
+
+L'auto-rename est un **aller-retour** : quand le bot stylise un membre (gain d'un rôle mappé), il
+**mémorise** d'abord son pseudo source ; quand le membre perd son **dernier** rôle mappé, le bot
+**restaure** ce pseudo d'origine. Tant qu'un rôle mappé subsiste, le membre reste stylisé. Le pseudo
+d'origine a sa propre provenance centralisée (port `OriginalNickStore`, table Neon
+`auto_rename_original_nicks`, clé `(guild_id, member_id)`) ; une ligne n'existe **que** tant qu'un
+membre est stylisé, la restauration la **supprime** (minimisation D8). La décision « faut-il
+restaurer, et vers quoi ? » est une règle **pure** du domaine (`aPerduDernierRoleMappe`).
+
+### Journal d'auto-rename (issue #28)
+
+Chaque tentative effective (succès/échec) est tracée dans un **journal par serveur** (ring-buffer
+borné en Neon, `auto_rename_log`). `/auto-rename log` affiche les derniers événements (éphémère,
+admin) ; le compteur d'échecs du jour est exposé dans `/stats` (`autoRenameFailuresToday`). Provenance
+centralisée derrière le port `AutoRenameLogStore` (voir `src/auto-rename-log/README.md`).
 
 ### Mode fichier (développement)
 
