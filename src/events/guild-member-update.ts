@@ -26,6 +26,7 @@ import { appliquerRename, sourceRename } from '../commands/styliser';
 import type { StyleName } from '../domain/styles';
 import type { MappingStore } from '../mapping/store';
 import type { OptOutStore } from '../optout/store';
+import type { AutoRenameLogStore } from '../auto-rename-log/store';
 
 /** Seam de log structure : injectable pour les tests, console.warn par defaut. */
 export interface LoggerAutoRename {
@@ -49,6 +50,13 @@ export interface DepsAutoRename {
    * renomme automatiquement, quel que soit le style declenche par ses roles.
    */
   optOutStore: OptOutStore;
+  /**
+   * Journal d'auto-rename (issue #28). On y enregistre CHAQUE tentative effective
+   * (succes ou echec) pour le diagnostic admin (`/auto-rename log`) et la derivation
+   * du compteur d'echecs du jour de /stats. Les non-evenements (aucun role mappe gagne,
+   * membre opt-out) ne sont PAS journalises : ce ne sont pas des tentatives.
+   */
+  logStore: AutoRenameLogStore;
   log?: LoggerAutoRename;
 }
 
@@ -89,6 +97,17 @@ export function creerGestionnaireMembreMisAJour(deps: DepsAutoRename) {
     // Source = pseudo serveur sinon nom global (ECART B6 #1, via sourceRename).
     const source = sourceRename(newMember, null);
     const resultat = await appliquerRename(newMember, style, source);
+
+    // Journal (issue #28) : on trace l'issue de CETTE tentative (succes ou echec). Le
+    // detail porte le pseudo applique (succes) ou le message d'echec (echec).
+    await deps.logStore.record({
+      guildId: newMember.guild.id,
+      memberId: newMember.id,
+      style,
+      outcome: resultat.ok ? 'succes' : 'echec',
+      detail: resultat.ok ? resultat.pseudo : resultat.message,
+      at: new Date(),
+    });
 
     if (!resultat.ok) {
       log.warn('echec du renommage automatique', {

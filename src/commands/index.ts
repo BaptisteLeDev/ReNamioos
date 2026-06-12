@@ -27,6 +27,7 @@ import { creerUpdateCommand } from './update';
 import type { Command } from './types';
 import type { MappingStore } from '../mapping/store';
 import type { OptOutStore } from '../optout/store';
+import type { AutoRenameLogStore } from '../auto-rename-log/store';
 import type { CommandSyncStore } from '../command-sync/store';
 import type { RESTPostAPIApplicationCommandsJSONBody } from 'discord.js';
 
@@ -34,13 +35,15 @@ export interface OptionsCommandes {
   mappingStore: MappingStore;
   /** Provenance du consentement membre a l'auto-rename (issue #27). */
   optOutStore: OptOutStore;
+  /** Provenance du journal d'auto-rename (issue #28), lu par /auto-rename log. */
+  autoRenameLogStore: AutoRenameLogStore;
   commandSyncStore: CommandSyncStore;
   /** PUT REST des commandes sur la guild courante (I/O Discord isolee). */
   redeploy(guildId: string, payload: RESTPostAPIApplicationCommandsJSONBody[]): Promise<void>;
 }
 
 export function creerCommandes(options: OptionsCommandes): Command[] {
-  const { mappingStore, optOutStore, commandSyncStore, redeploy } = options;
+  const { mappingStore, optOutStore, autoRenameLogStore, commandSyncStore, redeploy } = options;
 
   const commandes: Command[] = [
     pingCommand,
@@ -49,7 +52,7 @@ export function creerCommandes(options: OptionsCommandes): Command[] {
     previewCommand,
     renameCommand,
     randomCommand,
-    creerAutoRenameCommand(mappingStore),
+    creerAutoRenameCommand(mappingStore, autoRenameLogStore),
     creerRenamioosCommand(optOutStore),
     creerAideCommand(mappingStore),
   ];

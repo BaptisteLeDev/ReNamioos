@@ -75,7 +75,14 @@ complet de Discord.js. Elle protège **un seul invariant** : le modèle Discord 
   cache par guild invalidé à l'écriture), sinon **fichier** `auto-rename.json` (dev). En mode
   Neon, le fichier sert de **fallback lecture** tant qu'une guild n'a rien en base (transition).
   `/auto-rename`, `/aide` et `guildMemberUpdate` lisent **tous** ce port — jamais la source brute.
-- **Métriques** : `BotClient.getStats()` produit l'instantané `BotStats` consommé par `/stats`.
+- **Journal d'auto-rename** (issue #28) : chaque tentative effective (succès/échec) est tracée
+  derrière le **port unique** `AutoRenameLogStore` (`src/auto-rename-log/`) : ring-buffer **par
+  guilde** (table `auto_rename_log`, purge au-delà de `CAPACITE_JOURNAL_PAR_GUILD`) en Neon, mémoire
+  en dev. `guildMemberUpdate` l'alimente ; `/auto-rename log` (éphémère) le lit ; `getStats()` en
+  dérive le compteur d'échecs du jour. Voir `src/auto-rename-log/README.md`.
+- **Métriques** : `BotClient.getStats()` produit l'instantané `BotStats` consommé par `/stats`,
+  dont `autoRenameFailuresToday` (compteur mémoire dérivé du journal, **sans I/O** : `getStats()`
+  reste synchrone et rapide, invariant du contrat `/health`+`/stats`).
 
 ## Contrat de supervision (cibles ↔ bdf-monitor)
 
