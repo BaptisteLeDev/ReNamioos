@@ -60,3 +60,20 @@ export function styleDeclenche(
   }
   return null;
 }
+
+/**
+ * Consentement membre (issue #27). Le membre peut REFUSER l'auto-rename sur lui
+ * (`/renamioos opt-out`). Cette regle PURE filtre le style declenche : si le membre
+ * est opt-out, on n'applique RIEN, quel que soit le style declenche par ses roles.
+ *
+ * Retourne le style a reellement appliquer, ou `null` (aucun style declenche, ou
+ * membre opt-out). L'adapter (src/events/guild-member-update.ts) compose
+ * `styleDeclenche` puis cette regle avant tout edit de pseudo.
+ */
+export function styleAvecConsentement(
+  styleDeclenche: StyleName | null,
+  estOptOut: boolean,
+): StyleName | null {
+  if (estOptOut) return null;
+  return styleDeclenche;
+}

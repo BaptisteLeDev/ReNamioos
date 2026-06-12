@@ -13,6 +13,7 @@ import { chargerConfigAutoRename } from './config/auto-rename-config';
 import { createApiServer } from './api/server';
 import { BotClient } from './client';
 import { creerMappingStore } from './mapping/index';
+import { creerOptOutStore } from './optout/index';
 import { creerCommandSyncStore } from './command-sync/index';
 import { closeDb } from './db/client';
 
@@ -34,11 +35,17 @@ async function bootstrap(): Promise<void> {
       : `Auto-rename : mode fichier (dev), ${Object.keys(mappingFichier).length} role(s) mappe(s)`,
   );
 
+  // Provenance du consentement membre a l'auto-rename (issue #27) : Neon en prod (par
+  // serveur, persistant), memoire en dev (ephemere). Une ligne n'existe que pour un
+  // membre opt-out (minimisation D8).
+  const optOutStore = creerOptOutStore({ databaseUrl: config.database.url });
+
   // Provenance des commandes connues par serveur (/update) : Neon en prod, JSON local en dev.
   const commandSyncStore = creerCommandSyncStore({ databaseUrl: config.database.url });
 
   const bot = new BotClient({
     mappingStore,
+    optOutStore,
     commandSyncStore,
     discord: {
       applicationId: config.discord.applicationId,

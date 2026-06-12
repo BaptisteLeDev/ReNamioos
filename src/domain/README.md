@@ -18,7 +18,7 @@ stricte** avec le `bot.py` legacy (B3), derrière le harnais de caractérisation
 |---|---|
 | `styles.ts` | **Provenance des données** : charge `data/styles.json` (tables de glyphes + `conversions`), expose `STYLE_NAMES`, `StyleName`, `STYLES`, `CONVERSIONS`. Successeur versionné de `styles.json` (aucune DB). |
 | `stylisation.ts` | Pipeline **pur** : `nettoyerPseudo`, `convertirChiffres`, `mettreMajusculeDebut`, `convertirTexte` (→ `ResultatStylisation`), `tronquerPseudo`. Types `ErreurStylisation` / `ResultatStylisation`. |
-| `auto-rename.ts` | **Logique pure de l'auto-rename (B6)** : `rolesAjoutes` (diff d'ensembles), `styleDeclenche` (quel style appliquer suite à un changement de rôles, priorité = ordre du mapping), type `MappingRoleStyle`. Aucun import discord.js. Voir [ADR-0004](../../decisions/0004-auto-rename.md). |
+| `auto-rename.ts` | **Logique pure de l'auto-rename (B6)** : `rolesAjoutes` (diff d'ensembles), `styleDeclenche` (quel style appliquer suite à un changement de rôles, priorité = ordre du mapping), `styleAvecConsentement` (gate opt-out membre, [ADR-0007](../../decisions/0007-opt-out-membre.md)), type `MappingRoleStyle`. Aucun import discord.js. Voir [ADR-0004](../../decisions/0004-auto-rename.md). |
 | `stylisation.test.ts` / `auto-rename.test.ts` | Harnais de caractérisation porté (ÉCARTS B4 marqués) ; suite d'acceptation du domaine auto-rename (ÉCARTS B6 marqués). |
 | `data/` | Config fichier versionnée (`styles.json`). **Diverge volontairement** du legacy depuis B4 : `conversions` couvre les 10 chiffres (2→Z, 6→G, 9→G). Le mapping rôles→styles n'est plus ici : sa provenance est le port `MappingStore` (`src/mapping/`, Neon ou fichier ; B8, ADR-0005). |
 

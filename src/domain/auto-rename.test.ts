@@ -14,7 +14,12 @@
  *    roles AJOUTES sont des declencheurs.
  */
 import { describe, expect, it } from 'bun:test';
-import { styleDeclenche, rolesAjoutes, type MappingRoleStyle } from './auto-rename';
+import {
+  styleDeclenche,
+  rolesAjoutes,
+  styleAvecConsentement,
+  type MappingRoleStyle,
+} from './auto-rename';
 
 /** Mapping ordonne d'exemple : l'ordre des cles = priorite (ADR-0004). */
 const MAPPING: MappingRoleStyle = {
@@ -80,5 +85,23 @@ describe('styleDeclenche — quel style appliquer suite a un changement de roles
 
   it('echange simultane cardinalite egale avec role mappe gagne -> declenche (ECART B6)', () => {
     expect(styleDeclenche(['role_perdu'], ['role_cursive'], MAPPING)).toBe('cursive');
+  });
+});
+
+describe('styleAvecConsentement — faut-il appliquer l auto-rename ? (issue #27)', () => {
+  it('membre NON opt-out + style declenche -> applique le style', () => {
+    expect(styleAvecConsentement('cursive', false)).toBe('cursive');
+  });
+
+  it('membre opt-out + style declenche -> null (refus de consentement, pas de rename)', () => {
+    expect(styleAvecConsentement('cursive', true)).toBeNull();
+  });
+
+  it('aucun style declenche + non opt-out -> null (rien a faire)', () => {
+    expect(styleAvecConsentement(null, false)).toBeNull();
+  });
+
+  it('aucun style declenche + opt-out -> null', () => {
+    expect(styleAvecConsentement(null, true)).toBeNull();
   });
 });
