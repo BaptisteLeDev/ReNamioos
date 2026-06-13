@@ -1,7 +1,8 @@
 /**
  * Tests de durcissement de l'API HTTP (findings #22 CWE-306, #23 CWE-770).
  *
- * L'API ecoute par defaut sur 0.0.0.0 (exposee). On verifie ici les garde-fous :
+ * L'API ecoute par defaut sur 127.0.0.1 (loopback, non exposee — SEC-001 #37). On
+ * verifie ici les garde-fous applicables des qu'un token est configure :
  *   - /stats est GATE par un token Bearer quand STATS_TOKEN est configure
  *     (401 sans token / token errone) ; ouvert si aucun token n'est defini
  *     (retro-compat mode dev).
@@ -14,7 +15,7 @@
  * contract.test.ts voisin.
  */
 import { describe, expect, it } from 'bun:test';
-import { createApiServer } from './server';
+import { createApiServer, tokenValide } from './server';
 import type { StatsProvider } from './stats-provider';
 
 const offlineProvider: StatsProvider = {
@@ -83,6 +84,23 @@ describe('API /stats — authentification (finding #22, CWE-306)', () => {
     const res = await app.inject({ method: 'GET', url: '/health' });
     expect(res.statusCode).toBe(200);
     await app.close();
+  });
+});
+
+describe('tokenValide — comparaison constante (issue #37, SEC-004, CWE-208)', () => {
+  it('vrai pour deux tokens egaux', () => {
+    expect(tokenValide('s3cret-token-de-32-octets-aaaaaa', 's3cret-token-de-32-octets-aaaaaa')).toBe(true);
+  });
+
+  it('faux pour deux tokens de meme longueur differents', () => {
+    expect(tokenValide('s3cret-token-de-32-octets-aaaaaa', 's3cret-token-de-32-octets-bbbbbb')).toBe(false);
+  });
+
+  it('faux pour des longueurs differentes (sans court-circuit de longueur)', () => {
+    // Le pattern hash-puis-compare hashe les deux cOtes : pas de retour anticipe sur
+    // la difference de longueur (anti timing-oracle SEC-004).
+    expect(tokenValide('s3cret', 's')).toBe(false);
+    expect(tokenValide('s', 's3cret-beaucoup-plus-long-que-lautre')).toBe(false);
   });
 });
 

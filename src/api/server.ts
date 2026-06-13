@@ -9,7 +9,7 @@
  * L'API ne depend pas de Discord.js : elle recoit un StatsProvider (port). C'est
  * l'ACL ciblee — le modele Discord ne fuit pas dans la couche HTTP.
  */
-import { timingSafeEqual } from 'node:crypto';
+import { timingSafeEqual, createHash } from 'node:crypto';
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
@@ -43,15 +43,20 @@ export interface ApiServerOptions {
 }
 
 /**
- * Comparaison en temps constant du token (anti timing-attack). Encode les deux
- * chaines en buffers ; une difference de longueur est rejetee sans comparer les
- * octets (timingSafeEqual exige des longueurs egales).
+ * Comparaison en temps constant du token (anti timing-oracle, SEC-004/CWE-208).
+ *
+ * Pattern hash-puis-compare repris de bdf-monitor (action-auth.ts) : on NE court-circuite
+ * PAS sur une difference de longueur (cela fuiterait la longueur du secret). Quand les
+ * longueurs different, on hashe les deux cOtes en SHA-256 pour comparer des buffers de meme
+ * taille via timingSafeEqual (le resultat est false, mais sans branche revelant la longueur).
  */
-function tokenValide(attendu: string, recu: string): boolean {
-  const a = Buffer.from(attendu);
-  const b = Buffer.from(recu);
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
+export function tokenValide(attendu: string, recu: string): boolean {
+  const a = Buffer.from(attendu, 'utf8');
+  const b = Buffer.from(recu, 'utf8');
+  if (a.length === b.length) return timingSafeEqual(a, b);
+  const ha = createHash('sha256').update(a).digest();
+  const hb = createHash('sha256').update(b).digest();
+  return timingSafeEqual(ha, hb);
 }
 
 /** Extrait le token d'un header `Authorization: Bearer <token>`. */

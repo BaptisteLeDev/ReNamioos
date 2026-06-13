@@ -40,3 +40,33 @@ describe('MemoryOriginalNickStore', () => {
     expect(await store.get('autre', 'm1')).toBeNull();
   });
 });
+
+describe('MemoryOriginalNickStore — echeance temporaire (issue #38)', () => {
+  it('rememberIfAbsent sans echeance => aucune ligne due (revert role-only)', async () => {
+    const store = creerMemoryOriginalNickStore();
+    await store.rememberIfAbsent('g1', 'm1', 'Bob');
+    expect(await store.listDue(Number.MAX_SAFE_INTEGER)).toEqual([]);
+  });
+
+  it('rememberIfAbsent avec echeance => listee comme due une fois l echeance passee', async () => {
+    const store = creerMemoryOriginalNickStore();
+    await store.rememberIfAbsent('g1', 'm1', 'Bob', 1000);
+    expect(await store.listDue(999)).toEqual([]); // pas encore echu
+    expect(await store.listDue(1000)).toEqual([{ guildId: 'g1', memberId: 'm1', nick: 'Bob' }]);
+  });
+
+  it('idempotence #25 preservee : la 2e memorisation n ecrase ni le pseudo ni l echeance', async () => {
+    const store = creerMemoryOriginalNickStore();
+    await store.rememberIfAbsent('g1', 'm1', 'Bob', 1000);
+    await store.rememberIfAbsent('g1', 'm1', '𝓑𝓸𝓫', 5000);
+    expect(await store.get('g1', 'm1')).toBe('Bob');
+    expect(await store.listDue(1000)).toEqual([{ guildId: 'g1', memberId: 'm1', nick: 'Bob' }]);
+  });
+
+  it('forget retire aussi l echeance (plus due ensuite)', async () => {
+    const store = creerMemoryOriginalNickStore();
+    await store.rememberIfAbsent('g1', 'm1', 'Bob', 1000);
+    await store.forget('g1', 'm1');
+    expect(await store.listDue(2000)).toEqual([]);
+  });
+});

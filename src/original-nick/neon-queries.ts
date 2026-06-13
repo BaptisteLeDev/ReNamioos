@@ -10,7 +10,7 @@
  * couvert par le typecheck et l'execution reelle. La LOGIQUE (cache) est testee sur des
  * fakes (neon-store.test.ts).
  */
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNotNull, lte } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { autoRenameOriginalNicks } from '../db/schema';
 import type { OriginalNickQueries } from './neon-store';
@@ -28,11 +28,17 @@ export function creerNeonOriginalNickQueries(db: Db): OriginalNickQueries {
       return lignes;
     },
 
-    async upsertIfAbsent(guildId, memberId, nick) {
-      // ON CONFLICT DO NOTHING : ne pas ecraser l'original si deja memorise (#25).
+    async upsertIfAbsent(guildId, memberId, nick, expiresAt) {
+      // ON CONFLICT DO NOTHING : ne pas ecraser l'original ni son echeance si deja memorise
+      // (#25/#38). expiresAt absent => colonne NULL (revert par role uniquement).
       await db
         .insert(autoRenameOriginalNicks)
-        .values({ guildId, memberId, originalNick: nick })
+        .values({
+          guildId,
+          memberId,
+          originalNick: nick,
+          expiresAt: expiresAt !== undefined ? new Date(expiresAt) : null,
+        })
         .onConflictDoNothing();
     },
 
@@ -45,6 +51,25 @@ export function creerNeonOriginalNickQueries(db: Db): OriginalNickQueries {
             eq(autoRenameOriginalNicks.memberId, memberId),
           ),
         );
+    },
+
+    async selectDue(maintenant) {
+      // Lignes echeancees ET echues (#38). L'index partiel `where expires_at is not null`
+      // garde le balayage leger (les lignes #25 sans echeance sont ignorees).
+      const lignes = await db
+        .select({
+          guildId: autoRenameOriginalNicks.guildId,
+          memberId: autoRenameOriginalNicks.memberId,
+          nick: autoRenameOriginalNicks.originalNick,
+        })
+        .from(autoRenameOriginalNicks)
+        .where(
+          and(
+            isNotNull(autoRenameOriginalNicks.expiresAt),
+            lte(autoRenameOriginalNicks.expiresAt, new Date(maintenant)),
+          ),
+        );
+      return lignes;
     },
   };
 }

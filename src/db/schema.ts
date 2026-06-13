@@ -74,14 +74,23 @@ export const autoRenameOptouts = pgTable(
  * ulterieure re-memorise (sans ecraser un original deja present). Table petite (seuls les
  * membres actuellement stylises).
  *
+ * RENOMMAGE TEMPORAIRE (issue #38) : colonne `expires_at` NULLABLE. NULL => revert pilote
+ * par la perte du dernier role mappe (#25, inchange). Non NULL => echeance d'auto-revert :
+ * un job de balayage restaure puis SUPPRIME la ligne des `expires_at <= now()`. Index partiel
+ * sur les lignes echeancees pour que le balayage reste leger (la plupart des lignes #25 ont
+ * `expires_at IS NULL`).
+ *
  * DDL (a provisionner sur Neon, comme les autres tables — aucune migration generee ici) :
  *
  *   auto_rename_original_nicks(
  *     guild_id      text,
  *     member_id     text,
  *     original_nick text not null,
+ *     expires_at    timestamptz,            -- #38 : NULL = revert par role uniquement
  *     PK (guild_id, member_id)
- *   )
+ *   );
+ *   create index auto_rename_original_nicks_expires_at
+ *     on auto_rename_original_nicks (expires_at) where expires_at is not null;
  */
 export const autoRenameOriginalNicks = pgTable(
   'auto_rename_original_nicks',
@@ -89,8 +98,13 @@ export const autoRenameOriginalNicks = pgTable(
     guildId: text('guild_id').notNull(),
     memberId: text('member_id').notNull(),
     originalNick: text('original_nick').notNull(),
+    /** Echeance d'auto-revert (#38). NULL = pas de revert temporise (round-trip par role #25). */
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
   },
-  (t) => [primaryKey({ columns: [t.guildId, t.memberId] })],
+  (t) => [
+    primaryKey({ columns: [t.guildId, t.memberId] }),
+    index('auto_rename_original_nicks_expires_at').on(t.expiresAt),
+  ],
 );
 
 /**

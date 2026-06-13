@@ -15,14 +15,23 @@
  */
 import type { OriginalNickStore } from './store';
 
-/** Frontiere d'I/O injectable : tout l'acces Postgres passe par ces trois fonctions. */
+/** Frontiere d'I/O injectable : tout l'acces Postgres passe par ces fonctions. */
 export interface OriginalNickQueries {
   /** Tous les (memberId, nick) memorises de la guild. */
   selectByGuild(guildId: string): Promise<Array<{ memberId: string; nick: string }>>;
-  /** Insere le pseudo SI absent (ON CONFLICT DO NOTHING : ne pas ecraser l'original). */
-  upsertIfAbsent(guildId: string, memberId: string, nick: string): Promise<void>;
+  /**
+   * Insere le pseudo SI absent (ON CONFLICT DO NOTHING : ne pas ecraser l'original ni son
+   * echeance). `expiresAt` (epoch ms, #38) optionnel : absent => colonne NULL (pas de revert
+   * temporise).
+   */
+  upsertIfAbsent(guildId: string, memberId: string, nick: string, expiresAt?: number): Promise<void>;
   /** Supprime la ligne (guild, membre) si elle existe. */
   deleteOne(guildId: string, memberId: string): Promise<void>;
+  /**
+   * Lignes echues (`expires_at <= maintenant`) TOUTES guildes confondues (#38). Lecture
+   * directe en DB (le cache par guild ne couvre pas une requete cross-guild par echeance).
+   */
+  selectDue(maintenant: number): Promise<Array<{ guildId: string; memberId: string; nick: string }>>;
 }
 
 export function creerNeonOriginalNickStore(queries: OriginalNickQueries): OriginalNickStore {
@@ -43,14 +52,20 @@ export function creerNeonOriginalNickStore(queries: OriginalNickQueries): Origin
       return (await nicksDeGuild(guildId)).get(memberId) ?? null;
     },
 
-    async rememberIfAbsent(guildId, memberId, nick) {
-      await queries.upsertIfAbsent(guildId, memberId, nick);
+    async rememberIfAbsent(guildId, memberId, nick, expiresAt) {
+      await queries.upsertIfAbsent(guildId, memberId, nick, expiresAt);
       cache.delete(guildId); // invalidation ciblee
     },
 
     async forget(guildId, memberId) {
       await queries.deleteOne(guildId, memberId);
       cache.delete(guildId); // invalidation ciblee
+    },
+
+    listDue(maintenant) {
+      // Lecture directe : le cache par guild (memberId -> nick) ne couvre pas une requete
+      // cross-guild par echeance. Le job de balayage est peu frequent (pas le chemin chaud).
+      return queries.selectDue(maintenant);
     },
   };
 }

@@ -4,6 +4,9 @@
 > et le lire / l'écrire / l'oublier, sans que les adapters Discord connaissent la source. Point de
 > **provenance centralisée** (mandat `ARCHITECTURE.md`). Introduit pour l'issue
 > [#25](https://github.com/BaptisteLeDev/ReNamioos/issues/25) — le **round-trip** de l'auto-rename.
+> Étendu par [#38](https://github.com/BaptisteLeDev/ReNamioos/issues/38) : la même ligne porte une
+> **échéance** optionnelle (`expiresAt`) pour le **renommage temporaire** (`/rename ... duree:`),
+> restauré par le job de balayage (`src/jobs/`).
 
 ## Langage ubiquitaire
 
@@ -15,14 +18,17 @@
 | **Oubli** | `forget` supprime la ligne après restauration (la donnée n'a plus de raison d'exister). |
 | **Guild / Membre** | Clé `(guild_id, member_id)` : un seul pseudo d'origine par membre et par serveur. |
 | **Mode mémoire / mode Neon** | Branché par `DATABASE_URL` : absente ⇒ mémoire (dev, éphémère), présente ⇒ Neon (prod, persistant). |
+| **Échéance** (`expiresAt`, #38) | Date d'auto-revert (epoch ms). `NULL`/absente ⇒ revert piloté par la perte du dernier rôle mappé (#25). Présente ⇒ revert temporisé (`/rename ... duree:`). |
+| **Ligne due** | Ligne dont `expiresAt <= maintenant` : à restaurer par le job de balayage (`listDue`). |
 
 ## API publique (port `OriginalNickStore`)
 
 ```ts
 interface OriginalNickStore {
   get(guildId: string, memberId: string): Promise<string | null>;
-  rememberIfAbsent(guildId: string, memberId: string, nick: string): Promise<void>; // no-op si déjà présent
+  rememberIfAbsent(guildId: string, memberId: string, nick: string, expiresAt?: number): Promise<void>; // no-op si déjà présent
   forget(guildId: string, memberId: string): Promise<void>;                          // idempotent
+  listDue(maintenant: number): Promise<Array<{ guildId: string; memberId: string; nick: string }>>; // échéances échues (#38)
 }
 ```
 
@@ -44,8 +50,9 @@ La décision pure « faut-il restaurer, et vers quoi ? » vit dans `src/domain/a
 
 ## Provenance des données
 
-- **Neon** (prod) : table `auto_rename_original_nicks(guild_id, member_id, original_nick)`,
-  PK `(guild_id, member_id)`. À provisionner comme les autres tables — **aucune migration générée**
+- **Neon** (prod) : table `auto_rename_original_nicks(guild_id, member_id, original_nick, expires_at)`,
+  PK `(guild_id, member_id)`, **index partiel** sur `expires_at` (`where expires_at is not null`) pour
+  un balayage léger (#38). À provisionner comme les autres tables — **aucune migration générée**
   depuis ce repo ; `src/db/schema.ts` ne sert qu'au typage drizzle.
 - **Mémoire** (dev) : `Map` par `(guild, membre)`, non persistée.
 
