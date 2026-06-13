@@ -1,11 +1,11 @@
 /**
  * Durcissement de la configuration au boot (issue #37, SEC-001 / SEC-003).
  *
- * SEC-001 (CWE-306/200) ASSOUPLI (D4, aligne Moodioos) : un bind NON-loopback SANS
- * token n'ouvre /stats que sur le reseau dark Dokploy (prive, aucun port public). La
- * config AVERTIT (console.warn) mais BOOTE — elle ne refuse plus. Sur loopback, le
- * token reste optionnel (retro-compat dev). SEC-003 : si fourni, STATS_TOKEN doit
- * faire >= 32 octets (refus du boot, c'est une vraie misconfiguration).
+ * SEC-001 (CWE-306/200) DENY-BY-DEFAULT (#43) : un bind NON-loopback SANS token REFUSE
+ * le boot. L'ouverture de /stats sur le reseau dark Dokploy (prive, aucun port public)
+ * exige un OPT-IN EXPLICITE : ALLOW_OPEN_STATS_ON_PRIVATE_NETWORK=true => la config
+ * AVERTIT (console.warn) puis BOOTE. Sur loopback, le token reste optionnel (retro-compat
+ * dev). SEC-003 : si fourni, STATS_TOKEN doit faire >= 32 octets (refus du boot).
  *
  * On valide la POLITIQUE pure (loadConfig), sans I/O : provenance de la config
  * centralisee dans un seul module (mandat ARCHITECTURE.md).
@@ -21,7 +21,7 @@ const baseEnv = {
 
 const token32 = 'a'.repeat(32);
 
-describe('config — bind & token /stats (issue #37, assoupli D4)', () => {
+describe('config — bind & token /stats (issue #43, deny-by-default + opt-in explicite)', () => {
   afterEach(() => {
     mock.restore();
   });
@@ -31,16 +31,37 @@ describe('config — bind & token /stats (issue #37, assoupli D4)', () => {
     expect(config.api.host).toBe('127.0.0.1');
   });
 
-  it('BOOTE + WARN sur un bind non-loopback sans STATS_TOKEN (SEC-001 assoupli, reseau dark)', () => {
+  it('REFUSE un bind non-loopback sans STATS_TOKEN ni opt-in (SEC-001 deny-by-default)', () => {
+    expect(() => loadConfig({ ...baseEnv, HOST: '0.0.0.0' })).toThrow(/SEC-001/);
+  });
+
+  it('BOOTE + WARN sur un bind non-loopback sans token AVEC opt-in explicite (reseau dark D4)', () => {
     const warn = spyOn(console, 'warn').mockImplementation(() => {});
-    const config = loadConfig({ ...baseEnv, HOST: '0.0.0.0' });
+    const config = loadConfig({
+      ...baseEnv,
+      HOST: '0.0.0.0',
+      ALLOW_OPEN_STATS_ON_PRIVATE_NETWORK: 'true',
+    });
     expect(config.api.host).toBe('0.0.0.0');
     expect(config.api.statsToken).toBeUndefined();
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0]?.[0]).toContain('SEC-001');
   });
 
-  it("n'avertit PAS sur loopback sans token", () => {
+  it('REFUSE un bind non-loopback sans token meme avec un opt-in non-"true" (ex: "1")', () => {
+    expect(() => loadConfig({ ...baseEnv, HOST: '0.0.0.0', ALLOW_OPEN_STATS_ON_PRIVATE_NETWORK: '1' })).toThrow(
+      /SEC-001/,
+    );
+  });
+
+  it('un STATS_TOKEN valide gate /stats sans avertissement, opt-in inutile', () => {
+    const warn = spyOn(console, 'warn').mockImplementation(() => {});
+    const config = loadConfig({ ...baseEnv, HOST: '0.0.0.0', STATS_TOKEN: token32 });
+    expect(config.api.statsToken).toBe(token32);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("n'avertit PAS sur loopback sans token (inchangé)", () => {
     const warn = spyOn(console, 'warn').mockImplementation(() => {});
     loadConfig({ ...baseEnv, HOST: '127.0.0.1' });
     expect(warn).not.toHaveBeenCalled();
