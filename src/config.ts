@@ -15,14 +15,16 @@ const envSchema = z.object({
 
   // API HTTP (Fastify) — port distinct du monitoring (8099/3001) par defaut.
   PORT: z.coerce.number().int().positive().default(8199),
-  HOST: z.string().default('0.0.0.0'),
+  // SEC-001 (#37, CWE-306/200) : defaut LOOPBACK (non expose). Un bind non-loopback
+  // exige un STATS_TOKEN >= 32 octets, valide ci-dessous (superRefine).
+  HOST: z.string().default('127.0.0.1'),
 
-  // Durcissement API (findings #22/#23). OPTIONNELS pour rester retro-compatible
-  // en dev : absents => /stats ouvert, CORS desactive, rate limit aux defauts.
-  // STATS_TOKEN : token Bearer protegeant GET /stats (CWE-306). En prod, fourni a
-  // bdf-monitor pour scraper /stats. CORS_ORIGINS : liste d'origines separees par
-  // des virgules (CWE-306). RATE_LIMIT_* : quota par IP (CWE-770).
-  STATS_TOKEN: z.string().min(1).optional(),
+  // Durcissement API (findings #22/#23/#37). OPTIONNELS pour rester retro-compatible
+  // en dev sur loopback : absents => /stats ouvert, CORS desactive, rate limit aux
+  // defauts. STATS_TOKEN : token Bearer protegeant GET /stats (CWE-306). REQUIS et >= 32
+  // octets si bind non-loopback (SEC-001/SEC-003). CORS_ORIGINS : liste d'origines separees
+  // par des virgules (CWE-306). RATE_LIMIT_* : quota par IP (CWE-770).
+  STATS_TOKEN: z.string().min(32, 'STATS_TOKEN doit faire au moins 32 octets (SEC-003)').optional(),
   CORS_ORIGINS: z.string().optional(),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
@@ -41,7 +43,28 @@ const envSchema = z.object({
 
   // Environnement
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+}).superRefine((e, ctx) => {
+  // SEC-001 (#37) : un bind NON-loopback expose /stats au reseau. Il EXIGE alors un
+  // STATS_TOKEN (>= 32 octets, garanti par le schema STATS_TOKEN ci-dessus). Sur
+  // loopback, le token reste optionnel (retro-compat dev).
+  if (!estLoopback(e.HOST) && e.STATS_TOKEN === undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['STATS_TOKEN'],
+      message: `STATS_TOKEN (>= 32 octets) est requis quand HOST n'est pas loopback (HOST=${e.HOST}) — /stats serait expose sans auth (SEC-001).`,
+    });
+  }
 });
+
+/**
+ * L'hote de bind est-il une adresse de bouclage (l'API n'est PAS exposee hors machine) ?
+ * Couvre IPv4 (127.0.0.0/8), IPv6 (::1) et `localhost`. Tout le reste (0.0.0.0, IP publique,
+ * nom d'hote) est considere NON-loopback => exige un token (SEC-001).
+ */
+export function estLoopback(host: string): boolean {
+  const h = host.trim().toLowerCase();
+  return h === 'localhost' || h === '::1' || h === '[::1]' || h.startsWith('127.');
+}
 
 export type Env = z.infer<typeof envSchema>;
 

@@ -35,8 +35,9 @@ Dev : `@types/bun ^1.3.14`, `@types/pg ^8.20.0`, `typescript ^5.7.3`.
 
 ## Ports et réseau
 
-- **API** : `PORT=8199` par défaut, `HOST=0.0.0.0`. `GET /health` (public, sans I/O Discord) et
-  `GET /stats` (métriques métier ; gaté par token Bearer sur `fix/security-v1`).
+- **API** : `PORT=8199` par défaut, `HOST=127.0.0.1` (loopback, SEC-001/#37). Un bind non-loopback
+  exige `STATS_TOKEN` ≥ 32 octets (refus au boot sinon). `GET /health` (public, sans I/O Discord) et
+  `GET /stats` (métriques métier ; gaté par token Bearer, comparaison constante hash-puis-compare).
 
 ## Outillage test / CI / déploiement
 

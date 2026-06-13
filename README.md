@@ -76,7 +76,8 @@ au boot, cf. `src/config.ts`) :
 | `DISCORD_APPLICATION_ID` | id de l'application | requis |
 | `DISCORD_GUILD_ID` | guilde de déploiement des commandes (dev) | optionnel |
 | `PORT` | port de l'API de supervision | `8199` |
-| `HOST` | interface d'écoute de l'API | `0.0.0.0` |
+| `HOST` | interface d'écoute de l'API (loopback par défaut, non exposé) | `127.0.0.1` |
+| `STATS_TOKEN` | token Bearer protégeant `GET /stats`. **Requis et ≥ 32 octets si `HOST` n'est pas loopback** (SEC-001/#37) | optionnel sur loopback |
 | `AUTO_RENAME_CONFIG_PATH` | chemin du mapping auto-rename (mode fichier / fallback) | `auto-rename.json` |
 | `DATABASE_URL` | URL Postgres Neon ; **absente** = mode fichier (dev), **présente** = mode Neon par serveur | optionnel |
 | `NODE_ENV` | `development` / `production` / `test` | `development` |
