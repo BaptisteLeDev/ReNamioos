@@ -25,15 +25,17 @@ const envSchema = z.object({
 
   // API HTTP (Fastify) — port distinct du monitoring (8099/3001) par defaut.
   PORT: z.coerce.number().int().positive().default(8199),
-  // SEC-001 (#37, CWE-306/200) : defaut LOOPBACK (non expose). Un bind non-loopback
-  // exige un STATS_TOKEN >= 32 octets, valide ci-dessous (superRefine).
+  // SEC-001 (#37, CWE-306/200) : defaut LOOPBACK (non expose). D4 — sur le reseau dark
+  // Dokploy (prive, aucun port public, aligne Moodioos) un bind non-loopback SANS token
+  // est tolere : la config AVERTIT (console.warn) mais BOOTE, elle ne refuse plus.
   HOST: z.string().default('127.0.0.1'),
 
   // Durcissement API (findings #22/#23/#37). OPTIONNELS pour rester retro-compatible
-  // en dev sur loopback : absents => /stats ouvert, CORS desactive, rate limit aux
-  // defauts. STATS_TOKEN : token Bearer protegeant GET /stats (CWE-306). REQUIS et >= 32
-  // octets si bind non-loopback (SEC-001/SEC-003). CORS_ORIGINS : liste d'origines separees
-  // par des virgules (CWE-306). RATE_LIMIT_* : quota par IP (CWE-770).
+  // en dev sur loopback ET sur le reseau dark Dokploy (D4) : absents => /stats ouvert,
+  // CORS desactive, rate limit aux defauts. STATS_TOKEN : token Bearer protegeant GET
+  // /stats (CWE-306) ; si fourni il doit faire >= 32 octets (SEC-003) et /stats est gate.
+  // CORS_ORIGINS : liste d'origines separees par des virgules (CWE-306). RATE_LIMIT_* :
+  // quota par IP (CWE-770).
   STATS_TOKEN: z.string().min(32, 'STATS_TOKEN doit faire au moins 32 octets (SEC-003)').optional(),
   CORS_ORIGINS: z.string().optional(),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
@@ -53,17 +55,6 @@ const envSchema = z.object({
 
   // Environnement
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-}).superRefine((e, ctx) => {
-  // SEC-001 (#37) : un bind NON-loopback expose /stats au reseau. Il EXIGE alors un
-  // STATS_TOKEN (>= 32 octets, garanti par le schema STATS_TOKEN ci-dessus). Sur
-  // loopback, le token reste optionnel (retro-compat dev).
-  if (!estLoopback(e.HOST) && e.STATS_TOKEN === undefined) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['STATS_TOKEN'],
-      message: `STATS_TOKEN (>= 32 octets) est requis quand HOST n'est pas loopback (HOST=${e.HOST}) — /stats serait expose sans auth (SEC-001).`,
-    });
-  }
 });
 
 /**
@@ -91,6 +82,16 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     throw new Error(`Configuration invalide :\n${issues}`);
   }
   const e = parsed.data;
+  // SEC-001 (#37) assoupli (D4, aligne Moodioos) : un bind NON-loopback expose /stats
+  // au reseau. Sur le reseau dark Dokploy (prive, aucun port public) on TOLERE l'absence
+  // de token — on AVERTIT au lieu de refuser le boot. Si un STATS_TOKEN est fourni, /stats
+  // reste gate par Bearer (cf. api/server.ts) et le token doit faire >= 32 octets (SEC-003).
+  if (!estLoopback(e.HOST) && e.STATS_TOKEN === undefined) {
+    console.warn(
+      `[config] SEC-001 : HOST=${e.HOST} (non-loopback) sans STATS_TOKEN — /stats est ouvert sur le reseau. ` +
+        `Tolere sur le reseau dark Dokploy (prive) ; definir STATS_TOKEN (>= 32 octets) pour gater /stats.`,
+    );
+  }
   return {
     discord: {
       token: e.DISCORD_TOKEN,
