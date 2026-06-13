@@ -25,17 +25,29 @@ const envSchema = z.object({
 
   // API HTTP (Fastify) — port distinct du monitoring (8099/3001) par defaut.
   PORT: z.coerce.number().int().positive().default(8199),
-  // SEC-001 (#37, CWE-306/200) : defaut LOOPBACK (non expose). D4 — sur le reseau dark
-  // Dokploy (prive, aucun port public, aligne Moodioos) un bind non-loopback SANS token
-  // est tolere : la config AVERTIT (console.warn) mais BOOTE, elle ne refuse plus.
+  // SEC-001 (#37, CWE-306/200) : defaut LOOPBACK (non expose). DENY-BY-DEFAULT — un bind
+  // non-loopback SANS token REFUSE le boot, SAUF opt-in explicite via
+  // ALLOW_OPEN_STATS_ON_PRIVATE_NETWORK=true (reseau dark Dokploy D4, prive, aucun port public).
   HOST: z.string().default('127.0.0.1'),
 
+  // SEC-001 (#43) opt-in EXPLICITE : autorise un bind non-loopback SANS token (/stats ouvert)
+  // sur le reseau dark D4. DENY-BY-DEFAULT : absent/autre que 'true' => le boot REFUSE un bind
+  // non-loopback sans token. string->bool, DEFAUT false : seule la valeur 'true' (insensible a
+  // la casse) affirme le risque.
+  ALLOW_OPEN_STATS_ON_PRIVATE_NETWORK: z
+    .preprocess((val) => {
+      if (typeof val === 'string') {
+        return val.toLowerCase() === 'true';
+      }
+      return val === undefined ? false : !!val;
+    }, z.boolean())
+    .default(false),
+
   // Durcissement API (findings #22/#23/#37). OPTIONNELS pour rester retro-compatible
-  // en dev sur loopback ET sur le reseau dark Dokploy (D4) : absents => /stats ouvert,
-  // CORS desactive, rate limit aux defauts. STATS_TOKEN : token Bearer protegeant GET
-  // /stats (CWE-306) ; si fourni il doit faire >= 32 octets (SEC-003) et /stats est gate.
-  // CORS_ORIGINS : liste d'origines separees par des virgules (CWE-306). RATE_LIMIT_* :
-  // quota par IP (CWE-770).
+  // en dev sur loopback : absents => /stats ouvert (loopback uniquement), CORS desactive,
+  // rate limit aux defauts. STATS_TOKEN : token Bearer protegeant GET /stats (CWE-306) ;
+  // si fourni il doit faire >= 32 octets (SEC-003) et /stats est gate. CORS_ORIGINS : liste
+  // d'origines separees par des virgules (CWE-306). RATE_LIMIT_* : quota par IP (CWE-770).
   STATS_TOKEN: z.string().min(32, 'STATS_TOKEN doit faire au moins 32 octets (SEC-003)').optional(),
   CORS_ORIGINS: z.string().optional(),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
@@ -82,14 +94,25 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     throw new Error(`Configuration invalide :\n${issues}`);
   }
   const e = parsed.data;
-  // SEC-001 (#37) assoupli (D4, aligne Moodioos) : un bind NON-loopback expose /stats
-  // au reseau. Sur le reseau dark Dokploy (prive, aucun port public) on TOLERE l'absence
-  // de token — on AVERTIT au lieu de refuser le boot. Si un STATS_TOKEN est fourni, /stats
-  // reste gate par Bearer (cf. api/server.ts) et le token doit faire >= 32 octets (SEC-003).
+  // SEC-001 (#43) DENY-BY-DEFAULT : un bind NON-loopback expose /stats au reseau. Sans token,
+  // le boot REFUSE par defaut. L'ouverture sur le reseau dark Dokploy (prive, aucun port public)
+  // exige un OPT-IN EXPLICITE : ALLOW_OPEN_STATS_ON_PRIVATE_NETWORK=true. Si un STATS_TOKEN est
+  // fourni, /stats reste gate par Bearer (cf. api/server.ts) et le token doit faire >= 32 octets
+  // (SEC-003) — l'opt-in devient alors inutile.
   if (!estLoopback(e.HOST) && e.STATS_TOKEN === undefined) {
+    if (!e.ALLOW_OPEN_STATS_ON_PRIVATE_NETWORK) {
+      throw new Error(
+        `[config] SEC-001 : HOST=${e.HOST} (non-loopback) sans STATS_TOKEN — /stats serait ouvert sur le reseau. ` +
+          `Boot refuse (deny-by-default). Au choix :\n` +
+          `  - definir STATS_TOKEN (>= 32 octets) pour gater /stats par Bearer ; OU\n` +
+          `  - binder en loopback (HOST=127.0.0.1) ; OU\n` +
+          `  - affirmer ALLOW_OPEN_STATS_ON_PRIVATE_NETWORK=true pour un reseau dark prive (D4, aucun port public).`,
+      );
+    }
     console.warn(
       `[config] SEC-001 : HOST=${e.HOST} (non-loopback) sans STATS_TOKEN — /stats est ouvert sur le reseau. ` +
-        `Tolere sur le reseau dark Dokploy (prive) ; definir STATS_TOKEN (>= 32 octets) pour gater /stats.`,
+        `Tolere via ALLOW_OPEN_STATS_ON_PRIVATE_NETWORK=true (reseau dark Dokploy prive) ; ` +
+        `definir STATS_TOKEN (>= 32 octets) pour gater /stats.`,
     );
   }
   return {
