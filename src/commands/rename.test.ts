@@ -14,7 +14,9 @@
  */
 import { describe, expect, it } from 'bun:test';
 import { PermissionFlagsBits } from 'discord.js';
-import { renameCommand } from './rename';
+import { creerRenameCommand } from './rename';
+import { creerMemoryOriginalNickStore } from '../original-nick/memory-store';
+import type { OriginalNickStore } from '../original-nick/store';
 
 interface Scenario {
   canManageNicknames?: boolean;
@@ -23,7 +25,12 @@ interface Scenario {
   member?: { nick: string | null; name: string };
   style: string;
   nouveauNom?: string | null;
+  duree?: string | null;
+  store?: OriginalNickStore;
 }
+
+/** Commande par defaut (store memoire) pour les scenarios sans renommage temporaire. */
+const renameCommand = creerRenameCommand(creerMemoryOriginalNickStore());
 
 interface Captured {
   edited: string | null | undefined;
@@ -43,9 +50,11 @@ function fakeInteraction(s: Scenario) {
   };
   const member = s.member ?? { nick: null, name: 'renamio' };
   const targetMember = {
+    id: 'm-cible',
     nickname: member.nick,
     user: { username: member.name },
     displayName: member.nick ?? member.name,
+    guild: { id: 'g-test' },
     toString: () => '@cible',
     manageable: s.manageable ?? true,
     edit: (data: { nick?: string | null }) => {
@@ -62,8 +71,11 @@ function fakeInteraction(s: Scenario) {
     },
     options: {
       getMember: () => targetMember,
-      getString: (name: string) =>
-        name === 'style' ? s.style : (s.nouveauNom ?? null),
+      getString: (name: string) => {
+        if (name === 'style') return s.style;
+        if (name === 'duree') return s.duree ?? null;
+        return s.nouveauNom ?? null;
+      },
     },
     reply: (payload: { content?: string; ephemeral?: boolean; embeds?: unknown[] }) => {
       captured.content = payload.content ?? '';
@@ -153,5 +165,54 @@ describe('commande /rename', () => {
     expect(captured.editCalled).toBe(true);
     expect(captured.ephemeral).toBe(true);
     expect(captured.content.toLowerCase()).toContain('permission');
+  });
+});
+
+describe('commande /rename — renommage temporaire (issue #38)', () => {
+  it('expose une option duree optionnelle', () => {
+    const json = creerRenameCommand(creerMemoryOriginalNickStore()).data.toJSON();
+    const duree = json.options?.find((o) => o.name === 'duree');
+    expect(duree).toBeDefined();
+    expect(duree?.required ?? false).toBe(false);
+  });
+
+  it('avec duree valide : memorise le pseudo source pour auto-revert, renomme, confirme', async () => {
+    const store = creerMemoryOriginalNickStore();
+    const command = creerRenameCommand(store);
+    const { interaction, captured } = fakeInteraction({
+      store,
+      style: 'cursive',
+      member: { nick: 'Bob', name: 'globalname' },
+      duree: '2h',
+    });
+    await command.execute(interaction);
+    expect(captured.editCalled).toBe(true);
+    // Le pseudo SOURCE (Bob) est memorise pour la restauration a l echeance.
+    expect(await store.get('g-test', 'm-cible')).toBe('Bob');
+    expect(await store.listDue(Number.MAX_SAFE_INTEGER)).toHaveLength(1);
+    expect(captured.embeds.length).toBe(1);
+  });
+
+  it('sans duree : NE memorise PAS d echeance (renommage permanent classique)', async () => {
+    const store = creerMemoryOriginalNickStore();
+    const command = creerRenameCommand(store);
+    const { interaction } = fakeInteraction({ store, style: 'cursive', nouveauNom: 'abc' });
+    await command.execute(interaction);
+    expect(await store.listDue(Number.MAX_SAFE_INTEGER)).toHaveLength(0);
+  });
+
+  it('duree invalide -> refus propre ephemere, AUCUN edit', async () => {
+    const store = creerMemoryOriginalNickStore();
+    const command = creerRenameCommand(store);
+    const { interaction, captured } = fakeInteraction({
+      store,
+      style: 'cursive',
+      nouveauNom: 'abc',
+      duree: 'n importe quoi',
+    });
+    await command.execute(interaction);
+    expect(captured.editCalled).toBe(false);
+    expect(captured.ephemeral).toBe(true);
+    expect(captured.content.toLowerCase()).toContain('durée');
   });
 });

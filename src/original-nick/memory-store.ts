@@ -7,25 +7,40 @@
  */
 import type { OriginalNickStore } from './store';
 
+interface Ligne {
+  guildId: string;
+  memberId: string;
+  nick: string;
+  /** Echeance de revert temporaire (epoch ms, #38). Absente => revert par role uniquement. */
+  expiresAt: number | undefined;
+}
+
 function cle(guildId: string, memberId: string): string {
   return `${guildId}:${memberId}`;
 }
 
 export function creerMemoryOriginalNickStore(): OriginalNickStore {
-  const nicks = new Map<string, string>();
+  const lignes = new Map<string, Ligne>();
 
   return {
     get(guildId, memberId) {
-      return Promise.resolve(nicks.get(cle(guildId, memberId)) ?? null);
+      return Promise.resolve(lignes.get(cle(guildId, memberId))?.nick ?? null);
     },
-    rememberIfAbsent(guildId, memberId, nick) {
+    rememberIfAbsent(guildId, memberId, nick, expiresAt) {
       const k = cle(guildId, memberId);
-      if (!nicks.has(k)) nicks.set(k, nick); // ne pas ecraser l'original (idempotence #25)
+      // Ne pas ecraser l'original NI son echeance (idempotence #25/#38).
+      if (!lignes.has(k)) lignes.set(k, { guildId, memberId, nick, expiresAt });
       return Promise.resolve();
     },
     forget(guildId, memberId) {
-      nicks.delete(cle(guildId, memberId));
+      lignes.delete(cle(guildId, memberId));
       return Promise.resolve();
+    },
+    listDue(maintenant) {
+      const dues = [...lignes.values()]
+        .filter((l) => l.expiresAt !== undefined && l.expiresAt <= maintenant)
+        .map((l) => ({ guildId: l.guildId, memberId: l.memberId, nick: l.nick }));
+      return Promise.resolve(dues);
     },
   };
 }

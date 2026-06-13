@@ -123,7 +123,7 @@ L'API démarre **avant** le bot : `GET /health` répond même si le login Discor
 | `/ping` | Teste si le bot répond | `/ping` |
 | `/styles` | Affiche tous les styles disponibles | `/styles` |
 | `/convert <style> <texte>` | Convertit un texte | `/convert cursive Bonjour` |
-| `/rename <@user> <style> [nom]` | Renomme un membre | `/rename @User cursive` |
+| `/rename <@user> <style> [nom] [duree]` | Renomme un membre ; `duree` (ex. `2h`, `7j`, date ISO) ⇒ auto-revert à l'échéance (#38) | `/rename @User cursive duree:2h` |
 | `/random <@user> [nom]` | Style aléatoire | `/random @User` |
 | `/auto-rename add\|remove\|list\|log` | Configure l'auto-rename du serveur + journal (admin `Manage Server`) | `/auto-rename add role:@VIP style:Cursive` |
 | `/renamioos opt-out\|opt-in` | Refuse / réactive l'auto-rename te concernant sur ce serveur | `/renamioos opt-out` |

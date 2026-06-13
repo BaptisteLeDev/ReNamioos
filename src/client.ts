@@ -94,6 +94,7 @@ export class BotClient extends Client implements StatsProvider {
       optOutStore,
       autoRenameLogStore,
       commandSyncStore,
+      originalNickStore,
       redeploy,
     })) {
       this.commands.set(cmd.data.name, cmd);

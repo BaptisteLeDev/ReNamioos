@@ -18,6 +18,7 @@ import { creerAutoRenameLogStore } from './auto-rename-log/index';
 import { creerOriginalNickStore } from './original-nick/index';
 import { creerCommandSyncStore } from './command-sync/index';
 import { creerCommandUsageStore } from './command-usage/index';
+import { demarrerBalayagePeriodique } from './jobs/index';
 import { closeDb } from './db/client';
 
 async function bootstrap(): Promise<void> {
@@ -87,13 +88,18 @@ async function bootstrap(): Promise<void> {
   console.log(`API a l'ecoute sur http://${config.api.host}:${config.api.port}`);
 
   // 2. Bot ensuite. Un echec de login ne fait pas tomber l'API.
+  let arreterBalayage: () => void = () => {};
   try {
     await bot.start(config.discord.token);
+    // Balayage periodique des renommages temporaires echus (issue #38) : restaure les
+    // pseudos dont l'echeance est passee. Demarre apres login (a besoin du client connecte).
+    arreterBalayage = demarrerBalayagePeriodique({ client: bot, store: originalNickStore });
   } catch (err) {
     console.error('Echec du login Discord (l\'API reste disponible) :', err);
   }
 
   setupGracefulShutdown(async () => {
+    arreterBalayage();
     await bot.destroy();
     await api.close();
     await closeDb(); // ferme le pool Postgres (no-op en mode fichier).

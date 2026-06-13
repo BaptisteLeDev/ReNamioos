@@ -13,23 +13,32 @@ interface Compteurs {
   selectByGuild: number;
   upsertIfAbsent: number;
   deleteOne: number;
+  selectDue: number;
+}
+
+interface Stockee {
+  nick: string;
+  expiresAt: number | null;
 }
 
 function fakeQueries(initial: Record<string, Record<string, string>> = {}) {
-  const data = new Map<string, Map<string, string>>(
-    Object.entries(initial).map(([g, m]) => [g, new Map(Object.entries(m))]),
+  const data = new Map<string, Map<string, Stockee>>(
+    Object.entries(initial).map(([g, m]) => [
+      g,
+      new Map(Object.entries(m).map(([id, nick]) => [id, { nick, expiresAt: null }])),
+    ]),
   );
-  const compteurs: Compteurs = { selectByGuild: 0, upsertIfAbsent: 0, deleteOne: 0 };
+  const compteurs: Compteurs = { selectByGuild: 0, upsertIfAbsent: 0, deleteOne: 0, selectDue: 0 };
   const queries: OriginalNickQueries = {
     selectByGuild: (guildId) => {
       compteurs.selectByGuild += 1;
-      const m = data.get(guildId) ?? new Map();
-      return Promise.resolve([...m.entries()].map(([memberId, nick]) => ({ memberId, nick })));
+      const m = data.get(guildId) ?? new Map<string, Stockee>();
+      return Promise.resolve([...m.entries()].map(([memberId, v]) => ({ memberId, nick: v.nick })));
     },
-    upsertIfAbsent: (guildId, memberId, nick) => {
+    upsertIfAbsent: (guildId, memberId, nick, expiresAt) => {
       compteurs.upsertIfAbsent += 1;
-      const m = data.get(guildId) ?? new Map<string, string>();
-      if (!m.has(memberId)) m.set(memberId, nick); // ON CONFLICT DO NOTHING
+      const m = data.get(guildId) ?? new Map<string, Stockee>();
+      if (!m.has(memberId)) m.set(memberId, { nick, expiresAt: expiresAt ?? null }); // ON CONFLICT DO NOTHING
       data.set(guildId, m);
       return Promise.resolve();
     },
@@ -37,6 +46,18 @@ function fakeQueries(initial: Record<string, Record<string, string>> = {}) {
       compteurs.deleteOne += 1;
       data.get(guildId)?.delete(memberId);
       return Promise.resolve();
+    },
+    selectDue: (maintenant) => {
+      compteurs.selectDue += 1;
+      const dues: Array<{ guildId: string; memberId: string; nick: string }> = [];
+      for (const [guildId, m] of data) {
+        for (const [memberId, v] of m) {
+          if (v.expiresAt !== null && v.expiresAt <= maintenant) {
+            dues.push({ guildId, memberId, nick: v.nick });
+          }
+        }
+      }
+      return Promise.resolve(dues);
     },
   };
   return { queries, compteurs, data };
@@ -76,5 +97,15 @@ describe('NeonOriginalNickStore', () => {
     expect(await store.get('g1', 'm1')).toBeNull();
     expect(compteurs.deleteOne).toBe(1);
     expect(compteurs.selectByGuild).toBe(2);
+  });
+
+  it('listDue interroge la DB (toutes guildes) sans passer par le cache par guild (#38)', async () => {
+    const { queries, compteurs } = fakeQueries({});
+    const store = creerNeonOriginalNickStore(queries);
+    await store.rememberIfAbsent('g1', 'm1', 'Bob', 1000);
+    await store.rememberIfAbsent('g2', 'm9', 'Zoe', 3000);
+    await store.rememberIfAbsent('g1', 'm2', 'SansEcheance'); // jamais due
+    expect(await store.listDue(1500)).toEqual([{ guildId: 'g1', memberId: 'm1', nick: 'Bob' }]);
+    expect(compteurs.selectDue).toBe(1);
   });
 });
