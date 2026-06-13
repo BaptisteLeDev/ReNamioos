@@ -54,3 +54,21 @@ describe('config — bind & token /stats (issue #37)', () => {
     expect(config.api.host).toBe('::1');
   });
 });
+
+describe('config — auto-deploiement des commandes (#40)', () => {
+  it('DEFAUT true quand DISCORD_AUTO_DEPLOY_COMMANDS est absent', () => {
+    const config = loadConfig({ ...baseEnv });
+    expect(config.discord.autoDeployCommands).toBe(true);
+  });
+
+  it("seul 'false' (insensible a la casse) desactive", () => {
+    expect(loadConfig({ ...baseEnv, DISCORD_AUTO_DEPLOY_COMMANDS: 'false' }).discord.autoDeployCommands).toBe(false);
+    expect(loadConfig({ ...baseEnv, DISCORD_AUTO_DEPLOY_COMMANDS: 'FALSE' }).discord.autoDeployCommands).toBe(false);
+  });
+
+  it("toute autre valeur ('true', '1', vide) reste activee", () => {
+    expect(loadConfig({ ...baseEnv, DISCORD_AUTO_DEPLOY_COMMANDS: 'true' }).discord.autoDeployCommands).toBe(true);
+    expect(loadConfig({ ...baseEnv, DISCORD_AUTO_DEPLOY_COMMANDS: '1' }).discord.autoDeployCommands).toBe(true);
+    expect(loadConfig({ ...baseEnv, DISCORD_AUTO_DEPLOY_COMMANDS: '' }).discord.autoDeployCommands).toBe(true);
+  });
+});

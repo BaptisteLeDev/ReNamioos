@@ -73,6 +73,8 @@ async function bootstrap(): Promise<void> {
     discord: {
       applicationId: config.discord.applicationId,
       token: config.discord.token,
+      guildId: config.discord.guildId,
+      autoDeployCommands: config.discord.autoDeployCommands,
     },
   });
 

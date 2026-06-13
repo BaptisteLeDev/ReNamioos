@@ -20,6 +20,7 @@ import {
 } from 'discord.js';
 import type { Command } from './commands/types';
 import { creerCommandes } from './commands/index';
+import { deployApplicationCommands } from './commands/deploy-runtime';
 import type { BotStats, StatsProvider } from './api/stats-provider';
 import { creerGestionnaireMembreMisAJour } from './events/guild-member-update';
 import type { MappingStore } from './mapping/store';
@@ -51,10 +52,18 @@ export interface OptionsBotClient {
   /** Provenance UNIQUE du suivi d'usage des commandes (issue #27). Defaut : memoire (dev). */
   commandUsageStore?: CommandUsageStore;
   /**
-   * Identifiants Discord pour le PUT REST de /update (re-synchro par serveur). Absents
-   * (defaut en test) => /update repond une erreur propre au lieu de re-deployer.
+   * Identifiants Discord pour le PUT REST de /update (re-synchro par serveur) ET pour
+   * l'auto-deploiement au demarrage (#40). Absents (defaut en test) => /update repond
+   * une erreur propre et l'auto-deploiement est inerte.
    */
-  discord?: { applicationId: string; token: string };
+  discord?: {
+    applicationId: string;
+    token: string;
+    /** Si defini : deploiement guild-only (dev, instantane). Sinon : global (prod). */
+    guildId?: string | undefined;
+    /** Auto-deploiement des slash au demarrage (#40). Defaut implicite false si absent. */
+    autoDeployCommands?: boolean | undefined;
+  };
 }
 
 export class BotClient extends Client implements StatsProvider {
@@ -64,6 +73,10 @@ export class BotClient extends Client implements StatsProvider {
   private readonly autoRenameLogStore: AutoRenameLogStore;
   /** Source de la serie commandsDaily (30j) exposee dans /stats (issue #27). */
   private readonly commandUsageStore: CommandUsageStore;
+  /** Identifiants Discord (auto-deploiement #40 + /update). Absents en test. */
+  private readonly discord: OptionsBotClient['discord'];
+  /** Client REST partage par /update et l'auto-deploiement (#40). Absent sans `discord`. */
+  private readonly restClient: REST | undefined;
 
   /**
    * @param options injection de la composition (src/index.ts). Tous les champs sont
@@ -87,6 +100,10 @@ export class BotClient extends Client implements StatsProvider {
     const commandSyncStore =
       options.commandSyncStore ?? creerFileCommandSyncStore(creerFileIo('command-sync.json'));
     this.commandUsageStore = options.commandUsageStore ?? creerMemoryCommandUsageStore();
+    this.discord = options.discord;
+    this.restClient = options.discord
+      ? new REST({ version: '10' }).setToken(options.discord.token)
+      : undefined;
     const redeploy = this.construireRedeploy(options.discord);
 
     for (const cmd of creerCommandes({
@@ -114,6 +131,7 @@ export class BotClient extends Client implements StatsProvider {
     });
     this.once(Events.ClientReady, (c) => {
       console.log(`Bot pret : connecte comme ${c.user.tag} (${c.guilds.cache.size} serveurs)`);
+      void this.deployerAuDemarrage(c);
     });
     this.on(Events.InteractionCreate, (interaction) => {
       void this.handleInteraction(interaction);
@@ -167,16 +185,40 @@ export class BotClient extends Client implements StatsProvider {
   private construireRedeploy(
     discord: OptionsBotClient['discord'],
   ): (guildId: string, payload: RESTPostAPIApplicationCommandsJSONBody[]) => Promise<void> {
-    if (!discord) {
+    if (!discord || !this.restClient) {
       return () =>
         Promise.reject(new Error('Re-deploiement indisponible : identifiants Discord absents.'));
     }
-    const rest = new REST({ version: '10' }).setToken(discord.token);
+    const rest = this.restClient;
     return async (guildId, payload) => {
       await rest.put(Routes.applicationGuildCommands(discord.applicationId, guildId), {
         body: payload,
       });
     };
+  }
+
+  /**
+   * Auto-deploiement des slash-commands au demarrage (#40). Reutilise la logique
+   * partagee `deployApplicationCommands` (scope global/guild + purge des doublons).
+   * Inerte sans identifiants Discord ou si autoDeployCommands est false. Non bloquant :
+   * un echec de deploiement est logge mais ne fait pas tomber le bot.
+   */
+  private async deployerAuDemarrage(client: Client<true>): Promise<void> {
+    if (!this.discord || !this.restClient || !this.discord.autoDeployCommands) {
+      return;
+    }
+    try {
+      await deployApplicationCommands({
+        rest: this.restClient,
+        applicationId: this.discord.applicationId,
+        guildId: this.discord.guildId,
+        payload: this.commands.map((c) => c.data.toJSON()),
+        guildIds: [...client.guilds.cache.keys()],
+        log: { info: (m) => console.log(m), warn: (m) => console.warn(m) },
+      });
+    } catch (err) {
+      console.error('Echec du deploiement des commandes au demarrage (non bloquant) :', err);
+    }
   }
 
   /** Implementation du port StatsProvider (contrat /stats). */

@@ -12,6 +12,16 @@ const envSchema = z.object({
   DISCORD_TOKEN: z.string().min(1, 'DISCORD_TOKEN est requis'),
   DISCORD_APPLICATION_ID: z.string().min(1, 'DISCORD_APPLICATION_ID est requis'),
   DISCORD_GUILD_ID: z.string().optional(),
+  // Auto-deploiement des slash-commands au demarrage (#40). string->bool, DEFAUT true :
+  // seul la valeur explicite 'false' (insensible a la casse) le desactive.
+  DISCORD_AUTO_DEPLOY_COMMANDS: z
+    .preprocess((val) => {
+      if (typeof val === 'string') {
+        return val.toLowerCase() !== 'false';
+      }
+      return val === undefined ? true : !!val;
+    }, z.boolean())
+    .default(true),
 
   // API HTTP (Fastify) — port distinct du monitoring (8099/3001) par defaut.
   PORT: z.coerce.number().int().positive().default(8199),
@@ -86,6 +96,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       token: e.DISCORD_TOKEN,
       applicationId: e.DISCORD_APPLICATION_ID,
       guildId: e.DISCORD_GUILD_ID,
+      autoDeployCommands: e.DISCORD_AUTO_DEPLOY_COMMANDS,
     },
     autoRenameConfigPath: e.AUTO_RENAME_CONFIG_PATH,
     database: { url: e.DATABASE_URL },
@@ -110,6 +121,8 @@ export interface Config {
     token: string;
     applicationId: string;
     guildId: string | undefined;
+    /** Deploie automatiquement les slash-commands au demarrage (#40). Defaut true. */
+    autoDeployCommands: boolean;
   };
   autoRenameConfigPath: string;
   /** URL Postgres Neon (B8, ADR-0005). Absente = mode fichier (dev). */

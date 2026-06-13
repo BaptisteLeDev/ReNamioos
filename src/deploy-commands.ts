@@ -6,9 +6,10 @@
  *
  *   bun run deploy-commands
  */
-import { REST, Routes } from 'discord.js';
+import { REST } from 'discord.js';
 import { loadConfig } from './config';
 import { creerCommandes } from './commands/index';
+import { deployApplicationCommands } from './commands/deploy-runtime';
 import { creerFileMappingStore } from './mapping/file-store';
 import { creerMemoryOptOutStore } from './optout/memory-store';
 import { creerMemoryAutoRenameLogStore } from './auto-rename-log/memory-store';
@@ -33,16 +34,16 @@ async function deploy(): Promise<void> {
   }).map((c) => c.data.toJSON());
   const rest = new REST({ version: '10' }).setToken(config.discord.token);
 
-  if (config.discord.guildId) {
-    console.log(`Deploiement de ${body.length} commande(s) sur la guild ${config.discord.guildId}`);
-    await rest.put(
-      Routes.applicationGuildCommands(config.discord.applicationId, config.discord.guildId),
-      { body },
-    );
-  } else {
-    console.log(`Deploiement global de ${body.length} commande(s) (jusqu'a 1h de propagation)`);
-    await rest.put(Routes.applicationCommands(config.discord.applicationId), { body });
-  }
+  // Reutilise la logique partagee de choix du scope + purge (regle de 3, #40). Le
+  // script manuel n'a pas de cache de guildes connecte -> purge no-op (guildIds vide).
+  await deployApplicationCommands({
+    rest,
+    applicationId: config.discord.applicationId,
+    guildId: config.discord.guildId,
+    payload: body,
+    guildIds: [],
+    log: { info: (m) => console.log(m), warn: (m) => console.warn(m) },
+  });
   console.log('Commandes deployees.');
 }
 
