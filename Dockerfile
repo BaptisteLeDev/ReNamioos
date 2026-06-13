@@ -34,6 +34,8 @@ COPY --from=prod-deps /app/node_modules ./node_modules
 # .env.production* en glob : la COPY reussit meme tant que le fichier chiffre n'existe pas encore.
 COPY package.json auto-rename.json .env.production* ./
 COPY src ./src
+# Migrations drizzle : jouees au boot (src/db/migrate.ts, migrationsFolder=process.cwd()/drizzle).
+COPY drizzle ./drizzle
 
 # Le boot demarre l'API d'abord (src/index.ts) : /health repond sans I/O Discord.
 EXPOSE 8199
