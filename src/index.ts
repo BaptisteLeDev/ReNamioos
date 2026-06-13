@@ -20,10 +20,16 @@ import { creerCommandSyncStore } from './command-sync/index';
 import { creerCommandUsageStore } from './command-usage/index';
 import { demarrerBalayagePeriodique } from './jobs/index';
 import { closeDb } from './db/client';
+import { runMigrations } from './db/migrate';
 
 async function bootstrap(): Promise<void> {
   const config = loadConfig();
   console.log(`Demarrage de ReNamioos (env: ${config.env})`);
+
+  // Auto-migrate au boot (B8, ADR-0005), AVANT de servir l'API et de connecter Discord :
+  // un schema desynchronise est non recuperable. Sans DATABASE_URL (mode fichier) => saute.
+  // Echec en mode Neon => FATAL (relance non catchee => bootstrap log + exit non-zero).
+  await runMigrations(config.database.url);
 
   // Provenance de la config auto-rename (B8, ADR-0005). Le FICHIER auto-rename.json
   // est toujours charge+valide au boot (echec fort si un style est inconnu) : il sert
