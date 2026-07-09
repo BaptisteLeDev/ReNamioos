@@ -6,16 +6,16 @@
  *
  *   bun run deploy-commands
  */
-import { REST } from 'discord.js';
-import { loadConfig } from './config';
-import { creerCommandes } from './commands/index';
-import { deployApplicationCommands } from './commands/deploy-runtime';
-import { creerFileMappingStore } from './mapping/file-store';
-import { creerMemoryOptOutStore } from './optout/memory-store';
-import { creerMemoryAutoRenameLogStore } from './auto-rename-log/memory-store';
-import { CAPACITE_JOURNAL_PAR_GUILD } from './auto-rename-log/index';
-import { creerFileCommandSyncStore, creerFileIo } from './command-sync/file-store';
-import { creerMemoryOriginalNickStore } from './original-nick/memory-store';
+import { REST } from "discord.js";
+import { loadConfig } from "./config";
+import { creerCommandes } from "./commands/index";
+import { deployApplicationCommands } from "./commands/deploy-runtime";
+import { creerFileMappingStore } from "./mapping/file-store";
+import { creerMemoryOptOutStore } from "./optout/memory-store";
+import { creerMemoryAutoRenameLogStore } from "./auto-rename-log/memory-store";
+import { CAPACITE_JOURNAL_PAR_GUILD } from "./auto-rename-log/index";
+import { creerFileCommandSyncStore, creerFileIo } from "./command-sync/file-store";
+import { creerMemoryOriginalNickStore } from "./original-nick/memory-store";
 
 async function deploy(): Promise<void> {
   const config = loadConfig();
@@ -28,11 +28,11 @@ async function deploy(): Promise<void> {
     autoRenameLogStore: creerMemoryAutoRenameLogStore({
       capaciteParGuild: CAPACITE_JOURNAL_PAR_GUILD,
     }),
-    commandSyncStore: creerFileCommandSyncStore(creerFileIo('command-sync.json')),
+    commandSyncStore: creerFileCommandSyncStore(creerFileIo("command-sync.json")),
     originalNickStore: creerMemoryOriginalNickStore(),
     redeploy: () => Promise.resolve(),
   }).map((c) => c.data.toJSON());
-  const rest = new REST({ version: '10' }).setToken(config.discord.token);
+  const rest = new REST({ version: "10" }).setToken(config.discord.token);
 
   // Reutilise la logique partagee de choix du scope + purge (regle de 3, #40). Le
   // script manuel n'a pas de cache de guildes connecte -> purge no-op (guildIds vide).
@@ -44,7 +44,7 @@ async function deploy(): Promise<void> {
     guildIds: [],
     log: { info: (m) => console.log(m), warn: (m) => console.warn(m) },
   });
-  console.log('Commandes deployees.');
+  console.log("Commandes deployees.");
 }
 
 void deploy();

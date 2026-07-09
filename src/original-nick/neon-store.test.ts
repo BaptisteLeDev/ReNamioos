@@ -6,8 +6,8 @@
  * guildMemberUpdate ne refrappe pas la base) et son invalidation a chaque ecriture, ainsi
  * que l'idempotence de la memorisation (ne pas ecraser l'original).
  */
-import { describe, expect, it } from 'bun:test';
-import { creerNeonOriginalNickStore, type OriginalNickQueries } from './neon-store';
+import { describe, expect, it } from "bun:test";
+import { creerNeonOriginalNickStore, type OriginalNickQueries } from "./neon-store";
 
 interface Compteurs {
   selectByGuild: number;
@@ -63,49 +63,49 @@ function fakeQueries(initial: Record<string, Record<string, string>> = {}) {
   return { queries, compteurs, data };
 }
 
-describe('NeonOriginalNickStore', () => {
-  it('get renvoie le nick memorise, null sinon', async () => {
-    const { queries } = fakeQueries({ g1: { m1: 'Bob' } });
+describe("NeonOriginalNickStore", () => {
+  it("get renvoie le nick memorise, null sinon", async () => {
+    const { queries } = fakeQueries({ g1: { m1: "Bob" } });
     const store = creerNeonOriginalNickStore(queries);
-    expect(await store.get('g1', 'm1')).toBe('Bob');
-    expect(await store.get('g1', 'absent')).toBeNull();
+    expect(await store.get("g1", "m1")).toBe("Bob");
+    expect(await store.get("g1", "absent")).toBeNull();
   });
 
-  it('met en CACHE par guild : un 2e get ne refrappe PAS la DB', async () => {
-    const { queries, compteurs } = fakeQueries({ g1: { m1: 'Bob' } });
+  it("met en CACHE par guild : un 2e get ne refrappe PAS la DB", async () => {
+    const { queries, compteurs } = fakeQueries({ g1: { m1: "Bob" } });
     const store = creerNeonOriginalNickStore(queries);
-    await store.get('g1', 'm1');
-    await store.get('g1', 'm2');
+    await store.get("g1", "m1");
+    await store.get("g1", "m2");
     expect(compteurs.selectByGuild).toBe(1);
   });
 
-  it('rememberIfAbsent persiste et INVALIDE le cache de la guild', async () => {
+  it("rememberIfAbsent persiste et INVALIDE le cache de la guild", async () => {
     const { queries, compteurs } = fakeQueries({});
     const store = creerNeonOriginalNickStore(queries);
-    expect(await store.get('g1', 'm1')).toBeNull(); // selectByGuild = 1
-    await store.rememberIfAbsent('g1', 'm1', 'Bob');
-    expect(await store.get('g1', 'm1')).toBe('Bob'); // relit (cache invalide)
+    expect(await store.get("g1", "m1")).toBeNull(); // selectByGuild = 1
+    await store.rememberIfAbsent("g1", "m1", "Bob");
+    expect(await store.get("g1", "m1")).toBe("Bob"); // relit (cache invalide)
     expect(compteurs.upsertIfAbsent).toBe(1);
     expect(compteurs.selectByGuild).toBe(2);
   });
 
-  it('forget supprime la ligne et INVALIDE le cache (minimisation D8)', async () => {
-    const { queries, compteurs } = fakeQueries({ g1: { m1: 'Bob' } });
+  it("forget supprime la ligne et INVALIDE le cache (minimisation D8)", async () => {
+    const { queries, compteurs } = fakeQueries({ g1: { m1: "Bob" } });
     const store = creerNeonOriginalNickStore(queries);
-    expect(await store.get('g1', 'm1')).toBe('Bob');
-    await store.forget('g1', 'm1');
-    expect(await store.get('g1', 'm1')).toBeNull();
+    expect(await store.get("g1", "m1")).toBe("Bob");
+    await store.forget("g1", "m1");
+    expect(await store.get("g1", "m1")).toBeNull();
     expect(compteurs.deleteOne).toBe(1);
     expect(compteurs.selectByGuild).toBe(2);
   });
 
-  it('listDue interroge la DB (toutes guildes) sans passer par le cache par guild (#38)', async () => {
+  it("listDue interroge la DB (toutes guildes) sans passer par le cache par guild (#38)", async () => {
     const { queries, compteurs } = fakeQueries({});
     const store = creerNeonOriginalNickStore(queries);
-    await store.rememberIfAbsent('g1', 'm1', 'Bob', 1000);
-    await store.rememberIfAbsent('g2', 'm9', 'Zoe', 3000);
-    await store.rememberIfAbsent('g1', 'm2', 'SansEcheance'); // jamais due
-    expect(await store.listDue(1500)).toEqual([{ guildId: 'g1', memberId: 'm1', nick: 'Bob' }]);
+    await store.rememberIfAbsent("g1", "m1", "Bob", 1000);
+    await store.rememberIfAbsent("g2", "m9", "Zoe", 3000);
+    await store.rememberIfAbsent("g1", "m2", "SansEcheance"); // jamais due
+    expect(await store.listDue(1500)).toEqual([{ guildId: "g1", memberId: "m1", nick: "Bob" }]);
     expect(compteurs.selectDue).toBe(1);
   });
 });

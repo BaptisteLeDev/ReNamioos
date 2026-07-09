@@ -13,7 +13,7 @@
  * Les fonctions de requete sont INJECTEES (`OriginalNickQueries`) : le SQL/drizzle vit
  * dans neon-queries.ts ; ce module ne connait que des promesses (testable sans DB).
  */
-import type { OriginalNickStore } from './store';
+import type { OriginalNickStore } from "./store";
 
 /** Frontiere d'I/O injectable : tout l'acces Postgres passe par ces fonctions. */
 export interface OriginalNickQueries {
@@ -24,14 +24,21 @@ export interface OriginalNickQueries {
    * echeance). `expiresAt` (epoch ms, #38) optionnel : absent => colonne NULL (pas de revert
    * temporise).
    */
-  upsertIfAbsent(guildId: string, memberId: string, nick: string, expiresAt?: number): Promise<void>;
+  upsertIfAbsent(
+    guildId: string,
+    memberId: string,
+    nick: string,
+    expiresAt?: number,
+  ): Promise<void>;
   /** Supprime la ligne (guild, membre) si elle existe. */
   deleteOne(guildId: string, memberId: string): Promise<void>;
   /**
    * Lignes echues (`expires_at <= maintenant`) TOUTES guildes confondues (#38). Lecture
    * directe en DB (le cache par guild ne couvre pas une requete cross-guild par echeance).
    */
-  selectDue(maintenant: number): Promise<Array<{ guildId: string; memberId: string; nick: string }>>;
+  selectDue(
+    maintenant: number,
+  ): Promise<Array<{ guildId: string; memberId: string; nick: string }>>;
 }
 
 export function creerNeonOriginalNickStore(queries: OriginalNickQueries): OriginalNickStore {

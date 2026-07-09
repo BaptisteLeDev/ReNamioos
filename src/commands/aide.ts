@@ -11,59 +11,59 @@
  * affiche est donc celui de la guild courante (store.list(guildId)) ; en DM (hors
  * guild) il vaut 0. Une commande = une fermeture sur le store.
  */
-import { EmbedBuilder, SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
-import { STYLE_NAMES } from '../domain/styles';
-import type { MappingStore } from '../mapping/store';
-import type { Command } from './types';
-import { COULEUR_BLEU } from './couleurs';
+import { EmbedBuilder, SlashCommandBuilder, type ChatInputCommandInteraction } from "discord.js";
+import { STYLE_NAMES } from "../domain/styles";
+import type { MappingStore } from "../mapping/store";
+import type { Command } from "./types";
+import { COULEUR_BLEU } from "./couleurs";
 
 /** Fabrique /aide : le compte de roles mappes vient du store auto-rename (B8). */
 export function creerAideCommand(mappingStore: MappingStore): Command {
   return {
-  data: new SlashCommandBuilder().setName('aide').setDescription('Affiche l’aide du bot.'),
+    data: new SlashCommandBuilder().setName("aide").setDescription("Affiche l’aide du bot."),
 
-  async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    const totalRoles = interaction.guildId
-      ? Object.keys(await mappingStore.list(interaction.guildId)).length
-      : 0;
+    async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+      const totalRoles = interaction.guildId
+        ? Object.keys(await mappingStore.list(interaction.guildId)).length
+        : 0;
 
-    const embed = new EmbedBuilder()
-      .setTitle('📖 Aide - ReNamioos')
-      .setDescription('Bot de renommage avec polices Unicode stylisées')
-      .setColor(COULEUR_BLEU)
-      .addFields(
-        {
-          name: '🎨 Commandes principales',
-          value: [
-            '`/styles` - Affiche tous les styles',
-            '`/convert <texte> <style>` - Convertit du texte',
-            '`/preview <style> [texte]` - Aperçu privé d’un style',
-            '`/rename <membre> <style> [nom]` - Renomme un membre',
-            '`/random <membre> [nom]` - Style aléatoire',
-            '`/ping` - Teste la connexion',
-          ].join('\n'),
-          inline: false,
-        },
-        {
-          name: '✨ Fonctionnalités',
-          value: [
-            `• ${STYLE_NAMES.length} styles de polices Unicode`,
-            '• Auto-rename avec rôles',
-            '• Conversion automatique chiffres → lettres',
-            '• Majuscule automatique en début',
-            '• Accents préservés',
-          ].join('\n'),
-          inline: false,
-        },
-        {
-          name: '🎭 Auto-rename',
-          value: `Rôles configurés : ${totalRoles}\nLe pseudo change automatiquement avec le rôle !`,
-          inline: false,
-        },
-      )
-      .setFooter({ text: 'Créé avec ❤️ par Baptiste' });
+      const embed = new EmbedBuilder()
+        .setTitle("📖 Aide - ReNamioos")
+        .setDescription("Bot de renommage avec polices Unicode stylisées")
+        .setColor(COULEUR_BLEU)
+        .addFields(
+          {
+            name: "🎨 Commandes principales",
+            value: [
+              "`/styles` - Affiche tous les styles",
+              "`/convert <texte> <style>` - Convertit du texte",
+              "`/preview <style> [texte]` - Aperçu privé d’un style",
+              "`/rename <membre> <style> [nom]` - Renomme un membre",
+              "`/random <membre> [nom]` - Style aléatoire",
+              "`/ping` - Teste la connexion",
+            ].join("\n"),
+            inline: false,
+          },
+          {
+            name: "✨ Fonctionnalités",
+            value: [
+              `• ${STYLE_NAMES.length} styles de polices Unicode`,
+              "• Auto-rename avec rôles",
+              "• Conversion automatique chiffres → lettres",
+              "• Majuscule automatique en début",
+              "• Accents préservés",
+            ].join("\n"),
+            inline: false,
+          },
+          {
+            name: "🎭 Auto-rename",
+            value: `Rôles configurés : ${totalRoles}\nLe pseudo change automatiquement avec le rôle !`,
+            inline: false,
+          },
+        )
+        .setFooter({ text: "Créé avec ❤️ par Baptiste" });
 
-    await interaction.reply({ embeds: [embed] });
-  },
+      await interaction.reply({ embeds: [embed] });
+    },
   };
 }

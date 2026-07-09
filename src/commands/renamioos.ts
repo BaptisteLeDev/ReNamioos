@@ -12,34 +12,30 @@
  *  - opt-out : refuse l'auto-rename (le bot ne renommera plus ce membre sur ce serveur).
  *  - opt-in  : reactive l'auto-rename (defaut).
  */
-import {
-  EmbedBuilder,
-  SlashCommandBuilder,
-  type ChatInputCommandInteraction,
-} from 'discord.js';
-import type { OptOutStore } from '../optout/store';
-import type { Command } from './types';
-import { COULEUR_VIOLET } from './couleurs';
+import { EmbedBuilder, SlashCommandBuilder, type ChatInputCommandInteraction } from "discord.js";
+import type { OptOutStore } from "../optout/store";
+import type { Command } from "./types";
+import { COULEUR_VIOLET } from "./couleurs";
 
 /** Fabrique /renamioos : le store de consentement est injecte a la composition. */
 export function creerRenamioosCommand(store: OptOutStore): Command {
   return {
     data: new SlashCommandBuilder()
-      .setName('renamioos')
-      .setDescription('Gère l’auto-rename te concernant sur ce serveur.')
+      .setName("renamioos")
+      .setDescription("Gère l’auto-rename te concernant sur ce serveur.")
       .addSubcommand((sub) =>
         sub
-          .setName('opt-out')
-          .setDescription('Refuse l’auto-rename : le bot ne renommera plus ton pseudo ici.'),
+          .setName("opt-out")
+          .setDescription("Refuse l’auto-rename : le bot ne renommera plus ton pseudo ici."),
       )
       .addSubcommand((sub) =>
-        sub.setName('opt-in').setDescription('Réactive l’auto-rename te concernant (défaut).'),
+        sub.setName("opt-in").setDescription("Réactive l’auto-rename te concernant (défaut)."),
       ),
 
     async execute(interaction: ChatInputCommandInteraction): Promise<void> {
       if (!interaction.guildId) {
         await interaction.reply({
-          content: '❌ Cette commande s’utilise sur un serveur.',
+          content: "❌ Cette commande s’utilise sur un serveur.",
           ephemeral: true,
         });
         return;
@@ -49,14 +45,14 @@ export function creerRenamioosCommand(store: OptOutStore): Command {
       const memberId = interaction.user.id;
       const sub = interaction.options.getSubcommand();
 
-      if (sub === 'opt-out') {
+      if (sub === "opt-out") {
         await store.optOut(guildId, memberId);
         const embed = new EmbedBuilder()
-          .setTitle('🚫 Auto-rename désactivé')
+          .setTitle("🚫 Auto-rename désactivé")
           .setColor(COULEUR_VIOLET)
           .setDescription(
-            'Le bot ne renommera plus automatiquement ton pseudo sur ce serveur. ' +
-              'Réactive-le quand tu veux avec `/renamioos opt-in`.',
+            "Le bot ne renommera plus automatiquement ton pseudo sur ce serveur. " +
+              "Réactive-le quand tu veux avec `/renamioos opt-in`.",
           );
         await interaction.reply({ embeds: [embed], ephemeral: true });
         return;
@@ -65,10 +61,10 @@ export function creerRenamioosCommand(store: OptOutStore): Command {
       // sub === 'opt-in'
       await store.optIn(guildId, memberId);
       const embed = new EmbedBuilder()
-        .setTitle('✅ Auto-rename réactivé')
+        .setTitle("✅ Auto-rename réactivé")
         .setColor(COULEUR_VIOLET)
         .setDescription(
-          'Le bot pourra de nouveau styliser automatiquement ton pseudo sur ce serveur.',
+          "Le bot pourra de nouveau styliser automatiquement ton pseudo sur ce serveur.",
         );
       await interaction.reply({ embeds: [embed], ephemeral: true });
     },

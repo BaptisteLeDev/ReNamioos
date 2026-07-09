@@ -7,24 +7,24 @@
  * rien a styliser / deja stylise) devient un message ephemere ; jamais de rendu
  * vide ou fantaisiste.
  */
-import { EmbedBuilder, SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
-import { convertirTexte, LIMITE_TEXTE_CONVERT } from '../domain/stylisation';
-import type { Command } from './types';
-import { COULEUR_BLEU } from './couleurs';
-import { autocompleteStyle } from './style-autocomplete';
-import { capitaliser, estStyleConnu, messageErreur } from './styliser';
+import { EmbedBuilder, SlashCommandBuilder, type ChatInputCommandInteraction } from "discord.js";
+import { convertirTexte, LIMITE_TEXTE_CONVERT } from "../domain/stylisation";
+import type { Command } from "./types";
+import { COULEUR_BLEU } from "./couleurs";
+import { autocompleteStyle } from "./style-autocomplete";
+import { capitaliser, estStyleConnu, messageErreur } from "./styliser";
 
 export const convertCommand: Command = {
   data: new SlashCommandBuilder()
-    .setName('convert')
-    .setDescription('Convertit un texte dans un style Unicode.')
+    .setName("convert")
+    .setDescription("Convertit un texte dans un style Unicode.")
     .addStringOption((opt) =>
-      opt.setName('texte').setDescription('Le texte à convertir').setRequired(true),
+      opt.setName("texte").setDescription("Le texte à convertir").setRequired(true),
     )
     .addStringOption((opt) =>
       opt
-        .setName('style')
-        .setDescription('Le style de police à appliquer')
+        .setName("style")
+        .setDescription("Le style de police à appliquer")
         .setRequired(true)
         .setAutocomplete(true),
     ),
@@ -32,18 +32,18 @@ export const convertCommand: Command = {
   autocomplete: autocompleteStyle,
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
-    const texte = interaction.options.getString('texte', true);
-    const style = interaction.options.getString('style', true);
+    const texte = interaction.options.getString("texte", true);
+    const style = interaction.options.getString("style", true);
 
     // Borne l'entree AVANT toute construction d'embed (finding #24, CWE-20).
     // Longueur par code point (coherent avec tronquerPseudo).
     if ([...texte].length > LIMITE_TEXTE_CONVERT) {
-      await interaction.reply({ content: messageErreur('texte-trop-long'), ephemeral: true });
+      await interaction.reply({ content: messageErreur("texte-trop-long"), ephemeral: true });
       return;
     }
 
     if (!estStyleConnu(style)) {
-      await interaction.reply({ content: messageErreur('style-inconnu', style), ephemeral: true });
+      await interaction.reply({ content: messageErreur("style-inconnu", style), ephemeral: true });
       return;
     }
 
@@ -57,8 +57,8 @@ export const convertCommand: Command = {
       .setTitle(`✨ Conversion en ${capitaliser(style)}`)
       .setColor(COULEUR_BLEU)
       .addFields(
-        { name: '📝 Original', value: texte, inline: false },
-        { name: '🎨 Résultat', value: resultat.texte, inline: false },
+        { name: "📝 Original", value: texte, inline: false },
+        { name: "🎨 Résultat", value: resultat.texte, inline: false },
       );
     await interaction.reply({ embeds: [embed] });
   },

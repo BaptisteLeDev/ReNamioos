@@ -11,7 +11,7 @@
  * incremente a chaque `record` d'un echec et remis a zero au changement de jour. Le
  * journal persistant (record/recent) sert le diagnostic ; le compteur sert la metrique.
  */
-import type { AutoRenameLogEntry } from '../domain/auto-rename-log';
+import type { AutoRenameLogEntry } from "../domain/auto-rename-log";
 
 export interface AutoRenameLogStore {
   /** Enregistre un evenement (succes ou echec) et met a jour le compteur du jour. */

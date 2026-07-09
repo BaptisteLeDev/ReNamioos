@@ -15,11 +15,11 @@
  * `/app/drizzle` dans l'image runtime — soit `process.cwd()` dans les deux cas
  * (CMD docker depuis `/app`, bun lance depuis la racine). Convention drizzle-kit.
  */
-import { resolve } from 'path';
-import { migrate } from 'drizzle-orm/node-postgres/migrator';
-import { getDb, type Db } from './client';
+import { resolve } from "path";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
+import { getDb, type Db } from "./client";
 
-export const MIGRATIONS_FOLDER = resolve(process.cwd(), 'drizzle');
+export const MIGRATIONS_FOLDER = resolve(process.cwd(), "drizzle");
 
 /** Applique le dossier de migrations a la base. Injectable pour les tests (pas de vraie DB). */
 export type Migrator = (db: Db, options: { migrationsFolder: string }) => Promise<void>;
@@ -34,7 +34,7 @@ export async function runMigrations(
   run: Migrator = migrate,
 ): Promise<void> {
   if (!connectionString) {
-    console.log('[migrate] DATABASE_URL absent, migrations sautees (mode fichier)');
+    console.log("[migrate] DATABASE_URL absent, migrations sautees (mode fichier)");
     return;
   }
   const start = Date.now();

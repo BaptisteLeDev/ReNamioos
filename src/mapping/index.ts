@@ -11,15 +11,15 @@
  * Les queries Neon sont creees ici via getDb (init paresseuse du Pool) sauf si on en
  * injecte (tests : aucune connexion Postgres reelle).
  */
-import type { MappingRoleStyle } from '../domain/auto-rename';
-import { getDb } from '../db/client';
-import type { MappingStore } from './store';
-import { creerNeonMappingStore, type MappingQueries } from './neon-store';
-import { creerNeonQueries } from './neon-queries';
-import { creerFileMappingStore } from './file-store';
-import { creerCompositeMappingStore } from './composite-store';
+import type { MappingRoleStyle } from "../domain/auto-rename";
+import { getDb } from "../db/client";
+import type { MappingStore } from "./store";
+import { creerNeonMappingStore, type MappingQueries } from "./neon-store";
+import { creerNeonQueries } from "./neon-queries";
+import { creerFileMappingStore } from "./file-store";
+import { creerCompositeMappingStore } from "./composite-store";
 
-export type { MappingStore } from './store';
+export type { MappingStore } from "./store";
 
 export interface OptionsMappingStore {
   /** URL Postgres Neon. Absente => mode fichier (dev). */

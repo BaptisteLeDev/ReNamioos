@@ -8,19 +8,19 @@
  * L'echec du login Discord NE DOIT PAS empecher l'API de servir /health et /stats
  * (le contrat exige une preuve de vie independante de l'etat de connexion Discord).
  */
-import { loadConfig } from './config';
-import { chargerConfigAutoRename } from './config/auto-rename-config';
-import { createApiServer } from './api/server';
-import { BotClient } from './client';
-import { creerMappingStore } from './mapping/index';
-import { creerOptOutStore } from './optout/index';
-import { creerAutoRenameLogStore } from './auto-rename-log/index';
-import { creerOriginalNickStore } from './original-nick/index';
-import { creerCommandSyncStore } from './command-sync/index';
-import { creerCommandUsageStore } from './command-usage/index';
-import { demarrerBalayagePeriodique } from './jobs/index';
-import { closeDb } from './db/client';
-import { runMigrations } from './db/migrate';
+import { loadConfig } from "./config";
+import { chargerConfigAutoRename } from "./config/auto-rename-config";
+import { createApiServer } from "./api/server";
+import { BotClient } from "./client";
+import { creerMappingStore } from "./mapping/index";
+import { creerOptOutStore } from "./optout/index";
+import { creerAutoRenameLogStore } from "./auto-rename-log/index";
+import { creerOriginalNickStore } from "./original-nick/index";
+import { creerCommandSyncStore } from "./command-sync/index";
+import { creerCommandUsageStore } from "./command-usage/index";
+import { demarrerBalayagePeriodique } from "./jobs/index";
+import { closeDb } from "./db/client";
+import { runMigrations } from "./db/migrate";
 
 async function bootstrap(): Promise<void> {
   const config = loadConfig();
@@ -103,7 +103,7 @@ async function bootstrap(): Promise<void> {
     // pseudos dont l'echeance est passee. Demarre apres login (a besoin du client connecte).
     arreterBalayage = demarrerBalayagePeriodique({ client: bot, store: originalNickStore });
   } catch (err) {
-    console.error('Echec du login Discord (l\'API reste disponible) :', err);
+    console.error("Echec du login Discord (l'API reste disponible) :", err);
   }
 
   setupGracefulShutdown(async () => {
@@ -120,12 +120,12 @@ function setupGracefulShutdown(cleanup: () => Promise<void>): void {
     cleanup()
       .then(() => process.exit(0))
       .catch((err) => {
-        console.error('Erreur a l\'arret :', err);
+        console.error("Erreur a l'arret :", err);
         process.exit(1);
       });
   };
-  process.on('SIGINT', () => shutdown('SIGINT'));
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on("SIGINT", () => shutdown("SIGINT"));
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
 }
 
 void bootstrap();

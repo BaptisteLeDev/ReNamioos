@@ -10,18 +10,15 @@
  * domaine, et reposent le resultat via ces helpers. Le domaine reste sans mock
  * et sans import de discord.js (invariant de l'ACL ciblee, ADR-0002).
  */
-import { EmbedBuilder, PermissionFlagsBits, type GuildMember, type Role } from 'discord.js';
-import {
-  evaluerFaisabiliteRename,
-  type RaisonInfaisabilite,
-} from '../domain/faisabilite-rename';
+import { EmbedBuilder, PermissionFlagsBits, type GuildMember, type Role } from "discord.js";
+import { evaluerFaisabiliteRename, type RaisonInfaisabilite } from "../domain/faisabilite-rename";
 import {
   convertirTexte,
   tronquerPseudo,
   LIMITE_TEXTE_CONVERT,
   type ErreurStylisation,
-} from '../domain/stylisation';
-import { STYLE_NAMES, type StyleName } from '../domain/styles';
+} from "../domain/stylisation";
+import { STYLE_NAMES, type StyleName } from "../domain/styles";
 
 /**
  * Message utilisateur (FR) pour chaque erreur metier. Un seul endroit : un
@@ -30,11 +27,11 @@ import { STYLE_NAMES, type StyleName } from '../domain/styles';
  */
 export function messageErreur(erreur: ErreurStylisation, style?: string): string {
   switch (erreur) {
-    case 'style-inconnu':
-      return `❌ Style « ${style ?? '?'} » inconnu. Utilise \`/styles\` pour voir la liste.`;
-    case 'rien-a-styliser':
-      return '❌ Rien à styliser : ce texte est déjà stylisé (ou ne contient aucune lettre).';
-    case 'texte-trop-long':
+    case "style-inconnu":
+      return `❌ Style « ${style ?? "?"} » inconnu. Utilise \`/styles\` pour voir la liste.`;
+    case "rien-a-styliser":
+      return "❌ Rien à styliser : ce texte est déjà stylisé (ou ne contient aucune lettre).";
+    case "texte-trop-long":
       return `❌ Texte trop long : ${LIMITE_TEXTE_CONVERT} caractères maximum.`;
   }
 }
@@ -45,7 +42,7 @@ export function estStyleConnu(nom: string): nom is StyleName {
 }
 
 /** Apercu stylise d'un style, DERIVE du domaine (jamais un litteral maintenu a la main). */
-export function apercuStyle(style: StyleName, echantillon = 'ReNamio'): string {
+export function apercuStyle(style: StyleName, echantillon = "ReNamio"): string {
   const r = convertirTexte(echantillon, style);
   return r.ok ? r.texte : echantillon;
 }
@@ -75,7 +72,7 @@ export async function appliquerRename(
   if (!membre.manageable) {
     return {
       ok: false,
-      message: '❌ Hiérarchie de rôles : je ne peux pas renommer ce membre (rôle trop haut).',
+      message: "❌ Hiérarchie de rôles : je ne peux pas renommer ce membre (rôle trop haut).",
     };
   }
 
@@ -90,7 +87,7 @@ export async function appliquerRename(
     await membre.edit({ nick: pseudo });
   } catch {
     // discord.Forbidden cote bot (permission Discord manquante a l'execution).
-    return { ok: false, message: '❌ Je n’ai pas la permission de renommer ce membre.' };
+    return { ok: false, message: "❌ Je n’ai pas la permission de renommer ce membre." };
   }
 
   return { ok: true, pseudo, style };
@@ -115,14 +112,14 @@ export async function restaurerPseudo(
   if (!membre.manageable) {
     return {
       ok: false,
-      message: '❌ Hiérarchie de rôles : je ne peux pas restaurer le pseudo de ce membre.',
+      message: "❌ Hiérarchie de rôles : je ne peux pas restaurer le pseudo de ce membre.",
     };
   }
   const tronque = tronquerPseudo(pseudo);
   try {
     await membre.edit({ nick: tronque });
   } catch {
-    return { ok: false, message: '❌ Je n’ai pas la permission de restaurer ce pseudo.' };
+    return { ok: false, message: "❌ Je n’ai pas la permission de restaurer ce pseudo." };
   }
   return { ok: true, pseudo: tronque };
 }
@@ -139,9 +136,9 @@ export function embedRenameOk(
     .setTitle(titre)
     .setColor(couleur)
     .addFields(
-      { name: '👤 Membre', value: membre.toString(), inline: true },
-      { name: '🎨 Style', value: capitaliser(style), inline: true },
-      { name: '📝 Nouveau pseudo', value: pseudo, inline: false },
+      { name: "👤 Membre", value: membre.toString(), inline: true },
+      { name: "🎨 Style", value: capitaliser(style), inline: true },
+      { name: "📝 Nouveau pseudo", value: pseudo, inline: false },
     );
 }
 
@@ -158,10 +155,10 @@ export function capitaliser(mot: string): string {
 /** Message d'alerte (FR) pour chaque raison d'infaisabilite d'un auto-rename (#29). */
 function messageInfaisabilite(raison: RaisonInfaisabilite): string {
   switch (raison) {
-    case 'permission-manquante':
-      return '⚠️ Attention : il me manque la permission « Gérer les pseudos », je ne pourrai pas appliquer ce style.';
-    case 'role-trop-haut':
-      return '⚠️ Attention : ce rôle est au-dessus du mien, je ne pourrai pas renommer ses membres. Place mon rôle plus haut.';
+    case "permission-manquante":
+      return "⚠️ Attention : il me manque la permission « Gérer les pseudos », je ne pourrai pas appliquer ce style.";
+    case "role-trop-haut":
+      return "⚠️ Attention : ce rôle est au-dessus du mien, je ne pourrai pas renommer ses membres. Place mon rôle plus haut.";
   }
 }
 
@@ -174,7 +171,7 @@ function messageInfaisabilite(raison: RaisonInfaisabilite): string {
  */
 export function avertissementFaisabilite(
   botMembre: GuildMember | null,
-  role: Pick<Role, 'position'> | null,
+  role: Pick<Role, "position"> | null,
 ): string | null {
   if (!botMembre || !role) return null;
   const faisabilite = evaluerFaisabiliteRename({

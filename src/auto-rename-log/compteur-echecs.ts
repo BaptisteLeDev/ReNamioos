@@ -9,7 +9,7 @@
  * evenement un autre jour remet le compteur a zero. Invariant centralise ici (un seul
  * endroit decide « est-ce encore aujourd'hui ? »), donc identique pour les deux adapters.
  */
-import type { AutoRenameLogEntry } from '../domain/auto-rename-log';
+import type { AutoRenameLogEntry } from "../domain/auto-rename-log";
 
 export interface CompteurEchecsDuJour {
   /** Prend en compte un evenement : incremente si echec, apres rollover eventuel. */
@@ -37,7 +37,7 @@ export function creerCompteurEchecsDuJour(now: () => Date): CompteurEchecsDuJour
   return {
     enregistrer(entry) {
       rollover();
-      if (entry.outcome === 'echec') echecs += 1;
+      if (entry.outcome === "echec") echecs += 1;
     },
     valeur() {
       rollover();

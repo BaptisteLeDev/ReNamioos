@@ -21,7 +21,7 @@
  * les objets Discord vers ces primitives et applique le resultat via le flux
  * partage `appliquerRename` (anti-duplication, cf. src/commands/styliser.ts).
  */
-import type { StyleName } from './styles';
+import type { StyleName } from "./styles";
 
 /**
  * Mapping ORDONNE roleId -> nom de style. L'ordre d'insertion des cles encode la

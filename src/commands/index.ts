@@ -14,23 +14,23 @@
  * Elle DERIVE sa liste du registre via une reference paresseuse (commandsRef), pour
  * s'inclure elle-meme sans cycle a la construction.
  */
-import { creerAideCommand } from './aide';
-import { creerAutoRenameCommand } from './auto-rename';
-import { creerRenamioosCommand } from './renamioos';
-import { convertCommand } from './convert';
-import { pingCommand } from './ping';
-import { previewCommand } from './preview';
-import { randomCommand } from './random';
-import { creerRenameCommand } from './rename';
-import { stylesCommand } from './styles';
-import { creerUpdateCommand } from './update';
-import type { Command } from './types';
-import type { MappingStore } from '../mapping/store';
-import type { OptOutStore } from '../optout/store';
-import type { AutoRenameLogStore } from '../auto-rename-log/store';
-import type { CommandSyncStore } from '../command-sync/store';
-import type { OriginalNickStore } from '../original-nick/store';
-import type { RESTPostAPIApplicationCommandsJSONBody } from 'discord.js';
+import { creerAideCommand } from "./aide";
+import { creerAutoRenameCommand } from "./auto-rename";
+import { creerRenamioosCommand } from "./renamioos";
+import { convertCommand } from "./convert";
+import { pingCommand } from "./ping";
+import { previewCommand } from "./preview";
+import { randomCommand } from "./random";
+import { creerRenameCommand } from "./rename";
+import { stylesCommand } from "./styles";
+import { creerUpdateCommand } from "./update";
+import type { Command } from "./types";
+import type { MappingStore } from "../mapping/store";
+import type { OptOutStore } from "../optout/store";
+import type { AutoRenameLogStore } from "../auto-rename-log/store";
+import type { CommandSyncStore } from "../command-sync/store";
+import type { OriginalNickStore } from "../original-nick/store";
+import type { RESTPostAPIApplicationCommandsJSONBody } from "discord.js";
 
 export interface OptionsCommandes {
   mappingStore: MappingStore;
@@ -46,8 +46,14 @@ export interface OptionsCommandes {
 }
 
 export function creerCommandes(options: OptionsCommandes): Command[] {
-  const { mappingStore, optOutStore, autoRenameLogStore, commandSyncStore, originalNickStore, redeploy } =
-    options;
+  const {
+    mappingStore,
+    optOutStore,
+    autoRenameLogStore,
+    commandSyncStore,
+    originalNickStore,
+    redeploy,
+  } = options;
 
   const commandes: Command[] = [
     pingCommand,

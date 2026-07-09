@@ -15,7 +15,7 @@
  * Le client REST est INJECTE (port `RestPutClient`) : la logique est testable sans
  * reseau Discord.
  */
-import { Routes } from 'discord.js';
+import { Routes } from "discord.js";
 
 /** Port minimal sur le client REST de discord.js (`rest.put`). */
 export interface RestPutClient {
@@ -64,7 +64,7 @@ async function purgerCommandesGuildes(
   rest: RestPutClient,
   applicationId: string,
   guildIds: string[],
-  log: NonNullable<DeployArgs['log']>,
+  log: NonNullable<DeployArgs["log"]>,
 ): Promise<void> {
   if (guildIds.length === 0) {
     return;
@@ -75,12 +75,10 @@ async function purgerCommandesGuildes(
   for (let i = 0; i < guildIds.length; i += concurrence) {
     const lot = guildIds.slice(i, i + concurrence);
     const resultats = await Promise.allSettled(
-      lot.map((gid) =>
-        rest.put(Routes.applicationGuildCommands(applicationId, gid), { body: [] }),
-      ),
+      lot.map((gid) => rest.put(Routes.applicationGuildCommands(applicationId, gid), { body: [] })),
     );
     for (const [idx, r] of resultats.entries()) {
-      if (r.status === 'fulfilled') {
+      if (r.status === "fulfilled") {
         ok += 1;
       } else {
         echecs += 1;
@@ -88,5 +86,7 @@ async function purgerCommandesGuildes(
       }
     }
   }
-  log.info(`Purge des doublons de guilde terminee : ${ok} ok, ${echecs} echec(s) / ${guildIds.length}`);
+  log.info(
+    `Purge des doublons de guilde terminee : ${ok} ok, ${echecs} echec(s) / ${guildIds.length}`,
+  );
 }

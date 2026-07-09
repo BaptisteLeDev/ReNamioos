@@ -11,8 +11,8 @@
  * construction). `list` preserve l'ordre = PRIORITE (ADR-0004 : le premier rOle
  * mappe gagne en cas de gains multiples), invariant que le domaine pur exploite.
  */
-import type { MappingRoleStyle } from '../domain/auto-rename';
-import type { StyleName } from '../domain/styles';
+import type { MappingRoleStyle } from "../domain/auto-rename";
+import type { StyleName } from "../domain/styles";
 
 export interface MappingStore {
   /** Style mappe a ce rOle dans cette guild, ou null si aucun. */

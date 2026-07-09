@@ -1,6 +1,6 @@
 # Pseudo d'origine — le port `OriginalNickStore` (bounded context)
 
-> **Responsabilité unique** : savoir *d'où vient* le pseudo source mémorisé avant un auto-rename
+> **Responsabilité unique** : savoir _d'où vient_ le pseudo source mémorisé avant un auto-rename
 > et le lire / l'écrire / l'oublier, sans que les adapters Discord connaissent la source. Point de
 > **provenance centralisée** (mandat `ARCHITECTURE.md`). Introduit pour l'issue
 > [#25](https://github.com/BaptisteLeDev/ReNamioos/issues/25) — le **round-trip** de l'auto-rename.
@@ -10,24 +10,29 @@
 
 ## Langage ubiquitaire
 
-| Terme | Définition |
-|---|---|
-| **Pseudo d'origine** | Le pseudo du membre **avant** stylisation, mémorisé pour pouvoir le restaurer. |
-| **Round-trip** | Aller (mémoriser + styliser au gain d'un rôle mappé) puis retour (restaurer au retrait du dernier rôle mappé). |
-| **Mémorisation idempotente** | `rememberIfAbsent` n'écrase **jamais** un original déjà mémorisé : une re-stylisation ne perd pas le vrai pseudo source. |
-| **Oubli** | `forget` supprime la ligne après restauration (la donnée n'a plus de raison d'exister). |
-| **Guild / Membre** | Clé `(guild_id, member_id)` : un seul pseudo d'origine par membre et par serveur. |
-| **Mode mémoire / mode Neon** | Branché par `DATABASE_URL` : absente ⇒ mémoire (dev, éphémère), présente ⇒ Neon (prod, persistant). |
+| Terme                           | Définition                                                                                                                                                  |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Pseudo d'origine**            | Le pseudo du membre **avant** stylisation, mémorisé pour pouvoir le restaurer.                                                                              |
+| **Round-trip**                  | Aller (mémoriser + styliser au gain d'un rôle mappé) puis retour (restaurer au retrait du dernier rôle mappé).                                              |
+| **Mémorisation idempotente**    | `rememberIfAbsent` n'écrase **jamais** un original déjà mémorisé : une re-stylisation ne perd pas le vrai pseudo source.                                    |
+| **Oubli**                       | `forget` supprime la ligne après restauration (la donnée n'a plus de raison d'exister).                                                                     |
+| **Guild / Membre**              | Clé `(guild_id, member_id)` : un seul pseudo d'origine par membre et par serveur.                                                                           |
+| **Mode mémoire / mode Neon**    | Branché par `DATABASE_URL` : absente ⇒ mémoire (dev, éphémère), présente ⇒ Neon (prod, persistant).                                                         |
 | **Échéance** (`expiresAt`, #38) | Date d'auto-revert (epoch ms). `NULL`/absente ⇒ revert piloté par la perte du dernier rôle mappé (#25). Présente ⇒ revert temporisé (`/rename ... duree:`). |
-| **Ligne due** | Ligne dont `expiresAt <= maintenant` : à restaurer par le job de balayage (`listDue`). |
+| **Ligne due**                   | Ligne dont `expiresAt <= maintenant` : à restaurer par le job de balayage (`listDue`).                                                                      |
 
 ## API publique (port `OriginalNickStore`)
 
 ```ts
 interface OriginalNickStore {
   get(guildId: string, memberId: string): Promise<string | null>;
-  rememberIfAbsent(guildId: string, memberId: string, nick: string, expiresAt?: number): Promise<void>; // no-op si déjà présent
-  forget(guildId: string, memberId: string): Promise<void>;                          // idempotent
+  rememberIfAbsent(
+    guildId: string,
+    memberId: string,
+    nick: string,
+    expiresAt?: number,
+  ): Promise<void>; // no-op si déjà présent
+  forget(guildId: string, memberId: string): Promise<void>; // idempotent
   listDue(maintenant: number): Promise<Array<{ guildId: string; memberId: string; nick: string }>>; // échéances échues (#38)
 }
 ```
@@ -36,13 +41,13 @@ Composition : `creerOriginalNickStore({ databaseUrl, queries? })` (`index.ts`).
 
 ## Fichiers et responsabilités
 
-| Fichier | Rôle |
-|---|---|
-| `store.ts` | Le **port** (interface). Consommateur : événement `guildMemberUpdate` (mémorise au rename, restaure au retrait). |
-| `neon-store.ts` | Adapter **Neon** : cache en mémoire **par guild** (`Map` memberId → nick), invalidé (ciblé) à chaque écriture. Reçoit `OriginalNickQueries` par **injection** (testable sans DB). |
-| `neon-queries.ts` | Requêtes **drizzle** concrètes (seul fichier qui écrit du SQL contre `auto_rename_original_nicks`). `upsertIfAbsent` en `ON CONFLICT DO NOTHING` (ne pas écraser l'original). |
-| `memory-store.ts` | Adapter **mémoire** (dev) : pseudo éphémère, perdu au redémarrage. |
-| `index.ts` | **Composition** : branche le bon adapter selon `DATABASE_URL`. |
+| Fichier           | Rôle                                                                                                                                                                              |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `store.ts`        | Le **port** (interface). Consommateur : événement `guildMemberUpdate` (mémorise au rename, restaure au retrait).                                                                  |
+| `neon-store.ts`   | Adapter **Neon** : cache en mémoire **par guild** (`Map` memberId → nick), invalidé (ciblé) à chaque écriture. Reçoit `OriginalNickQueries` par **injection** (testable sans DB). |
+| `neon-queries.ts` | Requêtes **drizzle** concrètes (seul fichier qui écrit du SQL contre `auto_rename_original_nicks`). `upsertIfAbsent` en `ON CONFLICT DO NOTHING` (ne pas écraser l'original).     |
+| `memory-store.ts` | Adapter **mémoire** (dev) : pseudo éphémère, perdu au redémarrage.                                                                                                                |
+| `index.ts`        | **Composition** : branche le bon adapter selon `DATABASE_URL`.                                                                                                                    |
 
 La décision pure « faut-il restaurer, et vers quoi ? » vit dans `src/domain/auto-rename.ts`
 (`aPerduDernierRoleMappe`) ; la restauration côté Discord passe par `restaurerPseudo`

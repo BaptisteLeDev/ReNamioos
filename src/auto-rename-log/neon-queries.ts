@@ -10,12 +10,12 @@
  * couvert par le typecheck (drizzle infere les colonnes) et l'execution reelle. La
  * LOGIQUE (ring-buffer, compteur) est testee sur des fakes (neon-store.test.ts).
  */
-import { and, desc, eq, lt, sql } from 'drizzle-orm';
-import type { Db } from '../db/client';
-import { autoRenameLog } from '../db/schema';
-import type { AutoRenameLogQueries } from './neon-store';
-import type { AutoRenameLogEntry, AutoRenameOutcome } from '../domain/auto-rename-log';
-import type { StyleName } from '../domain/styles';
+import { and, desc, eq, lt, sql } from "drizzle-orm";
+import type { Db } from "../db/client";
+import { autoRenameLog } from "../db/schema";
+import type { AutoRenameLogQueries } from "./neon-store";
+import type { AutoRenameLogEntry, AutoRenameOutcome } from "../domain/auto-rename-log";
+import type { StyleName } from "../domain/styles";
 
 export function creerNeonAutoRenameLogQueries(db: Db): AutoRenameLogQueries {
   return {

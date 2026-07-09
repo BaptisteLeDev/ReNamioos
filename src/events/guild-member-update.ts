@@ -20,14 +20,18 @@
  * domaine) est trace en `warn` STRUCTURE avec {guildId, memberId, style}. Jamais
  * d'exception remontee, jamais de silence (mandat : aucun catch silencieux).
  */
-import type { GuildMember, PartialGuildMember } from 'discord.js';
-import { aPerduDernierRoleMappe, styleAvecConsentement, styleDeclenche } from '../domain/auto-rename';
-import { appliquerRename, restaurerPseudo, sourceRename } from '../commands/styliser';
-import type { StyleName } from '../domain/styles';
-import type { MappingStore } from '../mapping/store';
-import type { OptOutStore } from '../optout/store';
-import type { AutoRenameLogStore } from '../auto-rename-log/store';
-import type { OriginalNickStore } from '../original-nick/store';
+import type { GuildMember, PartialGuildMember } from "discord.js";
+import {
+  aPerduDernierRoleMappe,
+  styleAvecConsentement,
+  styleDeclenche,
+} from "../domain/auto-rename";
+import { appliquerRename, restaurerPseudo, sourceRename } from "../commands/styliser";
+import type { StyleName } from "../domain/styles";
+import type { MappingStore } from "../mapping/store";
+import type { OptOutStore } from "../optout/store";
+import type { AutoRenameLogStore } from "../auto-rename-log/store";
+import type { OriginalNickStore } from "../original-nick/store";
 
 /** Seam de log structure : injectable pour les tests, console.warn par defaut. */
 export interface LoggerAutoRename {
@@ -125,13 +129,13 @@ export function creerGestionnaireMembreMisAJour(deps: DepsAutoRename) {
       guildId: newMember.guild.id,
       memberId: newMember.id,
       style,
-      outcome: resultat.ok ? 'succes' : 'echec',
+      outcome: resultat.ok ? "succes" : "echec",
       detail: resultat.ok ? resultat.pseudo : resultat.message,
       at: new Date(),
     });
 
     if (!resultat.ok) {
-      log.warn('echec du renommage automatique', {
+      log.warn("echec du renommage automatique", {
         guildId: newMember.guild.id,
         memberId: newMember.id,
         style,
@@ -160,7 +164,7 @@ async function restaurerPseudoOrigine(
   if (resultat.ok) {
     await deps.originalNickStore.forget(membre.guild.id, membre.id);
   } else {
-    log.warn('echec de la restauration du pseudo d origine', {
+    log.warn("echec de la restauration du pseudo d origine", {
       guildId: membre.guild.id,
       memberId: membre.id,
       raison: resultat.message,

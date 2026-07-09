@@ -11,9 +11,9 @@
  * ne doit PAS toucher updated_at (sinon le role passe en derniere position de
  * priorite, « le role mappe en premier l'emporte » serait viole silencieusement).
  */
-import { describe, expect, it } from 'bun:test';
-import { creerNeonQueries } from './neon-queries';
-import type { Db } from '../db/client';
+import { describe, expect, it } from "bun:test";
+import { creerNeonQueries } from "./neon-queries";
+import type { Db } from "../db/client";
 
 /** Capture les appels du builder drizzle utilises par creerNeonQueries. */
 interface CaptureUpsert {
@@ -42,19 +42,19 @@ function fakeDb(): { db: Db; upsert: CaptureUpsert } {
   return { db, upsert };
 }
 
-describe('creerNeonQueries.upsert', () => {
-  it('ecrit le style et la cle dans values', async () => {
+describe("creerNeonQueries.upsert", () => {
+  it("ecrit le style et la cle dans values", async () => {
     const { db, upsert } = fakeDb();
-    await creerNeonQueries(db).upsert('g1', 'r1', 'cursive');
-    expect(upsert.values).toEqual({ guildId: 'g1', roleId: 'r1', styleName: 'cursive' });
+    await creerNeonQueries(db).upsert("g1", "r1", "cursive");
+    expect(upsert.values).toEqual({ guildId: "g1", roleId: "r1", styleName: "cursive" });
   });
 
   it("editer le style d'un role ne change pas sa priorite (updated_at intact sur conflit)", async () => {
     const { db, upsert } = fakeDb();
-    await creerNeonQueries(db).upsert('g1', 'r1', 'gothique');
+    await creerNeonQueries(db).upsert("g1", "r1", "gothique");
     // Sur conflit on remplace le style, mais on ne touche PAS updated_at : l'ordre
     // d'insertion d'origine (= priorite, ADR-0005 d.4) est preserve.
-    expect(upsert.set).toEqual({ styleName: 'gothique' });
-    expect(upsert.set).not.toHaveProperty('updatedAt');
+    expect(upsert.set).toEqual({ styleName: "gothique" });
+    expect(upsert.set).not.toHaveProperty("updatedAt");
   });
 });

@@ -8,13 +8,13 @@
  *
  * Les queries Neon sont creees via getDb (init paresseuse du pool) sauf injection (tests).
  */
-import { getDb } from '../db/client';
-import type { CommandUsageStore } from './store';
-import { creerNeonCommandUsageStore, type CommandUsageQueries } from './neon-store';
-import { creerCommandUsageQueries } from './neon-queries';
-import { creerMemoryCommandUsageStore } from './memory-store';
+import { getDb } from "../db/client";
+import type { CommandUsageStore } from "./store";
+import { creerNeonCommandUsageStore, type CommandUsageQueries } from "./neon-store";
+import { creerCommandUsageQueries } from "./neon-queries";
+import { creerMemoryCommandUsageStore } from "./memory-store";
 
-export type { CommandUsageStore } from './store';
+export type { CommandUsageStore } from "./store";
 
 export interface OptionsCommandUsageStore {
   /** URL Postgres Neon. Absente => mode memoire (dev). */

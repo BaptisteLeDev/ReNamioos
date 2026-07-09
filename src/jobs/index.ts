@@ -11,10 +11,14 @@
  * et renvoie un arret propre (clearInterval) branche sur le graceful shutdown. C'est ICI que
  * Discord rencontre le job ; `sweep-temporaire.ts` reste testable sans client reel.
  */
-import type { Client } from 'discord.js';
-import { restaurerPseudo } from '../commands/styliser';
-import type { OriginalNickStore } from '../original-nick/store';
-import { balayerEcheances, type EcheanceARestaurer, type ResultatRestaurationJob } from './sweep-temporaire';
+import type { Client } from "discord.js";
+import { restaurerPseudo } from "../commands/styliser";
+import type { OriginalNickStore } from "../original-nick/store";
+import {
+  balayerEcheances,
+  type EcheanceARestaurer,
+  type ResultatRestaurationJob,
+} from "./sweep-temporaire";
 
 /** Intervalle de balayage par defaut : 1 minute (granularite suffisante pour des durees en h/j). */
 export const INTERVALLE_BALAYAGE_MS = 60_000;
@@ -24,12 +28,14 @@ export const INTERVALLE_BALAYAGE_MS = 60_000;
  * pseudo memorise. Un membre/guild introuvable (parti, bot ejecte) ou une exception sont
  * traduits en echec => la ligne est CONSERVEE pour retenter (jamais de perte silencieuse).
  */
-export function creerRestaurerDiscord(client: Client): (e: EcheanceARestaurer) => Promise<ResultatRestaurationJob> {
+export function creerRestaurerDiscord(
+  client: Client,
+): (e: EcheanceARestaurer) => Promise<ResultatRestaurationJob> {
   return async (echeance) => {
     const guild = await client.guilds.fetch(echeance.guildId).catch(() => null);
-    if (!guild) return { ok: false, message: 'guild introuvable' };
+    if (!guild) return { ok: false, message: "guild introuvable" };
     const membre = await guild.members.fetch(echeance.memberId).catch(() => null);
-    if (!membre) return { ok: false, message: 'membre introuvable' };
+    if (!membre) return { ok: false, message: "membre introuvable" };
     return restaurerPseudo(membre, echeance.nick);
   };
 }
@@ -48,7 +54,7 @@ export function demarrerBalayagePeriodique(deps: {
   const intervalle = deps.intervalleMs ?? INTERVALLE_BALAYAGE_MS;
   const timer = setInterval(() => {
     void balayerEcheances({ store: deps.store, restaurer }).catch((err) =>
-      console.error('[sweep-temporaire] echec du balayage periodique :', err),
+      console.error("[sweep-temporaire] echec du balayage periodique :", err),
     );
   }, intervalle);
   // Ne pas garder le process en vie juste pour ce timer (bun/node).

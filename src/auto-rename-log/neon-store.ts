@@ -12,9 +12,9 @@
  * Les fonctions de requete sont INJECTEES (`AutoRenameLogQueries`) : le SQL/drizzle vit
  * dans neon-queries.ts ; ce module ne connait que des promesses (testable sans DB).
  */
-import type { AutoRenameLogEntry } from '../domain/auto-rename-log';
-import type { AutoRenameLogStore } from './store';
-import { creerCompteurEchecsDuJour } from './compteur-echecs';
+import type { AutoRenameLogEntry } from "../domain/auto-rename-log";
+import type { AutoRenameLogStore } from "./store";
+import { creerCompteurEchecsDuJour } from "./compteur-echecs";
 
 /** Frontiere d'I/O injectable : tout l'acces Postgres passe par ces trois fonctions. */
 export interface AutoRenameLogQueries {

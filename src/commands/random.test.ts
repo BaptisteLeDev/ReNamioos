@@ -9,9 +9,9 @@
  *
  * Mock Discord a la frontiere uniquement.
  */
-import { describe, expect, it } from 'bun:test';
-import { PermissionFlagsBits } from 'discord.js';
-import { randomCommand } from './random';
+import { describe, expect, it } from "bun:test";
+import { PermissionFlagsBits } from "discord.js";
+import { randomCommand } from "./random";
 
 interface Scenario {
   canManageNicknames?: boolean;
@@ -32,16 +32,16 @@ function fakeInteraction(s: Scenario) {
   const captured: Captured = {
     edited: undefined,
     editCalled: false,
-    content: '',
+    content: "",
     ephemeral: false,
     embeds: [],
   };
-  const member = s.member ?? { nick: null, name: 'renamio' };
+  const member = s.member ?? { nick: null, name: "renamio" };
   const targetMember = {
     nickname: member.nick,
     user: { username: member.name },
     displayName: member.nick ?? member.name,
-    toString: () => '@cible',
+    toString: () => "@cible",
     manageable: s.manageable ?? true,
     edit: (data: { nick?: string | null }) => {
       captured.editCalled = true;
@@ -59,7 +59,7 @@ function fakeInteraction(s: Scenario) {
       getString: () => s.nouveauNom ?? null,
     },
     reply: (payload: { content?: string; ephemeral?: boolean; embeds?: unknown[] }) => {
-      captured.content = payload.content ?? '';
+      captured.content = payload.content ?? "";
       captured.ephemeral = payload.ephemeral ?? false;
       captured.embeds = payload.embeds ?? [];
       return Promise.resolve();
@@ -68,48 +68,48 @@ function fakeInteraction(s: Scenario) {
   return { interaction, captured };
 }
 
-describe('commande /random', () => {
+describe("commande /random", () => {
   it('se nomme "random", a une description et exige Manage Nicknames', () => {
-    expect(randomCommand.data.name).toBe('random');
+    expect(randomCommand.data.name).toBe("random");
     expect(randomCommand.data.description.length).toBeGreaterThan(0);
     const json = randomCommand.data.toJSON();
     expect(json.default_member_permissions).toBe(PermissionFlagsBits.ManageNicknames.toString());
   });
 
-  it('renomme avec un style aleatoire (sortie non vide, != source) et confirme', async () => {
-    const { interaction, captured } = fakeInteraction({ nouveauNom: 'renamio' });
+  it("renomme avec un style aleatoire (sortie non vide, != source) et confirme", async () => {
+    const { interaction, captured } = fakeInteraction({ nouveauNom: "renamio" });
     await randomCommand.execute(interaction);
     expect(captured.editCalled).toBe(true);
     expect(captured.edited).toBeTruthy();
-    expect(captured.edited).not.toBe('renamio'); // un vrai rendu stylise
+    expect(captured.edited).not.toBe("renamio"); // un vrai rendu stylise
     expect(captured.embeds.length).toBe(1);
   });
 
-  it('permission appelant manquante -> ephemere, AUCUN edit', async () => {
+  it("permission appelant manquante -> ephemere, AUCUN edit", async () => {
     const { interaction, captured } = fakeInteraction({
-      nouveauNom: 'abc',
+      nouveauNom: "abc",
       canManageNicknames: false,
     });
     await randomCommand.execute(interaction);
     expect(captured.editCalled).toBe(false);
     expect(captured.ephemeral).toBe(true);
-    expect(captured.content.toLowerCase()).toContain('permission');
+    expect(captured.content.toLowerCase()).toContain("permission");
   });
 
-  it('texte deja stylise -> refus propre ephemere, AUCUN edit', async () => {
-    const deja = '\u{1d4d7}\u{1d4ee}\u{1d4f5}\u{1d4f5}\u{1d4f8}'; // 𝓗𝓮𝓵𝓵𝓸
+  it("texte deja stylise -> refus propre ephemere, AUCUN edit", async () => {
+    const deja = "\u{1d4d7}\u{1d4ee}\u{1d4f5}\u{1d4f5}\u{1d4f8}"; // 𝓗𝓮𝓵𝓵𝓸
     const { interaction, captured } = fakeInteraction({ nouveauNom: deja });
     await randomCommand.execute(interaction);
     expect(captured.editCalled).toBe(false);
     expect(captured.ephemeral).toBe(true);
-    expect(captured.content.toLowerCase()).toContain('déjà stylisé');
+    expect(captured.content.toLowerCase()).toContain("déjà stylisé");
   });
 
-  it('hierarchie de roles (membre non gerable) -> ephemere, AUCUN edit', async () => {
-    const { interaction, captured } = fakeInteraction({ nouveauNom: 'abc', manageable: false });
+  it("hierarchie de roles (membre non gerable) -> ephemere, AUCUN edit", async () => {
+    const { interaction, captured } = fakeInteraction({ nouveauNom: "abc", manageable: false });
     await randomCommand.execute(interaction);
     expect(captured.editCalled).toBe(false);
     expect(captured.ephemeral).toBe(true);
-    expect(captured.content.toLowerCase()).toContain('hiérarchie');
+    expect(captured.content.toLowerCase()).toContain("hiérarchie");
   });
 });

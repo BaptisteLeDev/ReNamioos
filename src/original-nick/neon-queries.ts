@@ -10,10 +10,10 @@
  * couvert par le typecheck et l'execution reelle. La LOGIQUE (cache) est testee sur des
  * fakes (neon-store.test.ts).
  */
-import { and, eq, isNotNull, lte } from 'drizzle-orm';
-import type { Db } from '../db/client';
-import { autoRenameOriginalNicks } from '../db/schema';
-import type { OriginalNickQueries } from './neon-store';
+import { and, eq, isNotNull, lte } from "drizzle-orm";
+import type { Db } from "../db/client";
+import { autoRenameOriginalNicks } from "../db/schema";
+import type { OriginalNickQueries } from "./neon-store";
 
 export function creerNeonOriginalNickQueries(db: Db): OriginalNickQueries {
   return {

@@ -5,7 +5,7 @@
  * tient EN MEMOIRE (ephemere, perdu au redemarrage). Le round-trip reste fonctionnel hors
  * Neon dans une meme session ; la persistance entre runs n'existe qu'en mode Neon.
  */
-import type { OriginalNickStore } from './store';
+import type { OriginalNickStore } from "./store";
 
 interface Ligne {
   guildId: string;

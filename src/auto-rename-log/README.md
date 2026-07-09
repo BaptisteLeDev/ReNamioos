@@ -1,28 +1,28 @@
 # Journal d'auto-rename — le port `AutoRenameLogStore` (bounded context)
 
-> **Responsabilité unique** : savoir *d'où vient* le journal des derniers auto-renames d'une
+> **Responsabilité unique** : savoir _d'où vient_ le journal des derniers auto-renames d'une
 > guilde (succès / échec) et le lire / l'écrire, sans que les adapters Discord/HTTP connaissent
 > la source. Point de **provenance centralisée** (mandat `ARCHITECTURE.md`). Introduit pour
 > l'issue [#28](https://github.com/BaptisteLeDev/ReNamioos/issues/28).
 
 ## Langage ubiquitaire
 
-| Terme | Définition |
-|---|---|
-| **Événement** (`AutoRenameLogEntry`) | Une tentative d'auto-rename effective : `(guild, membre, style, issue, détail, instant)`. |
-| **Issue** (`AutoRenameOutcome`) | `succes` (pseudo appliqué) ou `echec` (hiérarchie, permission, refus propre). |
-| **Détail** | Champ libre : le pseudo appliqué (succès) ou le message d'échec (échec). Un seul champ, pas une colonne par cas (minimisation D8). |
-| **Ring-buffer** | On ne garde que les `CAPACITE_JOURNAL_PAR_GUILD` (= 50) événements les plus récents **par guilde**. |
-| **Échecs du jour** | Compteur en mémoire dérivé des `record`, remis à zéro au changement de jour. Alimente `autoRenameFailuresToday` de `/stats`. |
-| **Mode mémoire / mode Neon** | Branché par `DATABASE_URL` : absente ⇒ mémoire (dev, éphémère), présente ⇒ Neon (prod, persistant). |
+| Terme                                | Définition                                                                                                                         |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Événement** (`AutoRenameLogEntry`) | Une tentative d'auto-rename effective : `(guild, membre, style, issue, détail, instant)`.                                          |
+| **Issue** (`AutoRenameOutcome`)      | `succes` (pseudo appliqué) ou `echec` (hiérarchie, permission, refus propre).                                                      |
+| **Détail**                           | Champ libre : le pseudo appliqué (succès) ou le message d'échec (échec). Un seul champ, pas une colonne par cas (minimisation D8). |
+| **Ring-buffer**                      | On ne garde que les `CAPACITE_JOURNAL_PAR_GUILD` (= 50) événements les plus récents **par guilde**.                                |
+| **Échecs du jour**                   | Compteur en mémoire dérivé des `record`, remis à zéro au changement de jour. Alimente `autoRenameFailuresToday` de `/stats`.       |
+| **Mode mémoire / mode Neon**         | Branché par `DATABASE_URL` : absente ⇒ mémoire (dev, éphémère), présente ⇒ Neon (prod, persistant).                                |
 
 ## API publique (port `AutoRenameLogStore`)
 
 ```ts
 interface AutoRenameLogStore {
-  record(entry: AutoRenameLogEntry): Promise<void>;        // alimenté par guildMemberUpdate
+  record(entry: AutoRenameLogEntry): Promise<void>; // alimenté par guildMemberUpdate
   recent(guildId: string, limite: number): Promise<AutoRenameLogEntry[]>; // /auto-rename log
-  failuresToday(): number;                                  // SYNCHRONE — alimente /stats
+  failuresToday(): number; // SYNCHRONE — alimente /stats
 }
 ```
 
@@ -30,14 +30,14 @@ Composition : `creerAutoRenameLogStore({ databaseUrl, queries? })` (`index.ts`).
 
 ## Fichiers et responsabilités
 
-| Fichier | Rôle |
-|---|---|
-| `store.ts` | Le **port** (interface). Consommateurs : événement `guildMemberUpdate` (record), commande `/auto-rename log` (recent), `BotClient.getStats` (failuresToday). |
-| `compteur-echecs.ts` | Logique **partagée** du compteur d'échecs du jour (rollover à minuit). Un seul endroit décide « est-ce encore aujourd'hui ? » ⇒ identique pour les deux adapters. |
-| `neon-store.ts` | Adapter **Neon** : `record` insère puis purge au-delà de la capacité (ring-buffer côté DB) ; compteur du jour en mémoire. Reçoit `AutoRenameLogQueries` par **injection** (testable sans DB). |
-| `neon-queries.ts` | Requêtes **drizzle** concrètes (seul fichier qui écrit du SQL contre `auto_rename_log`). |
-| `memory-store.ts` | Adapter **mémoire** (dev) : ring-buffer en `Map` par guilde, éphémère. |
-| `index.ts` | **Composition** : branche le bon adapter selon `DATABASE_URL` ; expose `CAPACITE_JOURNAL_PAR_GUILD`. |
+| Fichier              | Rôle                                                                                                                                                                                          |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `store.ts`           | Le **port** (interface). Consommateurs : événement `guildMemberUpdate` (record), commande `/auto-rename log` (recent), `BotClient.getStats` (failuresToday).                                  |
+| `compteur-echecs.ts` | Logique **partagée** du compteur d'échecs du jour (rollover à minuit). Un seul endroit décide « est-ce encore aujourd'hui ? » ⇒ identique pour les deux adapters.                             |
+| `neon-store.ts`      | Adapter **Neon** : `record` insère puis purge au-delà de la capacité (ring-buffer côté DB) ; compteur du jour en mémoire. Reçoit `AutoRenameLogQueries` par **injection** (testable sans DB). |
+| `neon-queries.ts`    | Requêtes **drizzle** concrètes (seul fichier qui écrit du SQL contre `auto_rename_log`).                                                                                                      |
+| `memory-store.ts`    | Adapter **mémoire** (dev) : ring-buffer en `Map` par guilde, éphémère.                                                                                                                        |
+| `index.ts`           | **Composition** : branche le bon adapter selon `DATABASE_URL` ; expose `CAPACITE_JOURNAL_PAR_GUILD`.                                                                                          |
 
 La logique de ring-buffer pur (`tronquerJournal`) et de dérivation (`compterEchecsDepuis`)
 vit dans `src/domain/auto-rename-log.ts` (sans dépendance Discord ni Neon).

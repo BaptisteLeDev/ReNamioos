@@ -52,5 +52,5 @@ export function agregerCommandsDaily(
   return comptes
     .filter((c) => c.day >= min && c.day <= cleJourUtc(now))
     .map((c) => ({ day: c.day, count: c.count }))
-    .sort((a, b) => a.day.localeCompare(b.day));
+    .toSorted((a, b) => a.day.localeCompare(b.day));
 }

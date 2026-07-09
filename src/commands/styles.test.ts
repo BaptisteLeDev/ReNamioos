@@ -9,9 +9,9 @@
  *
  * Mock Discord a la frontiere : on capte le payload d'embed sans vraie interaction.
  */
-import { describe, expect, it } from 'bun:test';
-import { STYLE_NAMES } from '../domain/styles';
-import { stylesCommand } from './styles';
+import { describe, expect, it } from "bun:test";
+import { STYLE_NAMES } from "../domain/styles";
+import { stylesCommand } from "./styles";
 
 /** Double minimal : capture l'embed JSON envoye par la commande. */
 function fakeInteraction() {
@@ -27,13 +27,13 @@ function fakeInteraction() {
   };
 }
 
-describe('commande /styles', () => {
+describe("commande /styles", () => {
   it('se nomme "styles" et a une description', () => {
-    expect(stylesCommand.data.name).toBe('styles');
+    expect(stylesCommand.data.name).toBe("styles");
     expect(stylesCommand.data.description.length).toBeGreaterThan(0);
   });
 
-  it('liste les 9 styles publics (scriptify inclus)', async () => {
+  it("liste les 9 styles publics (scriptify inclus)", async () => {
     const { interaction, captured } = fakeInteraction();
     await stylesCommand.execute(interaction);
 
@@ -44,10 +44,10 @@ describe('commande /styles', () => {
 
     // scriptify (ECART B4) doit figurer dans l'UI.
     const noms = fields.map((f) => f.name.toLowerCase());
-    expect(noms.some((n) => n.includes('scriptify'))).toBe(true);
+    expect(noms.some((n) => n.includes("scriptify"))).toBe(true);
   });
 
-  it('derive chaque apercu du domaine (pas un litteral UI)', async () => {
+  it("derive chaque apercu du domaine (pas un litteral UI)", async () => {
     const { interaction, captured } = fakeInteraction();
     await stylesCommand.execute(interaction);
     const embed = (captured.embeds[0] as { data: { fields?: { value: string }[] } }).data;

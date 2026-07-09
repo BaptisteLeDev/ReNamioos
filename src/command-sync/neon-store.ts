@@ -6,9 +6,9 @@
  * vraie DB : ce module ne connait que des promesses. Format : noms tries joints par
  * virgule (les noms de slash-commands n'en contiennent jamais).
  */
-import type { CommandSyncStore } from './store';
+import type { CommandSyncStore } from "./store";
 
-const SEP = ',';
+const SEP = ",";
 
 /** Frontiere d'I/O injectable : tout l'acces Postgres passe par ces deux fonctions. */
 export interface CommandSyncQueries {

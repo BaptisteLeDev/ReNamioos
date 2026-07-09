@@ -11,8 +11,8 @@
  * fois la bascule terminee. A ce moment, le mode Neon utilisera directement le
  * NeonMappingStore et ce composite disparaitra.
  */
-import type { MappingRoleStyle } from '../domain/auto-rename';
-import type { MappingStore } from './store';
+import type { MappingRoleStyle } from "../domain/auto-rename";
+import type { MappingStore } from "./store";
 
 export function creerCompositeMappingStore(
   neon: MappingStore,

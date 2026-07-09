@@ -11,9 +11,9 @@
  * dans `creerNeonQueries` (neon-queries.ts), ce module ne connait que des promesses.
  * Cela rend le cache et l'invalidation testables sans vraie DB (cf. neon-store.test.ts).
  */
-import type { MappingRoleStyle } from '../domain/auto-rename';
-import type { StyleName } from '../domain/styles';
-import type { MappingStore } from './store';
+import type { MappingRoleStyle } from "../domain/auto-rename";
+import type { StyleName } from "../domain/styles";
+import type { MappingStore } from "./store";
 
 /** Frontiere d'I/O injectable : tout l'acces Postgres passe par ces trois fonctions. */
 export interface MappingQueries {

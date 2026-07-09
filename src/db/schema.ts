@@ -27,16 +27,16 @@ import {
   integer,
   date,
   index,
-} from 'drizzle-orm/pg-core';
+} from "drizzle-orm/pg-core";
 
 /** Config persistante. Une ligne par (guild, role). Cle = style applique au gain du role. */
 export const autoRenameMappings = pgTable(
-  'auto_rename_mappings',
+  "auto_rename_mappings",
   {
-    guildId: text('guild_id').notNull(),
-    roleId: text('role_id').notNull(),
-    styleName: text('style_name').notNull(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    guildId: text("guild_id").notNull(),
+    roleId: text("role_id").notNull(),
+    styleName: text("style_name").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.guildId, t.roleId] })],
 );
@@ -56,10 +56,10 @@ export const autoRenameMappings = pgTable(
  *   )
  */
 export const autoRenameOptouts = pgTable(
-  'auto_rename_optouts',
+  "auto_rename_optouts",
   {
-    guildId: text('guild_id').notNull(),
-    memberId: text('member_id').notNull(),
+    guildId: text("guild_id").notNull(),
+    memberId: text("member_id").notNull(),
   },
   (t) => [primaryKey({ columns: [t.guildId, t.memberId] })],
 );
@@ -93,17 +93,17 @@ export const autoRenameOptouts = pgTable(
  *     on auto_rename_original_nicks (expires_at) where expires_at is not null;
  */
 export const autoRenameOriginalNicks = pgTable(
-  'auto_rename_original_nicks',
+  "auto_rename_original_nicks",
   {
-    guildId: text('guild_id').notNull(),
-    memberId: text('member_id').notNull(),
-    originalNick: text('original_nick').notNull(),
+    guildId: text("guild_id").notNull(),
+    memberId: text("member_id").notNull(),
+    originalNick: text("original_nick").notNull(),
     /** Echeance d'auto-revert (#38). NULL = pas de revert temporise (round-trip par role #25). */
-    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
   },
   (t) => [
     primaryKey({ columns: [t.guildId, t.memberId] }),
-    index('auto_rename_original_nicks_expires_at').on(t.expiresAt),
+    index("auto_rename_original_nicks_expires_at").on(t.expiresAt),
   ],
 );
 
@@ -129,18 +129,18 @@ export const autoRenameOriginalNicks = pgTable(
  *   create index auto_rename_log_guild_at on auto_rename_log (guild_id, at desc);
  */
 export const autoRenameLog = pgTable(
-  'auto_rename_log',
+  "auto_rename_log",
   {
-    id: bigint('id', { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity(),
-    guildId: text('guild_id').notNull(),
-    memberId: text('member_id').notNull(),
-    style: text('style').notNull(),
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    guildId: text("guild_id").notNull(),
+    memberId: text("member_id").notNull(),
+    style: text("style").notNull(),
     /** 'succes' | 'echec' (cf. AutoRenameOutcome, domain/auto-rename-log.ts). */
-    outcome: text('outcome').notNull(),
-    detail: text('detail').notNull(),
-    at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+    outcome: text("outcome").notNull(),
+    detail: text("detail").notNull(),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index('auto_rename_log_guild_at').on(t.guildId, t.at.desc())],
+  (t) => [index("auto_rename_log_guild_at").on(t.guildId, t.at.desc())],
 );
 
 /**
@@ -148,11 +148,11 @@ export const autoRenameLog = pgTable(
  * via /update, pour mettre en evidence les "nouvelles" a la synchro suivante. Minuscule
  * par construction (~7 noms courts), politique de minimisation Neon respectee.
  */
-export const guildCommandSync = pgTable('guild_command_sync', {
-  guildId: text('guild_id').primaryKey(),
+export const guildCommandSync = pgTable("guild_command_sync", {
+  guildId: text("guild_id").primaryKey(),
   /** Noms tries joints par virgule (les noms de slash-commands n'en contiennent jamais). */
-  commandNames: text('command_names').notNull(),
-  syncedAt: timestamp('synced_at', { withTimezone: true }).notNull().defaultNow(),
+  commandNames: text("command_names").notNull(),
+  syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 /**
@@ -169,8 +169,8 @@ export const guildCommandSync = pgTable('guild_command_sync', {
  *     count integer not null default 0
  *   );
  */
-export const commandDaily = pgTable('command_daily', {
+export const commandDaily = pgTable("command_daily", {
   /** Jour UTC (cle). Stocke en `date` Postgres ; rendu "AAAA-MM-JJ" cote requete. */
-  day: date('day').primaryKey(),
-  count: integer('count').notNull().default(0),
+  day: date("day").primaryKey(),
+  count: integer("count").notNull().default(0),
 });

@@ -14,15 +14,16 @@ stricte** avec le `bot.py` legacy (B3), derrière le harnais de caractérisation
 4 des comportements pinnés ; chaque test du harnais touché porte un commentaire
 `ÉCART VOLONTAIRE (B4): …`, les autres restent à parité stricte.
 
-| Fichier | Rôle |
-|---|---|
-| `styles.ts` | **Provenance des données** : charge `data/styles.json` (tables de glyphes + `conversions`), expose `STYLE_NAMES`, `StyleName`, `STYLES`, `CONVERSIONS`. Successeur versionné de `styles.json` (aucune DB). |
-| `stylisation.ts` | Pipeline **pur** : `nettoyerPseudo`, `convertirChiffres`, `mettreMajusculeDebut`, `convertirTexte` (→ `ResultatStylisation`), `tronquerPseudo`. Types `ErreurStylisation` / `ResultatStylisation`. |
-| `auto-rename.ts` | **Logique pure de l'auto-rename (B6)** : `rolesAjoutes` (diff d'ensembles), `styleDeclenche` (quel style appliquer suite à un changement de rôles, priorité = ordre du mapping), `styleAvecConsentement` (gate opt-out membre, [ADR-0007](../../docs/decisions/0007-opt-out-membre.md)), type `MappingRoleStyle`. Aucun import discord.js. Voir [ADR-0004](../../docs/decisions/0004-auto-rename.md). |
-| `stylisation.test.ts` / `auto-rename.test.ts` | Harnais de caractérisation porté (ÉCARTS B4 marqués) ; suite d'acceptation du domaine auto-rename (ÉCARTS B6 marqués). |
-| `data/` | Config fichier versionnée (`styles.json`). **Diverge volontairement** du legacy depuis B4 : `conversions` couvre les 10 chiffres (2→Z, 6→G, 9→G). Le mapping rôles→styles n'est plus ici : sa provenance est le port `MappingStore` (`src/mapping/`, Neon ou fichier ; B8, ADR-0005). |
+| Fichier                                       | Rôle                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `styles.ts`                                   | **Provenance des données** : charge `data/styles.json` (tables de glyphes + `conversions`), expose `STYLE_NAMES`, `StyleName`, `STYLES`, `CONVERSIONS`. Successeur versionné de `styles.json` (aucune DB).                                                                                                                                                                                            |
+| `stylisation.ts`                              | Pipeline **pur** : `nettoyerPseudo`, `convertirChiffres`, `mettreMajusculeDebut`, `convertirTexte` (→ `ResultatStylisation`), `tronquerPseudo`. Types `ErreurStylisation` / `ResultatStylisation`.                                                                                                                                                                                                    |
+| `auto-rename.ts`                              | **Logique pure de l'auto-rename (B6)** : `rolesAjoutes` (diff d'ensembles), `styleDeclenche` (quel style appliquer suite à un changement de rôles, priorité = ordre du mapping), `styleAvecConsentement` (gate opt-out membre, [ADR-0007](../../docs/decisions/0007-opt-out-membre.md)), type `MappingRoleStyle`. Aucun import discord.js. Voir [ADR-0004](../../docs/decisions/0004-auto-rename.md). |
+| `stylisation.test.ts` / `auto-rename.test.ts` | Harnais de caractérisation porté (ÉCARTS B4 marqués) ; suite d'acceptation du domaine auto-rename (ÉCARTS B6 marqués).                                                                                                                                                                                                                                                                                |
+| `data/`                                       | Config fichier versionnée (`styles.json`). **Diverge volontairement** du legacy depuis B4 : `conversions` couvre les 10 chiffres (2→Z, 6→G, 9→G). Le mapping rôles→styles n'est plus ici : sa provenance est le port `MappingStore` (`src/mapping/`, Neon ou fichier ; B8, ADR-0005).                                                                                                                 |
 
 **Corrections B4 (ADR-0003)** — chacune un ÉCART VOLONTAIRE :
+
 1. `scriptify` officialisé → 9 styles publics (UI/doc).
 2. Accents **préservés partout** (`nettoyerPseudo` ne rogne plus que les non-lettres-non-chiffres
    en bord ; les lettres Unicode survivent quelle que soit leur position).
@@ -33,14 +34,14 @@ stricte** avec le `bot.py` legacy (B3), derrière le harnais de caractérisation
 
 ## Langage ubiquitaire (source : `docs/caracterisation.md`)
 
-| Terme | Définition |
-|---|---|
-| **Style** | Police Unicode nommée (`cursive`, `gothique`, …) ⇒ table `ASCII → glyphe`. Source : `styles.json`. |
-| **Conversion (chiffres)** | Substitution leet `chiffre → lettre` (`4 → A`) appliquée avant le style. Depuis B4 : les **10** chiffres. |
-| **Nettoyage** | Retrait des caractères **non-lettre-non-chiffre** **aux extrémités** du pseudo (B4 : les lettres Unicode, accents compris, sont préservées). |
-| **Capitalisation** | Majuscule sur la **première lettre** rencontrée. |
-| **Texte stylisé** | Sortie de `convertirTexte` (cas `ok`) : nettoyé → chiffres convertis → capitalisé → mappé glyphe par glyphe. |
-| **Refus propre** | Cas `ok: false` : style inconnu, ou aucune lettre ASCII à styliser (texte vide, symboles, ou déjà stylisé). Pas de rendu. |
+| Terme                     | Définition                                                                                                                                   |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Style**                 | Police Unicode nommée (`cursive`, `gothique`, …) ⇒ table `ASCII → glyphe`. Source : `styles.json`.                                           |
+| **Conversion (chiffres)** | Substitution leet `chiffre → lettre` (`4 → A`) appliquée avant le style. Depuis B4 : les **10** chiffres.                                    |
+| **Nettoyage**             | Retrait des caractères **non-lettre-non-chiffre** **aux extrémités** du pseudo (B4 : les lettres Unicode, accents compris, sont préservées). |
+| **Capitalisation**        | Majuscule sur la **première lettre** rencontrée.                                                                                             |
+| **Texte stylisé**         | Sortie de `convertirTexte` (cas `ok`) : nettoyé → chiffres convertis → capitalisé → mappé glyphe par glyphe.                                 |
+| **Refus propre**          | Cas `ok: false` : style inconnu, ou aucune lettre ASCII à styliser (texte vide, symboles, ou déjà stylisé). Pas de rendu.                    |
 
 ## API publique du domaine
 

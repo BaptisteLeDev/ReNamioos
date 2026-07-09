@@ -9,13 +9,13 @@
  * Pas de composite/fallback (le journal n'a pas de source fichier). Les queries Neon
  * sont creees via getDb (init paresseuse du pool) sauf si on en injecte (tests).
  */
-import { getDb } from '../db/client';
-import type { AutoRenameLogStore } from './store';
-import { creerNeonAutoRenameLogStore, type AutoRenameLogQueries } from './neon-store';
-import { creerNeonAutoRenameLogQueries } from './neon-queries';
-import { creerMemoryAutoRenameLogStore } from './memory-store';
+import { getDb } from "../db/client";
+import type { AutoRenameLogStore } from "./store";
+import { creerNeonAutoRenameLogStore, type AutoRenameLogQueries } from "./neon-store";
+import { creerNeonAutoRenameLogQueries } from "./neon-queries";
+import { creerMemoryAutoRenameLogStore } from "./memory-store";
 
-export type { AutoRenameLogStore } from './store';
+export type { AutoRenameLogStore } from "./store";
 
 /** Capacite du ring-buffer par guilde (les N derniers evenements). Minimisation D8. */
 export const CAPACITE_JOURNAL_PAR_GUILD = 50;
@@ -27,13 +27,10 @@ export interface OptionsAutoRenameLogStore {
   queries?: AutoRenameLogQueries;
 }
 
-export function creerAutoRenameLogStore(
-  options: OptionsAutoRenameLogStore,
-): AutoRenameLogStore {
+export function creerAutoRenameLogStore(options: OptionsAutoRenameLogStore): AutoRenameLogStore {
   if (!options.databaseUrl) {
     return creerMemoryAutoRenameLogStore({ capaciteParGuild: CAPACITE_JOURNAL_PAR_GUILD });
   }
-  const queries =
-    options.queries ?? creerNeonAutoRenameLogQueries(getDb(options.databaseUrl));
+  const queries = options.queries ?? creerNeonAutoRenameLogQueries(getDb(options.databaseUrl));
   return creerNeonAutoRenameLogStore(queries, { capaciteParGuild: CAPACITE_JOURNAL_PAR_GUILD });
 }

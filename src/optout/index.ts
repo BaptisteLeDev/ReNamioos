@@ -10,13 +10,13 @@
  * source fichier, le defaut est simplement « pas opt-out ». Les queries Neon sont creees
  * via getDb (init paresseuse du pool) sauf si on en injecte (tests : aucune connexion).
  */
-import { getDb } from '../db/client';
-import type { OptOutStore } from './store';
-import { creerNeonOptOutStore, type OptOutQueries } from './neon-store';
-import { creerNeonOptOutQueries } from './neon-queries';
-import { creerMemoryOptOutStore } from './memory-store';
+import { getDb } from "../db/client";
+import type { OptOutStore } from "./store";
+import { creerNeonOptOutStore, type OptOutQueries } from "./neon-store";
+import { creerNeonOptOutQueries } from "./neon-queries";
+import { creerMemoryOptOutStore } from "./memory-store";
 
-export type { OptOutStore } from './store';
+export type { OptOutStore } from "./store";
 
 export interface OptionsOptOutStore {
   /** URL Postgres Neon. Absente => mode memoire (dev). */

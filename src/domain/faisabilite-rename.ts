@@ -11,11 +11,9 @@
  */
 
 /** Pourquoi le bot ne pourra pas renommer (union fermee). */
-export type RaisonInfaisabilite = 'permission-manquante' | 'role-trop-haut';
+export type RaisonInfaisabilite = "permission-manquante" | "role-trop-haut";
 
-export type FaisabiliteRename =
-  | { ok: true }
-  | { ok: false; raison: RaisonInfaisabilite };
+export type FaisabiliteRename = { ok: true } | { ok: false; raison: RaisonInfaisabilite };
 
 export interface ContexteFaisabilite {
   /** Le bot a-t-il la permission Manage Nicknames sur la guild ? */
@@ -32,7 +30,7 @@ export interface ContexteFaisabilite {
  * du role cible (a egalite, Discord refuse l'edition).
  */
 export function evaluerFaisabiliteRename(ctx: ContexteFaisabilite): FaisabiliteRename {
-  if (!ctx.botPeutGererPseudos) return { ok: false, raison: 'permission-manquante' };
-  if (ctx.positionRoleBot <= ctx.positionRoleCible) return { ok: false, raison: 'role-trop-haut' };
+  if (!ctx.botPeutGererPseudos) return { ok: false, raison: "permission-manquante" };
+  if (ctx.positionRoleBot <= ctx.positionRoleCible) return { ok: false, raison: "role-trop-haut" };
   return { ok: true };
 }
