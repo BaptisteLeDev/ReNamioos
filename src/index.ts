@@ -16,6 +16,8 @@ import { creerMappingStore } from "./mapping/index";
 import { creerOptOutStore } from "./optout/index";
 import { creerAutoRenameLogStore } from "./auto-rename-log/index";
 import { creerOriginalNickStore } from "./original-nick/index";
+import { creerStylePreferenceStore } from "./style-preference/index";
+import { creerEventStore } from "./event/index";
 import { creerCommandSyncStore } from "./command-sync/index";
 import { creerCommandUsageStore } from "./command-usage/index";
 import { creerGuildSettingsStore } from "./guildsettings/index";
@@ -61,6 +63,16 @@ async function bootstrap(): Promise<void> {
   // serveur), memoire en dev. Une ligne n'existe que tant qu'un membre est stylise (D8).
   const originalNickStore = creerOriginalNickStore({ databaseUrl: config.database.url });
 
+  // Provenance de la signature de style par membre (« style signature par membre ») : Neon en
+  // prod (par serveur), memoire en dev. Une ligne n'existe que si le membre a pose une
+  // signature ; /renamioos reset la supprime (minimisation D8). Prime sur le style du role.
+  const stylePreferenceStore = creerStylePreferenceStore({ databaseUrl: config.database.url });
+
+  // Provenance de l'evenement stylise (« Style Party ») par guilde : Neon en prod, memoire en
+  // dev. Une ligne par guilde ayant un event (invariant « un seul actif »), supprimee a l'arret
+  // ou a l'expiration par le balayage (D8). Table style_event additive (migration 0003).
+  const eventStore = creerEventStore({ databaseUrl: config.database.url });
+
   // Provenance des commandes connues par serveur (/update) : Neon en prod, JSON local en dev.
   const commandSyncStore = creerCommandSyncStore({ databaseUrl: config.database.url });
 
@@ -80,6 +92,8 @@ async function bootstrap(): Promise<void> {
     optOutStore,
     autoRenameLogStore,
     originalNickStore,
+    stylePreferenceStore,
+    eventStore,
     commandSyncStore,
     commandUsageStore,
     settingsStore,
@@ -108,7 +122,11 @@ async function bootstrap(): Promise<void> {
     await bot.start(config.discord.token);
     // Balayage periodique des renommages temporaires echus (issue #38) : restaure les
     // pseudos dont l'echeance est passee. Demarre apres login (a besoin du client connecte).
-    arreterBalayage = demarrerBalayagePeriodique({ client: bot, store: originalNickStore });
+    arreterBalayage = demarrerBalayagePeriodique({
+      client: bot,
+      store: originalNickStore,
+      eventStore,
+    });
   } catch (err) {
     console.error("Echec du login Discord (l'API reste disponible) :", err);
   }

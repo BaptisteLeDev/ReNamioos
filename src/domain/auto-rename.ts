@@ -62,20 +62,29 @@ export function styleDeclenche(
 }
 
 /**
- * Consentement membre (issue #27). Le membre peut REFUSER l'auto-rename sur lui
- * (`/renamioos opt-out`). Cette regle PURE filtre le style declenche : si le membre
- * est opt-out, on n'applique RIEN, quel que soit le style declenche par ses roles.
+ * Style EFFECTIF a appliquer suite a un declenchement d'auto-rename — regle PURE de
+ * priorite (extension positive de l'opt-out, « style signature par membre ») :
  *
- * Retourne le style a reellement appliquer, ou `null` (aucun style declenche, ou
- * membre opt-out). L'adapter (src/events/guild-member-update.ts) compose
- * `styleDeclenche` puis cette regle avant tout edit de pseudo.
+ *   opt-out  >  preference membre  >  style du role
+ *
+ *  - opt-out (issue #27) : le membre a REFUSE l'auto-rename -> null, rien ne s'applique,
+ *    quels que soient sa preference et le style du role (le consentement prime sur tout).
+ *  - preference (`/renamioos style:<style>`) : le membre a choisi SA signature -> elle
+ *    PRIME sur le style declenche par le role (le membre s'approprie son identite).
+ *  - sinon : le style du role declenche (comportement historique).
+ *
+ * `styleRole` = style issu du mapping de roles (via `styleDeclenche`), ou null. `preference`
+ * = signature du membre, ou null. L'adapter (guild-member-update.ts) ne lit la preference que
+ * lorsqu'un auto-rename est effectivement declenche (pas de rename sur un changement de role
+ * non mappe). Generalise l'ancien `styleAvecConsentement` (cas preference = null).
  */
-export function styleAvecConsentement(
-  styleDeclenche: StyleName | null,
+export function styleEffectif(
+  styleRole: StyleName | null,
+  preference: StyleName | null,
   estOptOut: boolean,
 ): StyleName | null {
   if (estOptOut) return null;
-  return styleDeclenche;
+  return preference ?? styleRole;
 }
 
 /** Roles mappes presents dans une liste (intersection avec les cles du mapping). */

@@ -12,7 +12,7 @@
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | **Opt-out**                  | Le membre **refuse** l'auto-rename sur lui, pour ce serveur (`/renamioos opt-out`).                                       |
 | **Opt-in**                   | État **par défaut** : l'auto-rename s'applique. `/renamioos opt-in` annule un opt-out.                                    |
-| **Consentement**             | Régle pure du domaine (`styleAvecConsentement`) : opt-out ⇒ aucun rename, quel que soit le style déclenché par les rôles. |
+| **Consentement**             | Régle pure du domaine (`styleEffectif`, priorité opt-out > signature > rôle) : opt-out ⇒ aucun rename, quel que soit le style déclenché par les rôles. |
 | **Guild / Membre**           | Clé de partition `(guild_id, member_id)` : le consentement est **par serveur**.                                           |
 | **Mode mémoire / mode Neon** | Branché par `DATABASE_URL` : absente ⇒ mémoire (dev, éphémère), présente ⇒ Neon (prod, persistant).                       |
 
@@ -55,7 +55,7 @@ Composition : `creerOptOutStore({ databaseUrl, queries? })` (`index.ts`).
 - **Lecture opt-out seulement si un style est déclenché** : `guildMemberUpdate` ne consulte le
   consentement qu'après qu'un rôle mappé a déclenché un style (pas de round-trip pour rien).
 - **Domaine pur intact** : la régle de consentement vit dans `src/domain/auto-rename.ts`
-  (`styleAvecConsentement`) ; ce contexte ne fournit que le booléen opt-out.
+  (`styleEffectif`) ; ce contexte ne fournit que le booléen opt-out.
 
 ## Tests
 

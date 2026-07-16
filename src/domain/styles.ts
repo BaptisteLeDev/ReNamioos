@@ -32,6 +32,15 @@ export const STYLE_NAMES = [
 
 export type StyleName = (typeof STYLE_NAMES)[number];
 
+/**
+ * Smart constructor : renvoie le `StyleName` correspondant, ou `null` si l'entree n'est pas
+ * un style connu. Frontiere de re-validation (ex. valeur relue en base) : un style disparu
+ * du catalogue ne fuit jamais en type marque. Pur (aucun I/O).
+ */
+export function parseStyleName(input: string): StyleName | null {
+  return (STYLE_NAMES as readonly string[]).includes(input) ? (input as StyleName) : null;
+}
+
 /** Table `caractere -> glyphe` d'un style (ASCII 52 lettres ; pas de chiffres). */
 export type StyleMap = Record<string, string>;
 

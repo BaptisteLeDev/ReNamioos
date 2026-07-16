@@ -17,7 +17,7 @@ import { describe, expect, it } from "bun:test";
 import {
   styleDeclenche,
   rolesAjoutes,
-  styleAvecConsentement,
+  styleEffectif,
   aPerduDernierRoleMappe,
   type MappingRoleStyle,
 } from "./auto-rename";
@@ -89,21 +89,26 @@ describe("styleDeclenche — quel style appliquer suite a un changement de roles
   });
 });
 
-describe("styleAvecConsentement — faut-il appliquer l auto-rename ? (issue #27)", () => {
-  it("membre NON opt-out + style declenche -> applique le style", () => {
-    expect(styleAvecConsentement("cursive", false)).toBe("cursive");
+describe("styleEffectif — quel style appliquer (opt-out > preference > role) ?", () => {
+  it("opt-out -> null, quels que soient preference et role (le consentement prime)", () => {
+    expect(styleEffectif("cursive", null, true)).toBeNull();
+    expect(styleEffectif("cursive", "gothique", true)).toBeNull();
   });
 
-  it("membre opt-out + style declenche -> null (refus de consentement, pas de rename)", () => {
-    expect(styleAvecConsentement("cursive", true)).toBeNull();
+  it("preference membre PRIME sur le style du role (signature #style)", () => {
+    expect(styleEffectif("cursive", "gothique", false)).toBe("gothique");
   });
 
-  it("aucun style declenche + non opt-out -> null (rien a faire)", () => {
-    expect(styleAvecConsentement(null, false)).toBeNull();
+  it("sans preference -> style du role (comportement historique conserve)", () => {
+    expect(styleEffectif("cursive", null, false)).toBe("cursive");
   });
 
-  it("aucun style declenche + opt-out -> null", () => {
-    expect(styleAvecConsentement(null, true)).toBeNull();
+  it("preference seule (aucun style de role) -> la preference", () => {
+    expect(styleEffectif(null, "gothique", false)).toBe("gothique");
+  });
+
+  it("ni role ni preference + non opt-out -> null (rien a faire)", () => {
+    expect(styleEffectif(null, null, false)).toBeNull();
   });
 });
 

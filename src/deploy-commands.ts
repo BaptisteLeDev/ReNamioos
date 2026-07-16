@@ -8,7 +8,7 @@
  */
 import { REST } from "discord.js";
 import { loadConfig } from "./config";
-import { creerCommandes } from "./commands/index";
+import { creerCommandes, creerCommandesContextuelles, type OptionsCommandes } from "./commands/index";
 import { deployApplicationCommands } from "./commands/deploy-runtime";
 import { creerFileMappingStore } from "./mapping/file-store";
 import { creerMemoryOptOutStore } from "./optout/memory-store";
@@ -16,6 +16,8 @@ import { creerMemoryAutoRenameLogStore } from "./auto-rename-log/memory-store";
 import { CAPACITE_JOURNAL_PAR_GUILD } from "./auto-rename-log/index";
 import { creerFileCommandSyncStore, creerFileIo } from "./command-sync/file-store";
 import { creerMemoryOriginalNickStore } from "./original-nick/memory-store";
+import { creerMemoryStylePreferenceStore } from "./style-preference/memory-store";
+import { creerMemoryEventStore } from "./event/memory-store";
 import { creerMemoryGuildSettingsStore } from "./guildsettings/memory-store";
 import { creerEmbedFactory } from "./theming/embed";
 import { THEME_RENAMIOOS } from "./theming/theme";
@@ -25,7 +27,7 @@ async function deploy(): Promise<void> {
   // Les stores et le redeploy n'influent pas sur le SCHEMA des slash (ils n'alimentent
   // que l'execution) -> stores fichier vides + redeploy no-op ici, suffisant pour
   // produire le schema a deployer (aucune connexion Neon necessaire).
-  const body = creerCommandes({
+  const deps: OptionsCommandes = {
     mappingStore: creerFileMappingStore({}),
     optOutStore: creerMemoryOptOutStore(),
     autoRenameLogStore: creerMemoryAutoRenameLogStore({
@@ -33,10 +35,16 @@ async function deploy(): Promise<void> {
     }),
     commandSyncStore: creerFileCommandSyncStore(creerFileIo("command-sync.json")),
     originalNickStore: creerMemoryOriginalNickStore(),
+    stylePreferenceStore: creerMemoryStylePreferenceStore(),
+    eventStore: creerMemoryEventStore(),
     settingsStore: creerMemoryGuildSettingsStore(),
     embedFactory: creerEmbedFactory(THEME_RENAMIOOS),
     redeploy: () => Promise.resolve(),
-  }).map((c) => c.data.toJSON());
+  };
+  const body = [
+    ...creerCommandes(deps).map((c) => c.data.toJSON()),
+    ...creerCommandesContextuelles(deps).map((c) => c.data.toJSON()),
+  ];
   const rest = new REST({ version: "10" }).setToken(config.discord.token);
 
   // Reutilise la logique partagee de choix du scope + purge (regle de 3, #40). Le

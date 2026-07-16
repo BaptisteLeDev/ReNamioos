@@ -19,6 +19,7 @@ import { creerAutoRenameCommand } from "./auto-rename";
 import { creerRenamioosCommand } from "./renamioos";
 import { creerConvertCommand } from "./convert";
 import { creerConfigCommand } from "./config";
+import { creerEventCommand } from "./event";
 import { pingCommand } from "./ping";
 import { previewCommand } from "./preview";
 import { creerRandomCommand } from "./random";
@@ -29,12 +30,22 @@ import { creerCompteurFenetre, type CompteurFenetre } from "../limitation/compte
 import { FENETRE_RENOMMAGE_MS, LIMITE_RENOMMAGE_PAR_INVOCATEUR } from "../domain/fenetre-glissante";
 import { stylesCommand } from "./styles";
 import { creerUpdateCommand } from "./update";
-import type { Command } from "./types";
+import {
+  creerConvertirContextuelCommand,
+  creerGestionnaireConvertir,
+} from "./convertir-contextuel";
+import {
+  creerStyliserContextuelCommand,
+  creerGestionnaireStyliser,
+} from "./styliser-contextuel";
+import type { Command, CommandContextuelle, GestionnaireComposant } from "./types";
 import type { MappingStore } from "../mapping/store";
 import type { OptOutStore } from "../optout/store";
 import type { AutoRenameLogStore } from "../auto-rename-log/store";
 import type { CommandSyncStore } from "../command-sync/store";
 import type { OriginalNickStore } from "../original-nick/store";
+import type { StylePreferenceStore } from "../style-preference/store";
+import type { EventStore } from "../event/store";
 import type { GuildSettingsStore } from "../guildsettings/store";
 import type { EmbedTheme } from "../theming/embed";
 import type { RESTPostAPIApplicationCommandsJSONBody } from "discord.js";
@@ -48,6 +59,10 @@ export interface OptionsCommandes {
   commandSyncStore: CommandSyncStore;
   /** Provenance du pseudo d'origine + echeance (#25/#38), pour /rename ... duree:. */
   originalNickStore: OriginalNickStore;
+  /** Provenance de la signature de style par membre, pour /renamioos style|reset. */
+  stylePreferenceStore: StylePreferenceStore;
+  /** Provenance de l'evenement stylise (« Style Party ») par guilde, pour /event. */
+  eventStore: EventStore;
   /** Provenance des reglages par serveur (socle : langue + couleur), pour /config et /convert. */
   settingsStore: GuildSettingsStore;
   /** Fabrique d'embeds themee (socle) : couleur du theme ou override de la guilde. */
@@ -69,6 +84,8 @@ export function creerCommandes(options: OptionsCommandes): Command[] {
     autoRenameLogStore,
     commandSyncStore,
     originalNickStore,
+    stylePreferenceStore,
+    eventStore,
     settingsStore,
     embedFactory,
     redeploy,
@@ -92,9 +109,14 @@ export function creerCommandes(options: OptionsCommandes): Command[] {
     creerRenameCancelCommand(originalNickStore),
     creerRandomCommand(cooldownRename),
     creerAutoRenameCommand(mappingStore, autoRenameLogStore),
-    creerRenamioosCommand(optOutStore),
+    creerRenamioosCommand(optOutStore, stylePreferenceStore),
     creerAideCommand(mappingStore),
     creerConfigCommand(settingsStore, embedFactory),
+    creerEventCommand(
+      { eventStore, optOutStore, originalNickStore },
+      settingsStore,
+      embedFactory,
+    ),
   ];
 
   commandes.push(
@@ -106,4 +128,29 @@ export function creerCommandes(options: OptionsCommandes): Command[] {
   );
 
   return commandes;
+}
+
+/**
+ * Commandes de MENU CONTEXTUEL (clic droit -> Apps). Registre distinct des slash : type
+ * d'interaction different, routage separe (client.ts), mais MEME deploiement (le payload
+ * concatene les deux). Toute nouvelle commande contextuelle s'ajoute ici.
+ */
+export function creerCommandesContextuelles(options: OptionsCommandes): CommandContextuelle[] {
+  const { settingsStore, embedFactory } = options;
+  return [
+    creerConvertirContextuelCommand(settingsStore, embedFactory),
+    creerStyliserContextuelCommand(settingsStore),
+  ];
+}
+
+/**
+ * Gestionnaires d'interactions de COMPOSANT (select menus, boutons), routes par prefixe de
+ * customId (stateless). Toute nouvelle surface a composants s'enregistre ici.
+ */
+export function creerGestionnairesComposants(options: OptionsCommandes): GestionnaireComposant[] {
+  const { settingsStore, embedFactory } = options;
+  return [
+    creerGestionnaireConvertir(settingsStore, embedFactory),
+    creerGestionnaireStyliser(settingsStore, embedFactory),
+  ];
 }

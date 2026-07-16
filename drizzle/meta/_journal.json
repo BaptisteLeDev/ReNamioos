@@ -15,6 +15,20 @@
       "when": 1784222990771,
       "tag": "0001_loving_joshua_kane",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784241076417,
+      "tag": "0002_puzzling_whirlwind",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784477965148,
+      "tag": "0003_wise_the_anarchist",
+      "breakpoints": true
     }
   ]
 }

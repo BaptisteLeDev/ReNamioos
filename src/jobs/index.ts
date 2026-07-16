@@ -14,11 +14,13 @@
 import type { Client } from "discord.js";
 import { restaurerPseudo } from "../commands/styliser";
 import type { OriginalNickStore } from "../original-nick/store";
+import type { EventStore } from "../event/store";
 import {
   balayerEcheances,
   type EcheanceARestaurer,
   type ResultatRestaurationJob,
 } from "./sweep-temporaire";
+import { nettoyerEvenementsExpires } from "./sweep-evenements";
 
 /** Intervalle de balayage par defaut : 1 minute (granularite suffisante pour des durees en h/j). */
 export const INTERVALLE_BALAYAGE_MS = 60_000;
@@ -48,13 +50,20 @@ export function creerRestaurerDiscord(
 export function demarrerBalayagePeriodique(deps: {
   client: Client;
   store: OriginalNickStore;
+  /** Provenance des events (« Style Party ») : le balayage supprime les lignes echues (D8). */
+  eventStore: EventStore;
   intervalleMs?: number;
 }): () => void {
   const restaurer = creerRestaurerDiscord(deps.client);
   const intervalle = deps.intervalleMs ?? INTERVALLE_BALAYAGE_MS;
   const timer = setInterval(() => {
+    // 1. Revert des pseudos echus (round-trip #25/#38, couvre aussi les membres d'une Style Party).
     void balayerEcheances({ store: deps.store, restaurer }).catch((err) =>
       console.error("[sweep-temporaire] echec du balayage periodique :", err),
+    );
+    // 2. Nettoyage des LIGNES d'event echues (minimisation D8 ; les pseudos sont deja revertis en 1).
+    void nettoyerEvenementsExpires(deps.eventStore, Date.now()).catch((err) =>
+      console.error("[sweep-evenements] echec du nettoyage des events echus :", err),
     );
   }, intervalle);
   // Ne pas garder le process en vie juste pour ce timer (bun/node).

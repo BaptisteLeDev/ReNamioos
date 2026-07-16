@@ -66,6 +66,31 @@ export const autoRenameOptouts = pgTable(
 );
 
 /**
+ * Signature de style par membre (« style signature par membre ») — extension positive de
+ * l'opt-out. Le membre choisit SON style via `/renamioos style:<style>` ; a l'auto-rename,
+ * cette signature PRIME sur le style du role (regle pure styleEffectif). Une ligne EXISTE
+ * uniquement pour un membre qui a pose une signature ; `/renamioos reset` supprime la ligne
+ * (minimisation D8 : seuls les membres avec signature sont stockes).
+ *
+ * DDL (equivalent) :
+ *   auto_rename_style_preferences(
+ *     guild_id   text,
+ *     member_id  text,
+ *     style_name text not null,
+ *     PK (guild_id, member_id)
+ *   );
+ */
+export const autoRenameStylePreferences = pgTable(
+  "auto_rename_style_preferences",
+  {
+    guildId: text("guild_id").notNull(),
+    memberId: text("member_id").notNull(),
+    styleName: text("style_name").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.memberId] })],
+);
+
+/**
  * Pseudo SOURCE memorise avant un auto-rename (issue #25) — pour le ROUND-TRIP : quand le
  * membre perd son dernier role mappe, on restaure ce pseudo. Cle (guild_id, member_id) :
  * un seul pseudo d'origine memorise par membre et par serveur.
@@ -107,6 +132,30 @@ export const autoRenameOriginalNicks = pgTable(
     index("auto_rename_original_nicks_expires_at").on(t.expiresAt),
   ],
 );
+
+/**
+ * Evenement stylise programme (« Style Party ») — une ligne par guilde (PK = guildId), ce qui
+ * PORTE l'invariant « un seul event actif a la fois ». `expires_at` (epoch ms) pilote le revert :
+ * chaque membre est memorise avec cette echeance (auto_rename_original_nicks) et le job de
+ * balayage restaure a l'expiration ; un balayage complementaire supprime la ligne d'event echue.
+ * Minimisation D8 : au plus une ligne par guilde AYANT un event, supprimee a l'arret / a l'expiration.
+ *
+ * DDL (equivalent) :
+ *   style_event(
+ *     guild_id   text primary key,
+ *     role_id    text not null,
+ *     style_name text not null,
+ *     started_at bigint not null,   -- epoch ms
+ *     expires_at bigint not null    -- epoch ms
+ *   );
+ */
+export const styleEvent = pgTable("style_event", {
+  guildId: text("guild_id").primaryKey(),
+  roleId: text("role_id").notNull(),
+  styleName: text("style_name").notNull(),
+  startedAt: bigint("started_at", { mode: "number" }).notNull(),
+  expiresAt: bigint("expires_at", { mode: "number" }).notNull(),
+});
 
 /**
  * Journal d'auto-rename (issue #28) — N derniers evenements succes/echec PAR GUILDE.

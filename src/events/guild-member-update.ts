@@ -23,7 +23,7 @@
 import type { GuildMember, PartialGuildMember } from "discord.js";
 import {
   aPerduDernierRoleMappe,
-  styleAvecConsentement,
+  styleEffectif,
   styleDeclenche,
 } from "../domain/auto-rename";
 import { appliquerRename, restaurerPseudo, sourceRename } from "../commands/styliser";
@@ -32,6 +32,7 @@ import type { MappingStore } from "../mapping/store";
 import type { OptOutStore } from "../optout/store";
 import type { AutoRenameLogStore } from "../auto-rename-log/store";
 import type { OriginalNickStore } from "../original-nick/store";
+import type { StylePreferenceStore } from "../style-preference/store";
 import { creerCompteurFenetre, type CompteurFenetre } from "../limitation/compteur-fenetre";
 import { BUDGET_AUTO_RENAME_PAR_GUILDE, FENETRE_RENOMMAGE_MS } from "../domain/fenetre-glissante";
 
@@ -71,6 +72,12 @@ export interface DepsAutoRename {
    * qu'un membre est stylise (minimisation D8) ; la restauration l'oublie.
    */
   originalNickStore: OriginalNickStore;
+  /**
+   * Signature de style par membre (« style signature par membre »). Provenance UNIQUE de la
+   * preference PAR SERVEUR. Lue APRES le declenchement (et seulement si le membre n'est pas
+   * opt-out) : sa signature PRIME sur le style du role via la regle pure `styleEffectif`.
+   */
+  stylePreferenceStore: StylePreferenceStore;
   /**
    * Budget d'auto-rename PAR GUILDE (B2, batch #45). Borne le débit des renommages
    * automatiques déclenchés sous rafale (10 / 60 s / guilde) : les excédents sont IGNORÉS
@@ -119,11 +126,14 @@ export function creerGestionnaireMembreMisAJour(deps: DepsAutoRename) {
       return;
     }
 
-    // Consentement (issue #27) : un membre opt-out n'est jamais auto-renomme. On ne lit
-    // l'etat opt-out QUE si un style est declenche (pas de round-trip pour rien). Le
-    // domaine pur tranche : opt-out => null, sinon le style declenche.
+    // Priorite (regle pure styleEffectif) : opt-out > signature membre > style du role.
+    // On ne lit ces provenances QUE si un style est declenche (pas de round-trip pour rien).
+    // La signature n'est lue que si le membre n'est pas opt-out (evite un round-trip inutile).
     const estOptOut = await deps.optOutStore.isOptOut(newMember.guild.id, newMember.id);
-    const style = styleAvecConsentement(declenche, estOptOut);
+    const preference = estOptOut
+      ? null
+      : await deps.stylePreferenceStore.get(newMember.guild.id, newMember.id);
+    const style = styleEffectif(declenche, preference, estOptOut);
     if (style === null) return; // membre opt-out : refus de consentement, rien a faire.
 
     // Budget d'auto-rename PAR GUILDE (B2) : sous rafale, on n'applique pas plus de

@@ -20,6 +20,8 @@ import type { AutoRenameLogStore } from "../auto-rename-log/store";
 import type { AutoRenameLogEntry } from "../domain/auto-rename-log";
 import type { OriginalNickStore } from "../original-nick/store";
 import { creerMemoryOriginalNickStore } from "../original-nick/memory-store";
+import type { StylePreferenceStore } from "../style-preference/store";
+import { creerMemoryStylePreferenceStore } from "../style-preference/memory-store";
 import { creerCompteurFenetre } from "../limitation/compteur-fenetre";
 import { creerGestionnaireMembreMisAJour } from "./guild-member-update";
 
@@ -107,6 +109,7 @@ function setup(
   neuf: MembreFake,
   optOut: Set<string> = new Set(),
   nickStore: OriginalNickStore = creerMemoryOriginalNickStore(),
+  prefStore: StylePreferenceStore = creerMemoryStylePreferenceStore(),
 ) {
   const capture: Capture = { editCalled: false, editedNick: undefined, warns: [], journal: [] };
   const oldMember = fakeMember(old);
@@ -124,11 +127,12 @@ function setup(
     optOutStore: fakeOptOutStore(optOut),
     logStore: fakeLogStore(capture.journal),
     originalNickStore: nickStore,
+    stylePreferenceStore: prefStore,
     log: {
       warn: (message, contexte) => capture.warns.push({ message, contexte }),
     },
   });
-  return { gestionnaire, oldMember, newMember, capture, nickStore };
+  return { gestionnaire, oldMember, newMember, capture, nickStore, prefStore };
 }
 
 describe("adapter guildMemberUpdate — auto-rename", () => {
@@ -266,6 +270,37 @@ describe("adapter guildMemberUpdate — auto-rename", () => {
     expect(capture.editCalled).toBe(true);
   });
 
+  it("SIGNATURE membre PRIME sur le style du role a l auto-rename", async () => {
+    const pref = creerMemoryStylePreferenceStore();
+    await pref.set("g1", "m1", "scriptify"); // signature differente du role_cursive
+    const { gestionnaire, oldMember, newMember, capture } = setup(
+      { roleIds: ["x"], nickname: "bob", guildId: "g1", memberId: "m1" },
+      { roleIds: ["x", "role_cursive"], nickname: "bob", guildId: "g1", memberId: "m1" },
+      new Set(),
+      creerMemoryOriginalNickStore(),
+      pref,
+    );
+    await gestionnaire(oldMember as never, newMember as never);
+    expect(capture.editCalled).toBe(true);
+    // Le style applique est la SIGNATURE (scriptify), pas le style du role (cursive).
+    expect(capture.journal[0]).toMatchObject({ outcome: "succes", style: "scriptify" });
+  });
+
+  it("OPT-OUT prime sur la signature : aucun rename meme avec une preference", async () => {
+    const pref = creerMemoryStylePreferenceStore();
+    await pref.set("g1", "m-opt", "scriptify");
+    const { gestionnaire, oldMember, newMember, capture } = setup(
+      { roleIds: ["x"], nickname: "bob", guildId: "g1", memberId: "m-opt" },
+      { roleIds: ["x", "role_cursive"], nickname: "bob", guildId: "g1", memberId: "m-opt" },
+      new Set(["g1:m-opt"]),
+      creerMemoryOriginalNickStore(),
+      pref,
+    );
+    await gestionnaire(oldMember as never, newMember as never);
+    expect(capture.editCalled).toBe(false);
+    expect(capture.journal).toHaveLength(0);
+  });
+
   it("mapping vide -> jamais d auto-rename", async () => {
     const capture: Capture = { editCalled: false, editedNick: undefined, warns: [], journal: [] };
     const gestionnaire = creerGestionnaireMembreMisAJour({
@@ -273,6 +308,7 @@ describe("adapter guildMemberUpdate — auto-rename", () => {
       optOutStore: fakeOptOutStore(),
       logStore: fakeLogStore(capture.journal),
       originalNickStore: creerMemoryOriginalNickStore(),
+      stylePreferenceStore: creerMemoryStylePreferenceStore(),
       log: { warn: (message, contexte) => capture.warns.push({ message, contexte }) },
     });
     const oldMember = fakeMember({ roleIds: ["x"] });
@@ -373,6 +409,7 @@ describe("adapter guildMemberUpdate — budget d'auto-rename borne (B2)", () => 
       optOutStore: fakeOptOutStore(),
       logStore: fakeLogStore(journal),
       originalNickStore: creerMemoryOriginalNickStore(),
+      stylePreferenceStore: creerMemoryStylePreferenceStore(),
       budgetStore: budget,
       log: { warn: (message, contexte) => warns.push({ message, contexte }) },
     });
@@ -401,6 +438,7 @@ describe("adapter guildMemberUpdate — budget d'auto-rename borne (B2)", () => 
       optOutStore: fakeOptOutStore(),
       logStore: fakeLogStore(journal),
       originalNickStore: creerMemoryOriginalNickStore(),
+      stylePreferenceStore: creerMemoryStylePreferenceStore(),
       budgetStore: budget,
       log: { warn: (message, contexte) => warns.push({ message, contexte }) },
     });

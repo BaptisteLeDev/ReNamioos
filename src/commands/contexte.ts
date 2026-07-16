@@ -7,7 +7,7 @@
  * ADAPTER (touche discord.js) : traduit la locale Discord via `mapperDiscordLocale`, puis
  * delegue la decision au domaine pur `resoudreLocale`.
  */
-import type { ChatInputCommandInteraction } from "discord.js";
+import type { Locale } from "discord.js";
 import type { LocaleTag } from "../domain/locale";
 import { resoudreLocale } from "../domain/locale-resolution";
 import { mapperDiscordLocale } from "../i18n/discord-locale";
@@ -25,8 +25,19 @@ export interface ContexteCommande {
   readonly settings: GuildSettings;
 }
 
+/**
+ * Sous-ensemble d'interaction dont depend la resolution du contexte. Structurel (pas lie a
+ * `ChatInputCommandInteraction`) : slash, menus contextuels ET composants le satisfont, ce
+ * qui permet a toute surface Discord de consommer le socle sans duplication.
+ */
+export interface InteractionContexte {
+  readonly guildId: string | null;
+  readonly guild: { readonly preferredLocale: Locale } | null;
+  readonly locale: Locale;
+}
+
 export async function resoudreContexteCommande(
-  interaction: ChatInputCommandInteraction,
+  interaction: InteractionContexte,
   settingsStore: GuildSettingsStore,
 ): Promise<ContexteCommande> {
   const settings = interaction.guildId

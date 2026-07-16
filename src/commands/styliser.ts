@@ -161,6 +161,23 @@ export async function restaurerPseudo(
   return { ok: true, pseudo: tronque };
 }
 
+/**
+ * Champs d'un embed de confirmation de rename (membre / style / pseudo). Source UNIQUE
+ * partagee par `embedRenameOk` (couleur fixe : /rename, /random) et par le menu contextuel
+ * « Styliser » (embed THEME via la fabrique) — regle de 3, anti-duplication.
+ */
+export function champsRename(
+  membre: GuildMember,
+  pseudo: string,
+  style: StyleName,
+): { name: string; value: string; inline: boolean }[] {
+  return [
+    { name: "👤 Membre", value: membre.toString(), inline: true },
+    { name: "🎨 Style", value: capitaliser(style), inline: true },
+    { name: "📝 Nouveau pseudo", value: pseudo, inline: false },
+  ];
+}
+
 /** Embed de confirmation d'un rename (couleur configurable : vert /rename, violet /random). */
 export function embedRenameOk(
   membre: GuildMember,
@@ -172,11 +189,7 @@ export function embedRenameOk(
   return new EmbedBuilder()
     .setTitle(titre)
     .setColor(couleur)
-    .addFields(
-      { name: "👤 Membre", value: membre.toString(), inline: true },
-      { name: "🎨 Style", value: capitaliser(style), inline: true },
-      { name: "📝 Nouveau pseudo", value: pseudo, inline: false },
-    );
+    .addFields(...champsRename(membre, pseudo, style));
 }
 
 /** Source du rename : nouveau_nom explicite, sinon nick serveur, sinon nom global. */

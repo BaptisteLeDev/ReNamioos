@@ -16,10 +16,18 @@ import {
   REST,
   Routes,
   type Interaction,
+  type MessageComponentInteraction,
+  type MessageContextMenuCommandInteraction,
   type RESTPostAPIApplicationCommandsJSONBody,
+  type UserContextMenuCommandInteraction,
 } from "discord.js";
-import type { Command } from "./commands/types";
-import { creerCommandes } from "./commands/index";
+import type { Command, CommandContextuelle, GestionnaireComposant } from "./commands/types";
+import {
+  creerCommandes,
+  creerCommandesContextuelles,
+  creerGestionnairesComposants,
+  type OptionsCommandes,
+} from "./commands/index";
 import { deployApplicationCommands } from "./commands/deploy-runtime";
 import { repondreErreurRouteur } from "./router-error";
 import type { BotStats, StatsProvider } from "./api/stats-provider";
@@ -33,6 +41,10 @@ import { creerMemoryAutoRenameLogStore } from "./auto-rename-log/memory-store";
 import { CAPACITE_JOURNAL_PAR_GUILD } from "./auto-rename-log/index";
 import type { OriginalNickStore } from "./original-nick/store";
 import { creerMemoryOriginalNickStore } from "./original-nick/memory-store";
+import type { StylePreferenceStore } from "./style-preference/store";
+import { creerMemoryStylePreferenceStore } from "./style-preference/memory-store";
+import type { EventStore } from "./event/store";
+import { creerMemoryEventStore } from "./event/memory-store";
 import type { CommandSyncStore } from "./command-sync/store";
 import { creerFileCommandSyncStore, creerFileIo } from "./command-sync/file-store";
 import type { CommandUsageStore } from "./command-usage/store";
@@ -53,6 +65,10 @@ export interface OptionsBotClient {
   autoRenameLogStore?: AutoRenameLogStore;
   /** Provenance UNIQUE du pseudo d'origine pour le round-trip (issue #25). Defaut : memoire. */
   originalNickStore?: OriginalNickStore;
+  /** Provenance UNIQUE de la signature de style par membre. Defaut : memoire (dev). */
+  stylePreferenceStore?: StylePreferenceStore;
+  /** Provenance UNIQUE de l'evenement stylise (« Style Party ») par guilde. Defaut : memoire. */
+  eventStore?: EventStore;
   /** Provenance des commandes connues par serveur (/update). Defaut : fichier dev. */
   commandSyncStore?: CommandSyncStore;
   /** Provenance UNIQUE du suivi d'usage des commandes (issue #27). Defaut : memoire (dev). */
@@ -76,6 +92,10 @@ export interface OptionsBotClient {
 
 export class BotClient extends Client implements StatsProvider {
   public readonly commands = new Collection<string, Command>();
+  /** Registre des commandes de menu contextuel (clic droit -> Apps), routage separe. */
+  public readonly contextMenus = new Collection<string, CommandContextuelle>();
+  /** Gestionnaires de composants (select/boutons), routes par prefixe de customId. */
+  private readonly composants: GestionnaireComposant[] = [];
   private commandsToday = 0;
   /** Source du compteur d'echecs d'auto-rename du jour expose dans /stats (issue #28). */
   private readonly autoRenameLogStore: AutoRenameLogStore;
@@ -105,6 +125,9 @@ export class BotClient extends Client implements StatsProvider {
       creerMemoryAutoRenameLogStore({ capaciteParGuild: CAPACITE_JOURNAL_PAR_GUILD });
     this.autoRenameLogStore = autoRenameLogStore;
     const originalNickStore = options.originalNickStore ?? creerMemoryOriginalNickStore();
+    const stylePreferenceStore =
+      options.stylePreferenceStore ?? creerMemoryStylePreferenceStore();
+    const eventStore = options.eventStore ?? creerMemoryEventStore();
     const commandSyncStore =
       options.commandSyncStore ?? creerFileCommandSyncStore(creerFileIo("command-sync.json"));
     this.commandUsageStore = options.commandUsageStore ?? creerMemoryCommandUsageStore();
@@ -120,18 +143,26 @@ export class BotClient extends Client implements StatsProvider {
       : undefined;
     const redeploy = this.construireRedeploy(options.discord);
 
-    for (const cmd of creerCommandes({
+    const depsCommandes: OptionsCommandes = {
       mappingStore,
       optOutStore,
       autoRenameLogStore,
       commandSyncStore,
       originalNickStore,
+      stylePreferenceStore,
+      eventStore,
       settingsStore,
       embedFactory,
       redeploy,
-    })) {
+    };
+
+    for (const cmd of creerCommandes(depsCommandes)) {
       this.commands.set(cmd.data.name, cmd);
     }
+    for (const cmd of creerCommandesContextuelles(depsCommandes)) {
+      this.contextMenus.set(cmd.data.name, cmd);
+    }
+    this.composants.push(...creerGestionnairesComposants(depsCommandes));
     // Auto-rename (B8, ADR-0005) : abonnement a guildMemberUpdate. L'evenement
     // n'arrive que si l'intent privilegie GuildMembers est active (Dev Portal).
     // Le consentement membre (issue #27) est consulte avant tout rename via optOutStore ;
@@ -141,6 +172,7 @@ export class BotClient extends Client implements StatsProvider {
       optOutStore,
       logStore: autoRenameLogStore,
       originalNickStore,
+      stylePreferenceStore,
     });
     this.on(Events.GuildMemberUpdate, (oldMember, newMember) => {
       void onMembreMisAJour(oldMember, newMember);
@@ -167,6 +199,14 @@ export class BotClient extends Client implements StatsProvider {
       }
       return;
     }
+    if (interaction.isMessageContextMenuCommand() || interaction.isUserContextMenuCommand()) {
+      await this.executerContextuel(interaction);
+      return;
+    }
+    if (interaction.isMessageComponent()) {
+      await this.executerComposant(interaction);
+      return;
+    }
     if (!interaction.isChatInputCommand()) return;
     const command = this.commands.get(interaction.commandName);
     if (!command) {
@@ -174,19 +214,59 @@ export class BotClient extends Client implements StatsProvider {
       return;
     }
     try {
-      this.commandsToday += 1;
-      // Suivi d'usage par jour (issue #27) : alimente la serie commandsDaily de /stats.
-      // Tir-and-forget : ne bloque pas l'execution de la commande, ne la fait pas echouer
-      // si la persistance Neon a un souci (le cache memoire a deja ete incremente).
-      void this.commandUsageStore
-        .record()
-        .catch((err) => console.error("Echec persistance suivi usage commande :", err));
+      this.enregistrerUsage();
       await command.execute(interaction);
     } catch (err) {
       console.error(`Erreur a l'execution de /${interaction.commandName} :`, err);
       // Reponse de secours GARDEE (T1/audit) : ne jamais laisser un rejet du reply/followUp
       // remonter en unhandledRejection (handler branche via `void handleInteraction`).
       await repondreErreurRouteur(interaction, interaction.commandName);
+    }
+  }
+
+  /** Compte + persiste l'usage d'une commande (slash ou contextuelle) pour /stats. */
+  private enregistrerUsage(): void {
+    this.commandsToday += 1;
+    // Tir-and-forget : ne bloque pas l'execution, ne fait pas echouer la commande si la
+    // persistance Neon a un souci (le cache memoire a deja ete incremente).
+    void this.commandUsageStore
+      .record()
+      .catch((err) => console.error("Echec persistance suivi usage commande :", err));
+  }
+
+  /** Route une commande de menu contextuel (message/membre) vers son handler. */
+  private async executerContextuel(
+    interaction: MessageContextMenuCommandInteraction | UserContextMenuCommandInteraction,
+  ): Promise<void> {
+    const command = this.contextMenus.get(interaction.commandName);
+    if (!command) {
+      console.error(`Commande contextuelle inconnue : ${interaction.commandName}`);
+      return;
+    }
+    try {
+      this.enregistrerUsage();
+      await command.execute(interaction);
+    } catch (err) {
+      console.error(`Erreur a l'execution du menu contextuel ${interaction.commandName} :`, err);
+      await repondreErreurRouteur(interaction, interaction.commandName);
+    }
+  }
+
+  /** Route une interaction de composant (select/bouton) vers le gestionnaire dont le customId matche. */
+  private async executerComposant(interaction: MessageComponentInteraction): Promise<void> {
+    const handler = this.composants.find((h) =>
+      interaction.customId.startsWith(`${h.prefixe}:`),
+    );
+    if (!handler) {
+      // Composant inconnu (version anterieure, autre feature) : on ignore proprement.
+      console.warn(`Composant sans gestionnaire : ${interaction.customId}`);
+      return;
+    }
+    try {
+      await handler.execute(interaction);
+    } catch (err) {
+      console.error(`Erreur a l'execution du composant ${interaction.customId} :`, err);
+      await repondreErreurRouteur(interaction, interaction.customId);
     }
   }
 
@@ -225,7 +305,10 @@ export class BotClient extends Client implements StatsProvider {
         rest: this.restClient,
         applicationId: this.discord.applicationId,
         guildId: this.discord.guildId,
-        payload: this.commands.map((c) => c.data.toJSON()),
+        payload: [
+          ...this.commands.map((c) => c.data.toJSON()),
+          ...this.contextMenus.map((c) => c.data.toJSON()),
+        ],
         guildIds: [...client.guilds.cache.keys()],
         log: { info: (m) => console.log(m), warn: (m) => console.warn(m) },
       });
