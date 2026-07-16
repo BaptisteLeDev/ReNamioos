@@ -9,9 +9,9 @@
  * Le compteur d'echecs du jour vit dans `creerCompteurEchecsDuJour` (partage avec
  * l'adapter Neon) : meme remise a zero au changement de jour, peu importe la source.
  */
-import { tronquerJournal, type AutoRenameLogEntry } from '../domain/auto-rename-log';
-import type { AutoRenameLogStore } from './store';
-import { creerCompteurEchecsDuJour } from './compteur-echecs';
+import { tronquerJournal, type AutoRenameLogEntry } from "../domain/auto-rename-log";
+import type { AutoRenameLogStore } from "./store";
+import { creerCompteurEchecsDuJour } from "./compteur-echecs";
 
 export interface OptionsMemoryLog {
   /** Nombre max d'evenements retenus PAR GUILDE (ring-buffer). */

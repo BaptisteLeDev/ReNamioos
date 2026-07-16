@@ -11,10 +11,10 @@
  * des fonctions pures, testables en memoire (cf. auto-rename-log.test.ts). L'adapter
  * (src/auto-rename-log) persiste, l'evenement (guild-member-update.ts) alimente.
  */
-import type { StyleName } from './styles';
+import type { StyleName } from "./styles";
 
 /** Issue de l'auto-rename : applique avec succes, ou echoue (hierarchie, perm, refus). */
-export type AutoRenameOutcome = 'succes' | 'echec';
+export type AutoRenameOutcome = "succes" | "echec";
 
 /**
  * Une entree du journal. `detail` porte le pseudo applique (succes) ou la raison de
@@ -37,17 +37,13 @@ export function tronquerJournal(
   entrees: readonly AutoRenameLogEntry[],
   limite: number,
 ): AutoRenameLogEntry[] {
-  return [...entrees].sort((a, b) => b.at.getTime() - a.at.getTime()).slice(0, limite);
+  return [...entrees].toSorted((a, b) => b.at.getTime() - a.at.getTime()).slice(0, limite);
 }
 
 /**
  * Nombre d'ECHECS dont `at >= depuis`. Sert a deriver `autoRenameFailuresToday`
  * (depuis = minuit du fuseau du bot) sans compteur separe a maintenir.
  */
-export function compterEchecsDepuis(
-  entrees: readonly AutoRenameLogEntry[],
-  depuis: Date,
-): number {
-  return entrees.filter((e) => e.outcome === 'echec' && e.at.getTime() >= depuis.getTime())
-    .length;
+export function compterEchecsDepuis(entrees: readonly AutoRenameLogEntry[], depuis: Date): number {
+  return entrees.filter((e) => e.outcome === "echec" && e.at.getTime() >= depuis.getTime()).length;
 }

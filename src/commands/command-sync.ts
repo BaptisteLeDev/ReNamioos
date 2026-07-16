@@ -26,7 +26,7 @@ export function diffCommands(
   known: readonly string[] = [],
 ): CommandDiff {
   const knownSet = new Set(known);
-  const availableSorted = [...new Set(available)].sort((a, b) => a.localeCompare(b));
+  const availableSorted = [...new Set(available)].toSorted((a, b) => a.localeCompare(b));
   const added = availableSorted.filter((name) => !knownSet.has(name));
   return { available: availableSorted, added };
 }

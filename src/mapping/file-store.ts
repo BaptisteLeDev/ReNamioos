@@ -11,12 +11,12 @@
  * n'est pas supportee (le fichier dev s'edite a la main) : add/remove levent une
  * erreur explicite, dirigeant vers Neon pour la config modifiable depuis Discord.
  */
-import type { MappingRoleStyle } from '../domain/auto-rename';
-import type { MappingStore } from './store';
+import type { MappingRoleStyle } from "../domain/auto-rename";
+import type { MappingStore } from "./store";
 
 const ERREUR_LECTURE_SEULE =
-  'Mode fichier (dev) en LECTURE SEULE : la config auto-rename modifiable depuis ' +
-  'Discord exige le mode Neon (definir DATABASE_URL). Edite auto-rename.json a la main en dev.';
+  "Mode fichier (dev) en LECTURE SEULE : la config auto-rename modifiable depuis " +
+  "Discord exige le mode Neon (definir DATABASE_URL). Edite auto-rename.json a la main en dev.";
 
 export function creerFileMappingStore(mapping: MappingRoleStyle): MappingStore {
   return {

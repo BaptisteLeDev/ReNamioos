@@ -14,7 +14,7 @@
  * `creerNeonOptOutQueries` (neon-queries.ts), ce module ne connait que des promesses
  * (cache et invalidation testables sans vraie DB, cf. neon-store.test.ts).
  */
-import type { OptOutStore } from './store';
+import type { OptOutStore } from "./store";
 
 /** Frontiere d'I/O injectable : tout l'acces Postgres passe par ces trois fonctions. */
 export interface OptOutQueries {

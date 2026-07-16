@@ -11,10 +11,10 @@
  * chaine, par l'execution reelle. La LOGIQUE (cache, ordre, fallback) est testee
  * sur des fakes (neon-store.test.ts, file-store.test.ts, composite-store.test.ts).
  */
-import { and, asc, eq } from 'drizzle-orm';
-import type { Db } from '../db/client';
-import { autoRenameMappings } from '../db/schema';
-import type { MappingQueries } from './neon-store';
+import { and, asc, eq } from "drizzle-orm";
+import type { Db } from "../db/client";
+import { autoRenameMappings } from "../db/schema";
+import type { MappingQueries } from "./neon-store";
 
 export function creerNeonQueries(db: Db): MappingQueries {
   return {
@@ -46,9 +46,7 @@ export function creerNeonQueries(db: Db): MappingQueries {
     async deleteOne(guildId, roleId) {
       await db
         .delete(autoRenameMappings)
-        .where(
-          and(eq(autoRenameMappings.guildId, guildId), eq(autoRenameMappings.roleId, roleId)),
-        );
+        .where(and(eq(autoRenameMappings.guildId, guildId), eq(autoRenameMappings.roleId, roleId)));
     },
   };
 }

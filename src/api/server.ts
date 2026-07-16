@@ -9,11 +9,11 @@
  * L'API ne depend pas de Discord.js : elle recoit un StatsProvider (port). C'est
  * l'ACL ciblee — le modele Discord ne fuit pas dans la couche HTTP.
  */
-import { timingSafeEqual, createHash } from 'node:crypto';
-import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
-import cors from '@fastify/cors';
-import rateLimit from '@fastify/rate-limit';
-import type { StatsProvider } from './stats-provider';
+import { timingSafeEqual, createHash } from "node:crypto";
+import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
+import cors from "@fastify/cors";
+import rateLimit from "@fastify/rate-limit";
+import type { StatsProvider } from "./stats-provider";
 
 export interface RateLimitOptions {
   /** Nombre max de requetes par fenetre et par IP. */
@@ -51,18 +51,18 @@ export interface ApiServerOptions {
  * taille via timingSafeEqual (le resultat est false, mais sans branche revelant la longueur).
  */
 export function tokenValide(attendu: string, recu: string): boolean {
-  const a = Buffer.from(attendu, 'utf8');
-  const b = Buffer.from(recu, 'utf8');
+  const a = Buffer.from(attendu, "utf8");
+  const b = Buffer.from(recu, "utf8");
   if (a.length === b.length) return timingSafeEqual(a, b);
-  const ha = createHash('sha256').update(a).digest();
-  const hb = createHash('sha256').update(b).digest();
+  const ha = createHash("sha256").update(a).digest();
+  const hb = createHash("sha256").update(b).digest();
   return timingSafeEqual(ha, hb);
 }
 
 /** Extrait le token d'un header `Authorization: Bearer <token>`. */
 function extraireBearer(header: string | undefined): string | undefined {
   if (header === undefined) return undefined;
-  const prefixe = 'Bearer ';
+  const prefixe = "Bearer ";
   return header.startsWith(prefixe) ? header.slice(prefixe.length) : undefined;
 }
 
@@ -77,7 +77,7 @@ export async function createApiServer(options: ApiServerOptions): Promise<Fastif
 
   app.setErrorHandler((error: FastifyError, request, reply) => {
     request.log.error(error);
-    void reply.status(error.statusCode ?? 500).send({ error: 'Internal Server Error' });
+    void reply.status(error.statusCode ?? 500).send({ error: "Internal Server Error" });
   });
 
   // CORS verrouille (finding #22) : on ne reflete plus n'importe quelle origine.
@@ -91,18 +91,18 @@ export async function createApiServer(options: ApiServerOptions): Promise<Fastif
   });
 
   // Racine — info API.
-  app.get('/', () => ({
-    name: 'ReNamioos API',
-    endpoints: { health: '/health', stats: '/stats' },
+  app.get("/", () => ({
+    name: "ReNamioos API",
+    endpoints: { health: "/health", stats: "/stats" },
   }));
 
   // Preuve de vie. Ne touche PAS Discord : repond immediatement (invariant contrat).
   // TOUJOURS public, meme quand /stats est gate (contrat bdf-monitor).
-  app.get('/health', () => ({ status: 'ok', uptime: process.uptime() }));
+  app.get("/health", () => ({ status: "ok", uptime: process.uptime() }));
 
   // Metriques metier — noms imposes par le contrat publie. Gate par Bearer token
   // si statsToken est configure (finding #22, CWE-306). Comparaison en temps constant.
-  app.get('/stats', { onRequest: gateStats(statsToken) }, () => statsProvider.getStats());
+  app.get("/stats", { onRequest: gateStats(statsToken) }, () => statsProvider.getStats());
 
   await app.ready();
   return app;
@@ -114,14 +114,18 @@ export async function createApiServer(options: ApiServerOptions): Promise<Fastif
  * constant, et repond 401 sinon.
  */
 function gateStats(statsToken: string | undefined) {
-  return (request: import('fastify').FastifyRequest, reply: import('fastify').FastifyReply, done: (err?: Error) => void): void => {
+  return (
+    request: import("fastify").FastifyRequest,
+    reply: import("fastify").FastifyReply,
+    done: (err?: Error) => void,
+  ): void => {
     if (statsToken === undefined) {
       done();
       return;
     }
     const recu = extraireBearer(request.headers.authorization);
     if (recu === undefined || !tokenValide(statsToken, recu)) {
-      void reply.status(401).send({ error: 'Unauthorized' });
+      void reply.status(401).send({ error: "Unauthorized" });
       return;
     }
     done();

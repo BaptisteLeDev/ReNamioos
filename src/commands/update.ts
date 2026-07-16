@@ -19,10 +19,10 @@ import {
   SlashCommandBuilder,
   type ChatInputCommandInteraction,
   type RESTPostAPIApplicationCommandsJSONBody,
-} from 'discord.js';
-import type { Command } from './types';
-import type { CommandSyncStore } from '../command-sync/store';
-import { diffCommands } from './command-sync';
+} from "discord.js";
+import type { Command } from "./types";
+import type { CommandSyncStore } from "../command-sync/store";
+import { diffCommands } from "./command-sync";
 
 export interface OptionsUpdateCommand {
   store: CommandSyncStore;
@@ -39,15 +39,15 @@ export function creerUpdateCommand(options: OptionsUpdateCommand): Command {
 
   return {
     data: new SlashCommandBuilder()
-      .setName('update')
-      .setDescription('Re-synchronise les commandes sur ce serveur (admin).')
+      .setName("update")
+      .setDescription("Re-synchronise les commandes sur ce serveur (admin).")
       .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
     async execute(interaction: ChatInputCommandInteraction): Promise<void> {
       const guildId = interaction.guildId;
       if (guildId === null) {
         await interaction.reply({
-          content: '❌ Cette commande doit être utilisée sur un serveur.',
+          content: "❌ Cette commande doit être utilisée sur un serveur.",
           ephemeral: true,
         });
         return;
@@ -71,7 +71,7 @@ export function creerUpdateCommand(options: OptionsUpdateCommand): Command {
       } catch (err) {
         console.error(`/update : re-synchro echouee (${guildId}) :`, err);
         await interaction.editReply({
-          content: '❌ La re-synchronisation a échoué. Réessaie dans un moment.',
+          content: "❌ La re-synchronisation a échoué. Réessaie dans un moment.",
         });
         return;
       }
@@ -86,15 +86,15 @@ export function creerUpdateCommand(options: OptionsUpdateCommand): Command {
 
       const sectionNouvelles =
         diff.added.length > 0
-          ? `\n\n🆕 **Nouvelles** (${diff.added.length}) : ${diff.added.map((n) => `\`/${n}\``).join(', ')}`
-          : '\n\n✅ Aucune nouvelle commande depuis la dernière synchro.';
+          ? `\n\n🆕 **Nouvelles** (${diff.added.length}) : ${diff.added.map((n) => `\`/${n}\``).join(", ")}`
+          : "\n\n✅ Aucune nouvelle commande depuis la dernière synchro.";
 
       const embed = new EmbedBuilder()
-        .setTitle('🔄 Commandes synchronisées')
+        .setTitle("🔄 Commandes synchronisées")
         .setColor(COULEUR_VERT)
         .setDescription(
           `**${diff.available.length}** commande(s) disponible(s) sur ce serveur :\n` +
-            diff.available.map((n) => `\`/${n}\``).join(', ') +
+            diff.available.map((n) => `\`/${n}\``).join(", ") +
             sectionNouvelles,
         )
         .setTimestamp();

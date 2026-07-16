@@ -10,11 +10,11 @@
  * On injecte un StatsProvider factice : le contrat de l'API doit etre verifiable
  * SANS connexion Discord reelle (cf. invariant /health repond vite et sans I/O).
  */
-import { describe, expect, it } from 'bun:test';
-import { createApiServer } from './server';
-import type { StatsProvider } from './stats-provider';
-import { BotClient } from '../client';
-import packageJson from '../../package.json' with { type: 'json' };
+import { describe, expect, it } from "bun:test";
+import { createApiServer } from "./server";
+import type { StatsProvider } from "./stats-provider";
+import { BotClient } from "../client";
+import packageJson from "../../package.json" with { type: "json" };
 
 /** Provider factice : bot non connecte (aucune guild), valeurs deterministes. */
 const offlineProvider: StatsProvider = {
@@ -25,55 +25,55 @@ const offlineProvider: StatsProvider = {
     autoRenameFailuresToday: 0,
     commandsDaily: [],
     discordLatencyMs: -1,
-    version: '0.1.0',
+    version: "0.1.0",
   }),
 };
 
-describe('contrat cibles ↔ bdf-monitor', () => {
-  it('GET /health repond 2xx sans bot connecte', async () => {
+describe("contrat cibles ↔ bdf-monitor", () => {
+  it("GET /health repond 2xx sans bot connecte", async () => {
     const app = await createApiServer({ statsProvider: offlineProvider });
-    const res = await app.inject({ method: 'GET', url: '/health' });
+    const res = await app.inject({ method: "GET", url: "/health" });
     expect(res.statusCode).toBeGreaterThanOrEqual(200);
     expect(res.statusCode).toBeLessThan(300);
     await app.close();
   });
 
-  it('GET /health repond vite (< 3s, sans I/O Discord)', async () => {
+  it("GET /health repond vite (< 3s, sans I/O Discord)", async () => {
     const app = await createApiServer({ statsProvider: offlineProvider });
     const start = performance.now();
-    const res = await app.inject({ method: 'GET', url: '/health' });
+    const res = await app.inject({ method: "GET", url: "/health" });
     const elapsed = performance.now() - start;
     expect(res.statusCode).toBe(200);
     expect(elapsed).toBeLessThan(3000);
     await app.close();
   });
 
-  it('GET /stats retourne un objet JSON', async () => {
+  it("GET /stats retourne un objet JSON", async () => {
     const app = await createApiServer({ statsProvider: offlineProvider });
-    const res = await app.inject({ method: 'GET', url: '/stats' });
+    const res = await app.inject({ method: "GET", url: "/stats" });
     expect(res.statusCode).toBe(200);
     const body: unknown = res.json();
-    expect(typeof body).toBe('object');
+    expect(typeof body).toBe("object");
     expect(body).not.toBeNull();
     expect(Array.isArray(body)).toBe(false);
     await app.close();
   });
 
-  it('GET /stats expose guildCount et userCount typage number (noms du contrat)', async () => {
+  it("GET /stats expose guildCount et userCount typage number (noms du contrat)", async () => {
     const app = await createApiServer({ statsProvider: offlineProvider });
-    const res = await app.inject({ method: 'GET', url: '/stats' });
+    const res = await app.inject({ method: "GET", url: "/stats" });
     const body = res.json() as Record<string, unknown>;
     // Le contrat impose les noms guildCount / userCount (PAS guilds / users).
-    expect(typeof body['guildCount']).toBe('number');
-    expect(typeof body['userCount']).toBe('number');
+    expect(typeof body["guildCount"]).toBe("number");
+    expect(typeof body["userCount"]).toBe("number");
     // #28 : compteur d'echecs d'auto-rename du jour, expose comme number.
-    expect(typeof body['autoRenameFailuresToday']).toBe('number');
+    expect(typeof body["autoRenameFailuresToday"]).toBe("number");
     // #27 : serie commandsDaily, tableau d'objets { day: string, count: number }.
-    const daily = body['commandsDaily'];
+    const daily = body["commandsDaily"];
     expect(Array.isArray(daily)).toBe(true);
     for (const point of daily as Array<Record<string, unknown>>) {
-      expect(typeof point['day']).toBe('string');
-      expect(typeof point['count']).toBe('number');
+      expect(typeof point["day"]).toBe("string");
+      expect(typeof point["count"]).toBe("number");
     }
     await app.close();
   });
@@ -82,13 +82,13 @@ describe('contrat cibles ↔ bdf-monitor', () => {
   // pas un litteral en dur. Un bump de version (ex. tag v2.0.0) se reflete sans
   // toucher au code. On branche le VRAI BotClient (sans login Discord) pour pinner
   // la chaine de provenance package.json -> getStats() -> /stats.
-  it('GET /stats renvoie version === package.json (source unique, pas de hardcode)', async () => {
+  it("GET /stats renvoie version === package.json (source unique, pas de hardcode)", async () => {
     const bot = new BotClient();
     try {
       const app = await createApiServer({ statsProvider: bot });
-      const res = await app.inject({ method: 'GET', url: '/stats' });
+      const res = await app.inject({ method: "GET", url: "/stats" });
       const body = res.json() as Record<string, unknown>;
-      expect(body['version']).toBe(packageJson.version);
+      expect(body["version"]).toBe(packageJson.version);
       await app.close();
     } finally {
       await bot.destroy();

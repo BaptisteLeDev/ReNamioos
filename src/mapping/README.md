@@ -1,6 +1,6 @@
 # Provenance auto-rename — le port `MappingStore` (bounded context)
 
-> **Responsabilité unique** : savoir *d'où vient* la config auto-rename (rôle → style) et la lire /
+> **Responsabilité unique** : savoir _d'où vient_ la config auto-rename (rôle → style) et la lire /
 > l'écrire, sans que les adapters Discord connaissent la source. C'est le point de **provenance
 > centralisée** du mandat `ARCHITECTURE.md`. Introduit en B8
 > ([ADR-0005](../../docs/decisions/0005-config-auto-rename-neon.md), supersède
@@ -8,13 +8,13 @@
 
 ## Langage ubiquitaire
 
-| Terme | Définition |
-|---|---|
-| **Mapping** | Association `roleId → styleName` pour un serveur. Type domaine : `MappingRoleStyle` (objet ordonné). |
-| **Guild** | Serveur Discord. Clé de partition (`guild_id`) : la config est **par serveur**. |
-| **Priorité** | Quand un membre gagne plusieurs rôles mappés d'un coup, le **premier** du mapping ordonné gagne. En Neon : ordre = `updated_at` croissant (ordre d'ajout). |
-| **Mode fichier / mode Neon** | Branché par `DATABASE_URL` : absente ⇒ fichier (dev), présente ⇒ Neon (prod). |
-| **Fallback (transition)** | En mode Neon, lecture du fichier tant qu'une guild n'a aucun mapping en base. Transitoire (à retirer une release plus tard). |
+| Terme                        | Définition                                                                                                                                                 |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Mapping**                  | Association `roleId → styleName` pour un serveur. Type domaine : `MappingRoleStyle` (objet ordonné).                                                       |
+| **Guild**                    | Serveur Discord. Clé de partition (`guild_id`) : la config est **par serveur**.                                                                            |
+| **Priorité**                 | Quand un membre gagne plusieurs rôles mappés d'un coup, le **premier** du mapping ordonné gagne. En Neon : ordre = `updated_at` croissant (ordre d'ajout). |
+| **Mode fichier / mode Neon** | Branché par `DATABASE_URL` : absente ⇒ fichier (dev), présente ⇒ Neon (prod).                                                                              |
+| **Fallback (transition)**    | En mode Neon, lecture du fichier tant qu'une guild n'a aucun mapping en base. Transitoire (à retirer une release plus tard).                               |
 
 ## API publique (port `MappingStore`)
 
@@ -31,14 +31,14 @@ Composition : `creerMappingStore({ databaseUrl, mappingFichier, queries? })` (`i
 
 ## Fichiers et responsabilités
 
-| Fichier | Rôle |
-|---|---|
-| `store.ts` | Le **port** (interface). Tout consommateur (commande `/auto-rename`, `/aide`, événement `guildMemberUpdate`) en dépend, jamais d'un adapter concret. |
-| `neon-store.ts` | Adapter **Neon** : cache en mémoire **par guild**, invalidé (ciblé) à chaque écriture. Reçoit `MappingQueries` par **injection** (testable sans DB). |
-| `neon-queries.ts` | Requêtes **drizzle** concrètes (seul fichier qui écrit du SQL contre `auto_rename_mappings`). `selectByGuild` ordonne par `updated_at` (priorité). |
-| `file-store.ts` | Adapter **fichier** (dev) : lit le mapping injecté ; écriture refusée (erreur explicite → mode Neon). |
-| `composite-store.ts` | Neon + **fallback lecture** fichier (transition). Écriture toujours en Neon. |
-| `index.ts` | **Composition** : branche le bon adapter selon `DATABASE_URL`. |
+| Fichier              | Rôle                                                                                                                                                 |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `store.ts`           | Le **port** (interface). Tout consommateur (commande `/auto-rename`, `/aide`, événement `guildMemberUpdate`) en dépend, jamais d'un adapter concret. |
+| `neon-store.ts`      | Adapter **Neon** : cache en mémoire **par guild**, invalidé (ciblé) à chaque écriture. Reçoit `MappingQueries` par **injection** (testable sans DB). |
+| `neon-queries.ts`    | Requêtes **drizzle** concrètes (seul fichier qui écrit du SQL contre `auto_rename_mappings`). `selectByGuild` ordonne par `updated_at` (priorité).   |
+| `file-store.ts`      | Adapter **fichier** (dev) : lit le mapping injecté ; écriture refusée (erreur explicite → mode Neon).                                                |
+| `composite-store.ts` | Neon + **fallback lecture** fichier (transition). Écriture toujours en Neon.                                                                         |
+| `index.ts`           | **Composition** : branche le bon adapter selon `DATABASE_URL`.                                                                                       |
 
 ## Provenance des données
 
@@ -54,6 +54,10 @@ Composition : `creerMappingStore({ databaseUrl, mappingFichier, queries? })` (`i
   par le port. Changer la source ⇒ un seul point (`index.ts` + l'adapter concerné).
 - **Cache invalidé à l'écriture** : après `add`/`remove`, le `list` suivant de **cette** guild relit
   la base ; les autres guilds gardent leur cache (invalidation ciblée).
+- **Pas de re-peuplement périmé (anti-race)** : un `selectByGuild` en vol capture la **génération** de
+  la guild à son démarrage et ne peuple le cache que si elle n'a pas changé pendant l'`await` ; une
+  invalidation concurrente empêche l'écriture d'un snapshot périmé (sinon un mapping fraîchement
+  ajouté resterait invisible jusqu'au restart).
 - **Init paresseuse de la DB** : aucune connexion Postgres en mode fichier (cf. `src/db/client.ts`).
 - **Domaine pur intact** : ce contexte ne porte aucune règle de stylisation ni de détection de rôle ;
   il fournit le `MappingRoleStyle` ordonné que le domaine (`src/domain/auto-rename.ts`) consomme.

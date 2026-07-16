@@ -8,9 +8,9 @@
  *
  * Petit pool : le bot est un unique processus long-vivant.
  */
-import { Pool } from 'pg';
-import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
-import * as schema from './schema';
+import { Pool } from "pg";
+import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
+import * as schema from "./schema";
 
 export type Db = NodePgDatabase<typeof schema>;
 
@@ -26,8 +26,8 @@ export function getDb(connectionString: string | undefined): Db {
   if (db) return db;
   if (!connectionString) {
     throw new Error(
-      'getDb() appele sans DATABASE_URL : le mode Neon exige une URL de connexion. ' +
-        'En mode fichier (dev), ne pas appeler getDb().',
+      "getDb() appele sans DATABASE_URL : le mode Neon exige une URL de connexion. " +
+        "En mode fichier (dev), ne pas appeler getDb().",
     );
   }
   pool = new Pool({
@@ -36,7 +36,7 @@ export function getDb(connectionString: string | undefined): Db {
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 10_000,
   });
-  pool.on('error', (err) => console.error('[db] pg pool error', err));
+  pool.on("error", (err) => console.error("[db] pg pool error", err));
   db = drizzle(pool, { schema });
   return db;
 }

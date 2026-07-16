@@ -14,10 +14,10 @@
  * erreur explicite. Aucun catch silencieux — une config invalide ne doit pas
  * laisser le bot demarrer avec un auto-rename partiellement casse.
  */
-import { readFileSync } from 'node:fs';
-import { z } from 'zod';
-import { STYLE_NAMES, type StyleName } from '../domain/styles';
-import type { MappingRoleStyle } from '../domain/auto-rename';
+import { readFileSync } from "node:fs";
+import { z } from "zod";
+import { STYLE_NAMES, type StyleName } from "../domain/styles";
+import type { MappingRoleStyle } from "../domain/auto-rename";
 
 /**
  * Chaque valeur du mapping doit etre l'un des 9 styles charges. Un style inconnu
@@ -34,7 +34,7 @@ const schema = z.record(z.string(), z.enum(STYLE_NAMES as unknown as [StyleName,
 export function chargerConfigAutoRename(chemin: string): MappingRoleStyle {
   let brut: string;
   try {
-    brut = readFileSync(chemin, 'utf8');
+    brut = readFileSync(chemin, "utf8");
   } catch (cause) {
     throw new Error(
       `Config auto-rename introuvable ou illisible : « ${chemin} ». ` +
@@ -53,11 +53,11 @@ export function chargerConfigAutoRename(chemin: string): MappingRoleStyle {
   const valide = schema.safeParse(parse);
   if (!valide.success) {
     const details = valide.error.issues
-      .map((i) => `  - role « ${i.path.join('.') || '(racine)'} » : ${i.message}`)
-      .join('\n');
+      .map((i) => `  - role « ${i.path.join(".") || "(racine)"} » : ${i.message}`)
+      .join("\n");
     throw new Error(
       `Config auto-rename « ${chemin} » invalide ` +
-        `(styles autorises : ${STYLE_NAMES.join(', ')}) :\n${details}`,
+        `(styles autorises : ${STYLE_NAMES.join(", ")}) :\n${details}`,
     );
   }
 

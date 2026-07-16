@@ -7,15 +7,15 @@
  *
  * Les queries Neon sont creees ici via getDb (init paresseuse du Pool) sauf override (tests).
  */
-import { getDb } from '../db/client';
-import type { CommandSyncStore } from './store';
-import { creerNeonCommandSyncStore, type CommandSyncQueries } from './neon-store';
-import { creerCommandSyncQueries } from './neon-queries';
-import { creerFileCommandSyncStore, creerFileIo } from './file-store';
+import { getDb } from "../db/client";
+import type { CommandSyncStore } from "./store";
+import { creerNeonCommandSyncStore, type CommandSyncQueries } from "./neon-store";
+import { creerCommandSyncQueries } from "./neon-queries";
+import { creerFileCommandSyncStore, creerFileIo } from "./file-store";
 
-export type { CommandSyncStore } from './store';
+export type { CommandSyncStore } from "./store";
 
-const FICHIER_DEV_PAR_DEFAUT = 'command-sync.json';
+const FICHIER_DEV_PAR_DEFAUT = "command-sync.json";
 
 export interface OptionsCommandSyncStore {
   /** URL Postgres Neon. Absente => mode fichier (dev). */

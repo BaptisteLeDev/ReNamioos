@@ -11,7 +11,7 @@
  * restauration concrete est injectee via le port `restaurer`), donc il est testable sans
  * client reel. L'adapter Discord (src/jobs/index.ts) resout le membre et repose le pseudo.
  */
-import type { OriginalNickStore } from '../original-nick/store';
+import type { OriginalNickStore } from "../original-nick/store";
 
 /** Une ligne echue a restaurer (issue #38). */
 export interface EcheanceARestaurer {
@@ -55,7 +55,7 @@ export async function balayerEcheances(deps: DepsBalayage): Promise<void> {
       if (resultat.ok) {
         await deps.store.forget(echeance.guildId, echeance.memberId);
       } else {
-        log('echec de la restauration temporaire (conservee)', {
+        log("echec de la restauration temporaire (conservee)", {
           guildId: echeance.guildId,
           memberId: echeance.memberId,
           raison: resultat.message,
@@ -63,7 +63,7 @@ export async function balayerEcheances(deps: DepsBalayage): Promise<void> {
       }
     } catch (err) {
       // Jamais de silence ni d'interruption du balayage : on trace et on passe a la suivante.
-      log('exception pendant la restauration temporaire (conservee)', {
+      log("exception pendant la restauration temporaire (conservee)", {
         guildId: echeance.guildId,
         memberId: echeance.memberId,
         erreur: err instanceof Error ? err.message : String(err),

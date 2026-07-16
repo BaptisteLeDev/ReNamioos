@@ -9,11 +9,7 @@
  * chaque commande : un seul endroit decide « quel est le jour courant ? » (horloge
  * injectee), donc identique pour les deux adapters.
  */
-import {
-  agregerCommandsDaily,
-  cleJourUtc,
-  type CompteJournalier,
-} from '../domain/command-usage';
+import { agregerCommandsDaily, cleJourUtc, type CompteJournalier } from "../domain/command-usage";
 
 export interface CacheJournalier {
   /** Remplace le contenu du cache (hydratation au boot depuis la source persistante). */

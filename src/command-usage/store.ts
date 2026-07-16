@@ -11,7 +11,7 @@
  * journaliers (hydrate au boot via `load`, incremente a chaque `record`). La persistance
  * (Neon) sert la survie aux redemarrages ; le cache sert la metrique synchrone.
  */
-import type { CompteJournalier } from '../domain/command-usage';
+import type { CompteJournalier } from "../domain/command-usage";
 
 export interface CommandUsageStore {
   /**

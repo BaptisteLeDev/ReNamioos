@@ -13,7 +13,7 @@
  * Aucune dependance externe : ni Discord.js, ni Fastify, ni I/O. Les seules
  * donnees viennent de `./styles` (provenance centralisee).
  */
-import { CONVERSIONS, STYLES, type StyleName } from './styles';
+import { CONVERSIONS, STYLES, type StyleName } from "./styles";
 
 /** Vrai si le caractere est une lettre Unicode (equivalent Python str.isalpha()). */
 const LETTRE = /\p{L}/u;
@@ -26,7 +26,7 @@ const LETTRE = /\p{L}/u;
  *   (glyphes Unicode hors `[A-Za-z]` -> aucune lettre ASCII a transformer).
  *   Refus propre, pas de de-stylisation magique (ADR-0003, decision 3).
  */
-export type ErreurStylisation = 'style-inconnu' | 'rien-a-styliser' | 'texte-trop-long';
+export type ErreurStylisation = "style-inconnu" | "rien-a-styliser" | "texte-trop-long";
 
 /**
  * Borne du texte d'entree de /convert (finding #24, CWE-20). Un embed Discord
@@ -38,6 +38,45 @@ export const LIMITE_TEXTE_CONVERT = 500;
 
 /** Vrai s'il existe au moins une lettre ASCII `[A-Za-z]` (seule matiere stylisable). */
 const LETTRE_ASCII = /[a-zA-Z]/;
+
+/**
+ * Caracteres INVISIBLES a retirer avant toute application (B3, #45) : format (Cf,
+ * dont RTL-override U+202E, zero-width U+200B-200D, BOM U+FEFF) et controle (Cc).
+ * Ils n'ont aucune valeur dans un pseudo et servent aux attaques d'affichage.
+ */
+const CARACTERE_INVISIBLE = /[\p{Cf}\p{Cc}]/gu;
+
+/** Vrai si le code point est une marque combinante Unicode (\p{M} : accents empiles, zalgo). */
+const MARQUE_COMBINANTE = /\p{M}/u;
+
+/** Nombre maximal de diacritiques combinants CONSECUTIFS tolere (anti-zalgo, B3). */
+export const MAX_DIACRITIQUES_CONSECUTIFS = 2;
+
+/**
+ * Assainit une source AVANT stylisation (regle de domaine B3, #45). Deux passes PURES :
+ *  1. retire tous les caracteres invisibles Cf/Cc (RTL-override, zero-width, BOM, controle) ;
+ *  2. borne les marques combinantes a {@link MAX_DIACRITIQUES_CONSECUTIFS} consecutives
+ *     (le compteur repart de zero a chaque caractere de base) pour neutraliser le zalgo.
+ *
+ * N'altere PAS les lettres (accents precomposes compris), chiffres, espaces ni la
+ * ponctuation ordinaire. Appliquee en tete de `convertirTexte` : impossible pour un
+ * chemin (commande, auto-rename, /convert) de produire un pseudo empoisonne.
+ */
+export function assainirSource(texte: string): string {
+  const sansInvisibles = texte.replace(CARACTERE_INVISIBLE, "");
+  let resultat = "";
+  let combinantsConsecutifs = 0;
+  for (const caractere of sansInvisibles) {
+    if (MARQUE_COMBINANTE.test(caractere)) {
+      if (combinantsConsecutifs >= MAX_DIACRITIQUES_CONSECUTIFS) continue;
+      combinantsConsecutifs += 1;
+    } else {
+      combinantsConsecutifs = 0;
+    }
+    resultat += caractere;
+  }
+  return resultat;
+}
 
 /**
  * Resultat discrimine du pipeline (ADR-0003, decision 3). Rend les etats
@@ -56,7 +95,7 @@ export type ResultatStylisation =
  * espaces/points INTERNES restent conserves (non en bord).
  */
 export function nettoyerPseudo(texte: string): string {
-  return texte.replace(/^[^\p{L}0-9]+/u, '').replace(/[^\p{L}0-9]+$/u, '');
+  return texte.replace(/^[^\p{L}0-9]+/u, "").replace(/[^\p{L}0-9]+$/u, "");
 }
 
 /**
@@ -85,7 +124,7 @@ export function mettreMajusculeDebut(texte: string): string {
     const c = chars[i];
     if (c !== undefined && LETTRE.test(c)) {
       chars[i] = c.toUpperCase();
-      return chars.join('');
+      return chars.join("");
     }
   }
   return texte;
@@ -105,19 +144,21 @@ export function mettreMajusculeDebut(texte: string): string {
 export function convertirTexte(texte: string, style: StyleName): ResultatStylisation {
   const styleMap = STYLES[style];
   // [0] style inconnu -> erreur metier (avant B4 : renvoyait l'entree brute).
-  if (styleMap === undefined) return { ok: false, erreur: 'style-inconnu' };
+  if (styleMap === undefined) return { ok: false, erreur: "style-inconnu" };
 
+  // [0.5] assainir (B3) : retrait Cf/Cc + bornage zalgo AVANT toute autre etape, pour
+  // qu'aucun caractere empoisonne n'atteigne member.edit (commande, auto-rename, /convert).
   // [1] nettoyer  [2] chiffres (chiffres -> lettres ASCII)
-  const converti = convertirChiffres(nettoyerPseudo(texte));
+  const converti = convertirChiffres(nettoyerPseudo(assainirSource(texte)));
 
   // Refus propre : rien a styliser. Seules les lettres ASCII [A-Za-z] sont la
   // matiere du style (les chiffres ont deja ete convertis en lettres ASCII).
   // Absence de lettre ASCII = entree vide, que des symboles, ou DEJA stylisee.
-  if (!LETTRE_ASCII.test(converti)) return { ok: false, erreur: 'rien-a-styliser' };
+  if (!LETTRE_ASCII.test(converti)) return { ok: false, erreur: "rien-a-styliser" };
 
   // [3] capitaliser  [4] mappage style, char par char (styleMap[char] ?? char).
   const prepare = mettreMajusculeDebut(converti);
-  let resultat = '';
+  let resultat = "";
   for (const char of prepare) {
     resultat += styleMap[char] ?? char;
   }
@@ -133,7 +174,7 @@ export function convertirTexte(texte: string, style: StyleName): ResultatStylisa
 export function tronquerPseudo(pseudo: string, limite = 32): string {
   const codePoints = [...pseudo];
   if (codePoints.length > limite) {
-    return codePoints.slice(0, limite).join('');
+    return codePoints.slice(0, limite).join("");
   }
   return pseudo;
 }

@@ -8,11 +8,11 @@
  * le typecheck (drizzle infere les colonnes) et l'execution reelle ; la LOGIQUE (cache,
  * fenetre) est testee sur des fakes (neon-store.test.ts).
  */
-import { desc, sql } from 'drizzle-orm';
-import type { Db } from '../db/client';
-import { commandDaily } from '../db/schema';
-import type { CommandUsageQueries } from './neon-store';
-import type { CompteJournalier } from '../domain/command-usage';
+import { desc, sql } from "drizzle-orm";
+import type { Db } from "../db/client";
+import { commandDaily } from "../db/schema";
+import type { CommandUsageQueries } from "./neon-store";
+import type { CompteJournalier } from "../domain/command-usage";
 
 export function creerCommandUsageQueries(db: Db): CommandUsageQueries {
   return {

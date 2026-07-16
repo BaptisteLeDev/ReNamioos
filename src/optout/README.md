@@ -1,6 +1,6 @@
 # Consentement membre — le port `OptOutStore` (bounded context)
 
-> **Responsabilité unique** : savoir *d'où vient* le consentement d'un membre à l'auto-rename
+> **Responsabilité unique** : savoir _d'où vient_ le consentement d'un membre à l'auto-rename
 > (a-t-il refusé ?) et le lire / l'écrire, sans que les adapters Discord connaissent la source.
 > Point de **provenance centralisée** du mandat `ARCHITECTURE.md`. Introduit pour l'issue
 > [#27](https://github.com/BaptisteLeDev/ReNamioos/issues/27)
@@ -8,13 +8,13 @@
 
 ## Langage ubiquitaire
 
-| Terme | Définition |
-|---|---|
-| **Opt-out** | Le membre **refuse** l'auto-rename sur lui, pour ce serveur (`/renamioos opt-out`). |
-| **Opt-in** | État **par défaut** : l'auto-rename s'applique. `/renamioos opt-in` annule un opt-out. |
-| **Consentement** | Régle pure du domaine (`styleAvecConsentement`) : opt-out ⇒ aucun rename, quel que soit le style déclenché par les rôles. |
-| **Guild / Membre** | Clé de partition `(guild_id, member_id)` : le consentement est **par serveur**. |
-| **Mode mémoire / mode Neon** | Branché par `DATABASE_URL` : absente ⇒ mémoire (dev, éphémère), présente ⇒ Neon (prod, persistant). |
+| Terme                        | Définition                                                                                                                |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **Opt-out**                  | Le membre **refuse** l'auto-rename sur lui, pour ce serveur (`/renamioos opt-out`).                                       |
+| **Opt-in**                   | État **par défaut** : l'auto-rename s'applique. `/renamioos opt-in` annule un opt-out.                                    |
+| **Consentement**             | Régle pure du domaine (`styleAvecConsentement`) : opt-out ⇒ aucun rename, quel que soit le style déclenché par les rôles. |
+| **Guild / Membre**           | Clé de partition `(guild_id, member_id)` : le consentement est **par serveur**.                                           |
+| **Mode mémoire / mode Neon** | Branché par `DATABASE_URL` : absente ⇒ mémoire (dev, éphémère), présente ⇒ Neon (prod, persistant).                       |
 
 ## API publique (port `OptOutStore`)
 
@@ -22,7 +22,7 @@
 interface OptOutStore {
   isOptOut(guildId: string, memberId: string): Promise<boolean>;
   optOut(guildId: string, memberId: string): Promise<void>; // idempotent
-  optIn(guildId: string, memberId: string): Promise<void>;  // idempotent, supprime la ligne
+  optIn(guildId: string, memberId: string): Promise<void>; // idempotent, supprime la ligne
 }
 ```
 
@@ -30,13 +30,13 @@ Composition : `creerOptOutStore({ databaseUrl, queries? })` (`index.ts`).
 
 ## Fichiers et responsabilités
 
-| Fichier | Rôle |
-|---|---|
-| `store.ts` | Le **port** (interface). Consommateurs : commande `/renamioos`, événement `guildMemberUpdate`. |
-| `neon-store.ts` | Adapter **Neon** : cache en mémoire **par guild** (ensemble des `memberId` opt-out), invalidé (ciblé) à chaque écriture. Reçoit `OptOutQueries` par **injection** (testable sans DB). |
-| `neon-queries.ts` | Requêtes **drizzle** concrètes (seul fichier qui écrit du SQL contre `auto_rename_optouts`). `insert` en `ON CONFLICT DO NOTHING` (idempotent). |
-| `memory-store.ts` | Adapter **mémoire** (dev) : consentement éphémère, perdu au redémarrage. Pas de fichier source (donnée d'exécution, pas de config versionnée). |
-| `index.ts` | **Composition** : branche le bon adapter selon `DATABASE_URL`. |
+| Fichier           | Rôle                                                                                                                                                                                  |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `store.ts`        | Le **port** (interface). Consommateurs : commande `/renamioos`, événement `guildMemberUpdate`.                                                                                        |
+| `neon-store.ts`   | Adapter **Neon** : cache en mémoire **par guild** (ensemble des `memberId` opt-out), invalidé (ciblé) à chaque écriture. Reçoit `OptOutQueries` par **injection** (testable sans DB). |
+| `neon-queries.ts` | Requêtes **drizzle** concrètes (seul fichier qui écrit du SQL contre `auto_rename_optouts`). `insert` en `ON CONFLICT DO NOTHING` (idempotent).                                       |
+| `memory-store.ts` | Adapter **mémoire** (dev) : consentement éphémère, perdu au redémarrage. Pas de fichier source (donnée d'exécution, pas de config versionnée).                                        |
+| `index.ts`        | **Composition** : branche le bon adapter selon `DATABASE_URL`.                                                                                                                        |
 
 ## Provenance des données
 

@@ -8,8 +8,8 @@
  *
  * I/O fichier injectee (lire/ecrire) pour rester testable sans toucher au disque.
  */
-import { readFile, writeFile } from 'node:fs/promises';
-import type { CommandSyncStore } from './store';
+import { readFile, writeFile } from "node:fs/promises";
+import type { CommandSyncStore } from "./store";
 
 type Snapshot = Record<string, string[]>;
 
@@ -23,13 +23,13 @@ export function creerFileIo(path: string): FileIo {
   return {
     async read() {
       try {
-        return await readFile(path, 'utf8');
+        return await readFile(path, "utf8");
       } catch {
         return null;
       }
     },
     async write(content) {
-      await writeFile(path, content, 'utf8');
+      await writeFile(path, content, "utf8");
     },
   };
 }
@@ -39,7 +39,7 @@ async function charger(io: FileIo): Promise<Snapshot> {
   if (!raw) return {};
   try {
     const parsed: unknown = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? (parsed as Snapshot) : {};
+    return parsed && typeof parsed === "object" ? (parsed as Snapshot) : {};
   } catch {
     return {};
   }

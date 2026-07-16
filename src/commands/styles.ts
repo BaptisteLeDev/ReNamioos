@@ -6,20 +6,20 @@
  * DERIVE du domaine (apercuStyle -> convertirTexte) : aucun litteral UI a
  * maintenir, donc impossible qu'un style charge soit absent de l'embed.
  */
-import { EmbedBuilder, SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
-import { STYLE_NAMES } from '../domain/styles';
-import type { Command } from './types';
-import { apercuStyle, capitaliser } from './styliser';
+import { EmbedBuilder, SlashCommandBuilder, type ChatInputCommandInteraction } from "discord.js";
+import { STYLE_NAMES } from "../domain/styles";
+import type { Command } from "./types";
+import { apercuStyle, capitaliser } from "./styliser";
 
 export const stylesCommand: Command = {
   data: new SlashCommandBuilder()
-    .setName('styles')
-    .setDescription('Affiche tous les styles de police disponibles.'),
+    .setName("styles")
+    .setDescription("Affiche tous les styles de police disponibles."),
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
     const embed = new EmbedBuilder()
-      .setTitle('🎨 Styles disponibles')
-      .setDescription('Voici tous les styles de police disponibles')
+      .setTitle("🎨 Styles disponibles")
+      .setDescription("Voici tous les styles de police disponibles")
       .setColor(0xf1c40f)
       .addFields(
         STYLE_NAMES.map((style) => ({

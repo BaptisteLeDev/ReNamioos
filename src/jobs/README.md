@@ -8,12 +8,12 @@
 
 ## Langage ubiquitaire
 
-| Terme | Définition |
-|---|---|
-| **Renommage temporaire** | Un `/rename ... duree:2h` : le pseudo se réverte automatiquement à l'échéance. |
-| **Échéance** (`expiresAt`) | Date d'auto-revert (epoch ms), portée par la ligne du pseudo d'origine (#25/#38). |
-| **Balayage** (`sweep`) | Passage périodique qui restaure toutes les lignes dues (`expiresAt <= maintenant`). |
-| **Ligne due** | Ligne dont l'échéance est passée — à restaurer puis oublier. |
+| Terme                      | Définition                                                                                                |
+| -------------------------- | --------------------------------------------------------------------------------------------------------- |
+| **Renommage temporaire**   | Un `/rename ... duree:2h` : le pseudo se réverte automatiquement à l'échéance.                            |
+| **Échéance** (`expiresAt`) | Date d'auto-revert (epoch ms), portée par la ligne du pseudo d'origine (#25/#38).                         |
+| **Balayage** (`sweep`)     | Passage périodique qui restaure toutes les lignes dues (`expiresAt <= maintenant`).                       |
+| **Ligne due**              | Ligne dont l'échéance est passée — à restaurer puis oublier.                                              |
 | **Restauration conservée** | En cas d'échec (membre parti, permission), la ligne **n'est pas** oubliée : retentée au prochain passage. |
 
 ## API publique
@@ -33,10 +33,10 @@ demarrerBalayagePeriodique({ client, store, intervalleMs? }): () => void; // ren
 
 ## Fichiers et responsabilités
 
-| Fichier | Rôle |
-|---|---|
-| `sweep-temporaire.ts` | **Orchestrateur pur** : lit `store.listDue(now)`, appelle `restaurer` (port injecté), `forget` en cas de succès. Aucun import discord.js. |
-| `index.ts` | **Composition** : adapter Discord (`creerRestaurerDiscord` via `restaurerPseudo`) + minuteur `setInterval` (`demarrerBalayagePeriodique`). |
+| Fichier               | Rôle                                                                                                                                       |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `sweep-temporaire.ts` | **Orchestrateur pur** : lit `store.listDue(now)`, appelle `restaurer` (port injecté), `forget` en cas de succès. Aucun import discord.js.  |
+| `index.ts`            | **Composition** : adapter Discord (`creerRestaurerDiscord` via `restaurerPseudo`) + minuteur `setInterval` (`demarrerBalayagePeriodique`). |
 
 ## Provenance des données
 

@@ -10,10 +10,10 @@
  * couvert par le typecheck (drizzle infere les colonnes du schema) et par l'execution
  * reelle. La LOGIQUE (cache, invalidation) est testee sur des fakes (neon-store.test.ts).
  */
-import { and, eq } from 'drizzle-orm';
-import type { Db } from '../db/client';
-import { autoRenameOptouts } from '../db/schema';
-import type { OptOutQueries } from './neon-store';
+import { and, eq } from "drizzle-orm";
+import type { Db } from "../db/client";
+import { autoRenameOptouts } from "../db/schema";
+import type { OptOutQueries } from "./neon-store";
 
 export function creerNeonOptOutQueries(db: Db): OptOutQueries {
   return {
@@ -27,10 +27,7 @@ export function creerNeonOptOutQueries(db: Db): OptOutQueries {
 
     async insert(guildId, memberId) {
       // ON CONFLICT DO NOTHING : opt-out idempotent sur la PK (guild_id, member_id).
-      await db
-        .insert(autoRenameOptouts)
-        .values({ guildId, memberId })
-        .onConflictDoNothing();
+      await db.insert(autoRenameOptouts).values({ guildId, memberId }).onConflictDoNothing();
     },
 
     async deleteOne(guildId, memberId) {

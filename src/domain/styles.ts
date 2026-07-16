@@ -15,19 +15,19 @@
  * par src/config/auto-rename-config.ts. Source de verite UNIQUE (l'ancien
  * `ROLE_CONFIG` / `data/roles.json`, copie du legacy `role.json`, a ete retire).
  */
-import stylesData from './data/styles.json';
+import stylesData from "./data/styles.json";
 
 /** Les 9 styles charges (scriptify inclus), dans l'ordre de `styles.json`. */
 export const STYLE_NAMES = [
-  'cercles',
-  'cursive',
-  'gothique',
-  'gras',
-  'monospace',
-  'carres',
-  'double',
-  'fullwidth',
-  'scriptify',
+  "cercles",
+  "cursive",
+  "gothique",
+  "gras",
+  "monospace",
+  "carres",
+  "double",
+  "fullwidth",
+  "scriptify",
 ] as const;
 
 export type StyleName = (typeof STYLE_NAMES)[number];

@@ -32,6 +32,23 @@ export interface OriginalNickStore {
     nick: string,
     expiresAt?: number,
   ): Promise<void>;
+  /**
+   * Pose (ou RAFRAICHIT) une ECHEANCE temporaire (#38, audit). Contrairement a
+   * `rememberIfAbsent` (idempotent, no-op si une ligne existe), ECRIT toujours l'echeance,
+   * MEME si une ligne existe deja (ON CONFLICT DO UPDATE SET expires_at) : un membre deja
+   * sous auto-rename par role peut recevoir un `/rename ... duree:` sans que l'echeance soit
+   * perdue (sinon le rename « temporaire » resterait PERMANENT). Ne modifie JAMAIS le pseudo
+   * d'origine d'une ligne existante (on garde le vrai original, pas le pseudo deja stylise
+   * passe en argument). Renvoie `true` si une NOUVELLE ligne a ete creee (le `nick` fourni en
+   * devient l'original), `false` si une ligne preexistait (seule l'echeance est mise a jour).
+   * L'appelant s'en sert pour ne `forget()` sur echec QUE la ligne qu'il a lui-meme creee.
+   */
+  rememberWithDeadline(
+    guildId: string,
+    memberId: string,
+    nick: string,
+    expiresAt: number,
+  ): Promise<boolean>;
   /** Oublie le pseudo memorise et son echeance (apres restauration). Idempotent. */
   forget(guildId: string, memberId: string): Promise<void>;
   /**
@@ -40,4 +57,24 @@ export interface OriginalNickStore {
    * job de balayage qui restaure puis `forget`.
    */
   listDue(maintenant: number): Promise<Array<{ guildId: string; memberId: string; nick: string }>>;
+  /**
+   * Echeances temporaires A VENIR (`expiresAt > maintenant`) de CETTE guilde — issue #46,
+   * `/rename pending`. Complementaire de `listDue` (echues) : ce que le job n'a pas encore
+   * restaure. Exclut les lignes sans echeance (auto-rename par role, jamais « pending »).
+   * L'ordre n'est pas garanti par le port (le tri par echeance est fait a l'affichage).
+   */
+  listPendingByGuild(
+    guildId: string,
+    maintenant: number,
+  ): Promise<Array<{ memberId: string; nick: string; expiresAt: number }>>;
+  /**
+   * La ligne TEMPORAIRE (avec echeance) d'un membre, ou null si aucune — issue #46,
+   * `/rename cancel`. Renvoie null pour une ligne SANS echeance (round-trip par role #25) :
+   * annuler ne doit jamais oublier un original pilote par les roles. Distinct de `get`, qui
+   * ignore la nature temporaire ou non de la ligne.
+   */
+  getPending(
+    guildId: string,
+    memberId: string,
+  ): Promise<{ nick: string; expiresAt: number } | null>;
 }

@@ -17,26 +17,27 @@ import {
   Routes,
   type Interaction,
   type RESTPostAPIApplicationCommandsJSONBody,
-} from 'discord.js';
-import type { Command } from './commands/types';
-import { creerCommandes } from './commands/index';
-import { deployApplicationCommands } from './commands/deploy-runtime';
-import type { BotStats, StatsProvider } from './api/stats-provider';
-import { creerGestionnaireMembreMisAJour } from './events/guild-member-update';
-import type { MappingStore } from './mapping/store';
-import { creerFileMappingStore } from './mapping/file-store';
-import type { OptOutStore } from './optout/store';
-import { creerMemoryOptOutStore } from './optout/memory-store';
-import type { AutoRenameLogStore } from './auto-rename-log/store';
-import { creerMemoryAutoRenameLogStore } from './auto-rename-log/memory-store';
-import { CAPACITE_JOURNAL_PAR_GUILD } from './auto-rename-log/index';
-import type { OriginalNickStore } from './original-nick/store';
-import { creerMemoryOriginalNickStore } from './original-nick/memory-store';
-import type { CommandSyncStore } from './command-sync/store';
-import { creerFileCommandSyncStore, creerFileIo } from './command-sync/file-store';
-import type { CommandUsageStore } from './command-usage/store';
-import { creerMemoryCommandUsageStore } from './command-usage/memory-store';
-import packageJson from '../package.json' with { type: 'json' };
+} from "discord.js";
+import type { Command } from "./commands/types";
+import { creerCommandes } from "./commands/index";
+import { deployApplicationCommands } from "./commands/deploy-runtime";
+import { repondreErreurRouteur } from "./router-error";
+import type { BotStats, StatsProvider } from "./api/stats-provider";
+import { creerGestionnaireMembreMisAJour } from "./events/guild-member-update";
+import type { MappingStore } from "./mapping/store";
+import { creerFileMappingStore } from "./mapping/file-store";
+import type { OptOutStore } from "./optout/store";
+import { creerMemoryOptOutStore } from "./optout/memory-store";
+import type { AutoRenameLogStore } from "./auto-rename-log/store";
+import { creerMemoryAutoRenameLogStore } from "./auto-rename-log/memory-store";
+import { CAPACITE_JOURNAL_PAR_GUILD } from "./auto-rename-log/index";
+import type { OriginalNickStore } from "./original-nick/store";
+import { creerMemoryOriginalNickStore } from "./original-nick/memory-store";
+import type { CommandSyncStore } from "./command-sync/store";
+import { creerFileCommandSyncStore, creerFileIo } from "./command-sync/file-store";
+import type { CommandUsageStore } from "./command-usage/store";
+import { creerMemoryCommandUsageStore } from "./command-usage/memory-store";
+import packageJson from "../package.json" with { type: "json" };
 
 export interface OptionsBotClient {
   /** Provenance UNIQUE de la config auto-rename (B8, ADR-0005). */
@@ -74,7 +75,7 @@ export class BotClient extends Client implements StatsProvider {
   /** Source de la serie commandsDaily (30j) exposee dans /stats (issue #27). */
   private readonly commandUsageStore: CommandUsageStore;
   /** Identifiants Discord (auto-deploiement #40 + /update). Absents en test. */
-  private readonly discord: OptionsBotClient['discord'];
+  private readonly discord: OptionsBotClient["discord"];
   /** Client REST partage par /update et l'auto-deploiement (#40). Absent sans `discord`. */
   private readonly restClient: REST | undefined;
 
@@ -98,11 +99,11 @@ export class BotClient extends Client implements StatsProvider {
     this.autoRenameLogStore = autoRenameLogStore;
     const originalNickStore = options.originalNickStore ?? creerMemoryOriginalNickStore();
     const commandSyncStore =
-      options.commandSyncStore ?? creerFileCommandSyncStore(creerFileIo('command-sync.json'));
+      options.commandSyncStore ?? creerFileCommandSyncStore(creerFileIo("command-sync.json"));
     this.commandUsageStore = options.commandUsageStore ?? creerMemoryCommandUsageStore();
     this.discord = options.discord;
     this.restClient = options.discord
-      ? new REST({ version: '10' }).setToken(options.discord.token)
+      ? new REST({ version: "10" }).setToken(options.discord.token)
       : undefined;
     const redeploy = this.construireRedeploy(options.discord);
 
@@ -136,7 +137,7 @@ export class BotClient extends Client implements StatsProvider {
     this.on(Events.InteractionCreate, (interaction) => {
       void this.handleInteraction(interaction);
     });
-    this.on(Events.Error, (err) => console.error('Erreur client Discord :', err));
+    this.on(Events.Error, (err) => console.error("Erreur client Discord :", err));
   }
 
   private async handleInteraction(interaction: Interaction): Promise<void> {
@@ -164,16 +165,13 @@ export class BotClient extends Client implements StatsProvider {
       // si la persistance Neon a un souci (le cache memoire a deja ete incremente).
       void this.commandUsageStore
         .record()
-        .catch((err) => console.error('Echec persistance suivi usage commande :', err));
+        .catch((err) => console.error("Echec persistance suivi usage commande :", err));
       await command.execute(interaction);
     } catch (err) {
       console.error(`Erreur a l'execution de /${interaction.commandName} :`, err);
-      const payload = { content: 'Une erreur est survenue.', ephemeral: true };
-      if (interaction.replied || interaction.deferred) {
-        await interaction.followUp(payload);
-      } else {
-        await interaction.reply(payload);
-      }
+      // Reponse de secours GARDEE (T1/audit) : ne jamais laisser un rejet du reply/followUp
+      // remonter en unhandledRejection (handler branche via `void handleInteraction`).
+      await repondreErreurRouteur(interaction, interaction.commandName);
     }
   }
 
@@ -183,11 +181,11 @@ export class BotClient extends Client implements StatsProvider {
    * /update repondra alors son message d'erreur ephemere standard.
    */
   private construireRedeploy(
-    discord: OptionsBotClient['discord'],
+    discord: OptionsBotClient["discord"],
   ): (guildId: string, payload: RESTPostAPIApplicationCommandsJSONBody[]) => Promise<void> {
     if (!discord || !this.restClient) {
       return () =>
-        Promise.reject(new Error('Re-deploiement indisponible : identifiants Discord absents.'));
+        Promise.reject(new Error("Re-deploiement indisponible : identifiants Discord absents."));
     }
     const rest = this.restClient;
     return async (guildId, payload) => {
@@ -217,7 +215,7 @@ export class BotClient extends Client implements StatsProvider {
         log: { info: (m) => console.log(m), warn: (m) => console.warn(m) },
       });
     } catch (err) {
-      console.error('Echec du deploiement des commandes au demarrage (non bloquant) :', err);
+      console.error("Echec du deploiement des commandes au demarrage (non bloquant) :", err);
     }
   }
 

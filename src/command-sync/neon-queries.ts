@@ -6,10 +6,10 @@
  * de credentials Neon en local) : couvert par le typecheck (drizzle infere les colonnes)
  * et l'execution reelle ; la LOGIQUE est testee sur des fakes.
  */
-import { eq } from 'drizzle-orm';
-import type { Db } from '../db/client';
-import { guildCommandSync } from '../db/schema';
-import type { CommandSyncQueries } from './neon-store';
+import { eq } from "drizzle-orm";
+import type { Db } from "../db/client";
+import { guildCommandSync } from "../db/schema";
+import type { CommandSyncQueries } from "./neon-store";
 
 export function creerCommandSyncQueries(db: Db): CommandSyncQueries {
   return {

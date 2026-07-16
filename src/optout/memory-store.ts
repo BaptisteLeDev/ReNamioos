@@ -7,7 +7,7 @@
  * reste donc fonctionnelle hors Neon, sans persistance entre deux runs (acceptable en
  * dev ; la persistance par serveur n'existe qu'en mode Neon, comme le mapping).
  */
-import type { OptOutStore } from './store';
+import type { OptOutStore } from "./store";
 
 export function creerMemoryOptOutStore(): OptOutStore {
   const parGuild = new Map<string, Set<string>>();

@@ -14,23 +14,27 @@
  * Elle DERIVE sa liste du registre via une reference paresseuse (commandsRef), pour
  * s'inclure elle-meme sans cycle a la construction.
  */
-import { creerAideCommand } from './aide';
-import { creerAutoRenameCommand } from './auto-rename';
-import { creerRenamioosCommand } from './renamioos';
-import { convertCommand } from './convert';
-import { pingCommand } from './ping';
-import { previewCommand } from './preview';
-import { randomCommand } from './random';
-import { creerRenameCommand } from './rename';
-import { stylesCommand } from './styles';
-import { creerUpdateCommand } from './update';
-import type { Command } from './types';
-import type { MappingStore } from '../mapping/store';
-import type { OptOutStore } from '../optout/store';
-import type { AutoRenameLogStore } from '../auto-rename-log/store';
-import type { CommandSyncStore } from '../command-sync/store';
-import type { OriginalNickStore } from '../original-nick/store';
-import type { RESTPostAPIApplicationCommandsJSONBody } from 'discord.js';
+import { creerAideCommand } from "./aide";
+import { creerAutoRenameCommand } from "./auto-rename";
+import { creerRenamioosCommand } from "./renamioos";
+import { convertCommand } from "./convert";
+import { pingCommand } from "./ping";
+import { previewCommand } from "./preview";
+import { creerRandomCommand } from "./random";
+import { creerRenameCommand } from "./rename";
+import { creerRenamePendingCommand } from "./rename-pending";
+import { creerRenameCancelCommand } from "./rename-cancel";
+import { creerCompteurFenetre, type CompteurFenetre } from "../limitation/compteur-fenetre";
+import { FENETRE_RENOMMAGE_MS, LIMITE_RENOMMAGE_PAR_INVOCATEUR } from "../domain/fenetre-glissante";
+import { stylesCommand } from "./styles";
+import { creerUpdateCommand } from "./update";
+import type { Command } from "./types";
+import type { MappingStore } from "../mapping/store";
+import type { OptOutStore } from "../optout/store";
+import type { AutoRenameLogStore } from "../auto-rename-log/store";
+import type { CommandSyncStore } from "../command-sync/store";
+import type { OriginalNickStore } from "../original-nick/store";
+import type { RESTPostAPIApplicationCommandsJSONBody } from "discord.js";
 
 export interface OptionsCommandes {
   mappingStore: MappingStore;
@@ -43,19 +47,41 @@ export interface OptionsCommandes {
   originalNickStore: OriginalNickStore;
   /** PUT REST des commandes sur la guild courante (I/O Discord isolee). */
   redeploy(guildId: string, payload: RESTPostAPIApplicationCommandsJSONBody[]): Promise<void>;
+  /**
+   * Cooldown anti mass-rename PARTAGÉ par /rename et /random (B1). Une seule instance
+   * pour que la limite de 3 renommages/60 s couvre les deux commandes par invocateur/guilde.
+   * Défaut : compteur mémoire neuf (utile en test/deploy-commands).
+   */
+  cooldownRename?: CompteurFenetre;
 }
 
 export function creerCommandes(options: OptionsCommandes): Command[] {
-  const { mappingStore, optOutStore, autoRenameLogStore, commandSyncStore, originalNickStore, redeploy } =
-    options;
+  const {
+    mappingStore,
+    optOutStore,
+    autoRenameLogStore,
+    commandSyncStore,
+    originalNickStore,
+    redeploy,
+  } = options;
+
+  // Cooldown PARTAGÉ /rename + /random (B1) : une seule instance couvre les deux commandes.
+  const cooldownRename =
+    options.cooldownRename ??
+    creerCompteurFenetre({
+      limite: LIMITE_RENOMMAGE_PAR_INVOCATEUR,
+      fenetreMs: FENETRE_RENOMMAGE_MS,
+    });
 
   const commandes: Command[] = [
     pingCommand,
     stylesCommand,
     convertCommand,
     previewCommand,
-    creerRenameCommand(originalNickStore),
-    randomCommand,
+    creerRenameCommand(originalNickStore, cooldownRename),
+    creerRenamePendingCommand(originalNickStore),
+    creerRenameCancelCommand(originalNickStore),
+    creerRandomCommand(cooldownRename),
     creerAutoRenameCommand(mappingStore, autoRenameLogStore),
     creerRenamioosCommand(optOutStore),
     creerAideCommand(mappingStore),

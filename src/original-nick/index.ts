@@ -8,13 +8,13 @@
  *
  * Les queries Neon sont creees via getDb (init paresseuse du pool) sauf si on en injecte.
  */
-import { getDb } from '../db/client';
-import type { OriginalNickStore } from './store';
-import { creerNeonOriginalNickStore, type OriginalNickQueries } from './neon-store';
-import { creerNeonOriginalNickQueries } from './neon-queries';
-import { creerMemoryOriginalNickStore } from './memory-store';
+import { getDb } from "../db/client";
+import type { OriginalNickStore } from "./store";
+import { creerNeonOriginalNickStore, type OriginalNickQueries } from "./neon-store";
+import { creerNeonOriginalNickQueries } from "./neon-queries";
+import { creerMemoryOriginalNickStore } from "./memory-store";
 
-export type { OriginalNickStore } from './store';
+export type { OriginalNickStore } from "./store";
 
 export interface OptionsOriginalNickStore {
   /** URL Postgres Neon. Absente => mode memoire (dev). */
@@ -25,7 +25,6 @@ export interface OptionsOriginalNickStore {
 
 export function creerOriginalNickStore(options: OptionsOriginalNickStore): OriginalNickStore {
   if (!options.databaseUrl) return creerMemoryOriginalNickStore();
-  const queries =
-    options.queries ?? creerNeonOriginalNickQueries(getDb(options.databaseUrl));
+  const queries = options.queries ?? creerNeonOriginalNickQueries(getDb(options.databaseUrl));
   return creerNeonOriginalNickStore(queries);
 }
