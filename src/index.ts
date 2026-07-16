@@ -18,6 +18,7 @@ import { creerAutoRenameLogStore } from "./auto-rename-log/index";
 import { creerOriginalNickStore } from "./original-nick/index";
 import { creerCommandSyncStore } from "./command-sync/index";
 import { creerCommandUsageStore } from "./command-usage/index";
+import { creerGuildSettingsStore } from "./guildsettings/index";
 import { demarrerBalayagePeriodique } from "./jobs/index";
 import { closeDb } from "./db/client";
 import { runMigrations } from "./db/migrate";
@@ -69,6 +70,11 @@ async function bootstrap(): Promise<void> {
   const commandUsageStore = creerCommandUsageStore({ databaseUrl: config.database.url });
   await commandUsageStore.load();
 
+  // Provenance des reglages par serveur (socle : langue + couleur d'embed). Neon en prod
+  // (par serveur, persistant), memoire en dev. Toujours enveloppe dans le cache lecture par
+  // guilde (TTL borne + garde de generation). Table guild_settings additive (migration 0001).
+  const settingsStore = creerGuildSettingsStore({ databaseUrl: config.database.url });
+
   const bot = new BotClient({
     mappingStore,
     optOutStore,
@@ -76,6 +82,7 @@ async function bootstrap(): Promise<void> {
     originalNickStore,
     commandSyncStore,
     commandUsageStore,
+    settingsStore,
     discord: {
       applicationId: config.discord.applicationId,
       token: config.discord.token,

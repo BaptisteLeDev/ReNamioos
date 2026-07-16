@@ -37,6 +37,11 @@ import type { CommandSyncStore } from "./command-sync/store";
 import { creerFileCommandSyncStore, creerFileIo } from "./command-sync/file-store";
 import type { CommandUsageStore } from "./command-usage/store";
 import { creerMemoryCommandUsageStore } from "./command-usage/memory-store";
+import type { GuildSettingsStore } from "./guildsettings/store";
+import { creerMemoryGuildSettingsStore } from "./guildsettings/memory-store";
+import { creerCachedGuildSettingsStore } from "./guildsettings/cached-store";
+import { creerEmbedFactory } from "./theming/embed";
+import { THEME_RENAMIOOS } from "./theming/theme";
 import packageJson from "../package.json" with { type: "json" };
 
 export interface OptionsBotClient {
@@ -52,6 +57,8 @@ export interface OptionsBotClient {
   commandSyncStore?: CommandSyncStore;
   /** Provenance UNIQUE du suivi d'usage des commandes (issue #27). Defaut : memoire (dev). */
   commandUsageStore?: CommandUsageStore;
+  /** Provenance UNIQUE des reglages par serveur (socle : langue + couleur). Defaut : cache(memoire). */
+  settingsStore?: GuildSettingsStore;
   /**
    * Identifiants Discord pour le PUT REST de /update (re-synchro par serveur) ET pour
    * l'auto-deploiement au demarrage (#40). Absents (defaut en test) => /update repond
@@ -101,6 +108,12 @@ export class BotClient extends Client implements StatsProvider {
     const commandSyncStore =
       options.commandSyncStore ?? creerFileCommandSyncStore(creerFileIo("command-sync.json"));
     this.commandUsageStore = options.commandUsageStore ?? creerMemoryCommandUsageStore();
+    // Socle de personnalisation par serveur : store de reglages (defaut cache(memoire) en
+    // dev/test ; le bootstrap injecte l'adapter Neon si DATABASE_URL) + fabrique d'embeds
+    // themee, injectes aux commandes (/config, /convert).
+    const settingsStore =
+      options.settingsStore ?? creerCachedGuildSettingsStore(creerMemoryGuildSettingsStore());
+    const embedFactory = creerEmbedFactory(THEME_RENAMIOOS);
     this.discord = options.discord;
     this.restClient = options.discord
       ? new REST({ version: "10" }).setToken(options.discord.token)
@@ -113,6 +126,8 @@ export class BotClient extends Client implements StatsProvider {
       autoRenameLogStore,
       commandSyncStore,
       originalNickStore,
+      settingsStore,
+      embedFactory,
       redeploy,
     })) {
       this.commands.set(cmd.data.name, cmd);

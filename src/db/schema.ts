@@ -27,6 +27,7 @@ import {
   integer,
   date,
   index,
+  varchar,
 } from "drizzle-orm/pg-core";
 
 /** Config persistante. Une ligne par (guild, role). Cle = style applique au gain du role. */
@@ -173,4 +174,34 @@ export const commandDaily = pgTable("command_daily", {
   /** Jour UTC (cle). Stocke en `date` Postgres ; rendu "AAAA-MM-JJ" cote requete. */
   day: date("day").primaryKey(),
   count: integer("count").notNull().default(0),
+});
+
+/**
+ * Personnalisation par serveur (socle de flotte) — langue et couleur d'embed. ADDITIF :
+ * table DISTINCTE des autres (aucune fusion avec auto_rename_mappings ni les pseudos
+ * d'origine). C'est de la CONFIG : persistante, sans TTL, minuscule (une ligne par guilde
+ * configuree). Minimisation D8 : colonnes TYPEES, aucun JSON, aucune PII (guild_id public),
+ * aucune donnee utilisateur.
+ *
+ * Les VO sont RE-VALIDES en lecture (parseLocale / parseEmbedColor, cf. neon-store.ts) :
+ * `preferred_locale` NULL = pas d'override (resolution auto) ; `embed_color` NULL = couleur
+ * par defaut du bot. Le lead provisionne la table sur Neon depuis la migration generee ici.
+ *
+ * DDL (equivalent) :
+ *   guild_settings(
+ *     guild_id         varchar(20) primary key,
+ *     preferred_locale varchar(5),          -- null = pas d'override
+ *     embed_color      integer,             -- null = couleur defaut bot
+ *     created_at       timestamptz not null default now(),
+ *     updated_at       timestamptz not null default now()
+ *   );
+ */
+export const guildSettings = pgTable("guild_settings", {
+  guildId: varchar("guild_id", { length: 20 }).primaryKey(),
+  /** Override de langue pose via /config. `null` = pas d'override. */
+  preferredLocale: varchar("preferred_locale", { length: 5 }),
+  /** Override de couleur d'embed (entier RGB 24 bits). `null` = couleur defaut du bot. */
+  embedColor: integer("embed_color"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

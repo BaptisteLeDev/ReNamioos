@@ -17,7 +17,8 @@
 import { creerAideCommand } from "./aide";
 import { creerAutoRenameCommand } from "./auto-rename";
 import { creerRenamioosCommand } from "./renamioos";
-import { convertCommand } from "./convert";
+import { creerConvertCommand } from "./convert";
+import { creerConfigCommand } from "./config";
 import { pingCommand } from "./ping";
 import { previewCommand } from "./preview";
 import { creerRandomCommand } from "./random";
@@ -34,6 +35,8 @@ import type { OptOutStore } from "../optout/store";
 import type { AutoRenameLogStore } from "../auto-rename-log/store";
 import type { CommandSyncStore } from "../command-sync/store";
 import type { OriginalNickStore } from "../original-nick/store";
+import type { GuildSettingsStore } from "../guildsettings/store";
+import type { EmbedTheme } from "../theming/embed";
 import type { RESTPostAPIApplicationCommandsJSONBody } from "discord.js";
 
 export interface OptionsCommandes {
@@ -45,6 +48,10 @@ export interface OptionsCommandes {
   commandSyncStore: CommandSyncStore;
   /** Provenance du pseudo d'origine + echeance (#25/#38), pour /rename ... duree:. */
   originalNickStore: OriginalNickStore;
+  /** Provenance des reglages par serveur (socle : langue + couleur), pour /config et /convert. */
+  settingsStore: GuildSettingsStore;
+  /** Fabrique d'embeds themee (socle) : couleur du theme ou override de la guilde. */
+  embedFactory: EmbedTheme;
   /** PUT REST des commandes sur la guild courante (I/O Discord isolee). */
   redeploy(guildId: string, payload: RESTPostAPIApplicationCommandsJSONBody[]): Promise<void>;
   /**
@@ -62,6 +69,8 @@ export function creerCommandes(options: OptionsCommandes): Command[] {
     autoRenameLogStore,
     commandSyncStore,
     originalNickStore,
+    settingsStore,
+    embedFactory,
     redeploy,
   } = options;
 
@@ -76,7 +85,7 @@ export function creerCommandes(options: OptionsCommandes): Command[] {
   const commandes: Command[] = [
     pingCommand,
     stylesCommand,
-    convertCommand,
+    creerConvertCommand(settingsStore, embedFactory),
     previewCommand,
     creerRenameCommand(originalNickStore, cooldownRename),
     creerRenamePendingCommand(originalNickStore),
@@ -85,6 +94,7 @@ export function creerCommandes(options: OptionsCommandes): Command[] {
     creerAutoRenameCommand(mappingStore, autoRenameLogStore),
     creerRenamioosCommand(optOutStore),
     creerAideCommand(mappingStore),
+    creerConfigCommand(settingsStore, embedFactory),
   ];
 
   commandes.push(

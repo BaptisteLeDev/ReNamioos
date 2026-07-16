@@ -16,6 +16,9 @@ import { creerMemoryAutoRenameLogStore } from "./auto-rename-log/memory-store";
 import { CAPACITE_JOURNAL_PAR_GUILD } from "./auto-rename-log/index";
 import { creerFileCommandSyncStore, creerFileIo } from "./command-sync/file-store";
 import { creerMemoryOriginalNickStore } from "./original-nick/memory-store";
+import { creerMemoryGuildSettingsStore } from "./guildsettings/memory-store";
+import { creerEmbedFactory } from "./theming/embed";
+import { THEME_RENAMIOOS } from "./theming/theme";
 
 async function deploy(): Promise<void> {
   const config = loadConfig();
@@ -30,6 +33,8 @@ async function deploy(): Promise<void> {
     }),
     commandSyncStore: creerFileCommandSyncStore(creerFileIo("command-sync.json")),
     originalNickStore: creerMemoryOriginalNickStore(),
+    settingsStore: creerMemoryGuildSettingsStore(),
+    embedFactory: creerEmbedFactory(THEME_RENAMIOOS),
     redeploy: () => Promise.resolve(),
   }).map((c) => c.data.toJSON());
   const rest = new REST({ version: "10" }).setToken(config.discord.token);

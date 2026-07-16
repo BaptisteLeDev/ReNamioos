@@ -1,27 +1,37 @@
 /**
  * Test d'acceptation de /convert <texte> <style>.
  *
- * Successeur de convert_slash (bot.py:218). Adapter pur : extrait texte+style,
- * appelle le domaine (convertirTexte), repose le resultat. ÉCART VOLONTAIRE
- * (B4, ADR-0003 decision 3) : le domaine renvoie un Result -> l'erreur metier
- * (style inconnu, rien a styliser/deja stylise) est traduite en message
- * ephemere ; aucun rendu fantaisiste.
+ * Successeur de convert_slash (bot.py:218). Adapter pur : extrait texte+style, appelle le
+ * domaine (convertirTexte), repose le resultat. ÉCART VOLONTAIRE (B4, ADR-0003 decision 3) :
+ * l'erreur metier est traduite en message ephemere ; aucun rendu fantaisiste.
  *
- * Mock Discord a la frontiere uniquement : le domaine reste sans mock.
+ * PREUVE D'USAGE DU SOCLE : l'embed de succes est desormais produit par la FABRIQUE THEMEE
+ * (couleur du theme, ou override de la guilde via /config) et son titre/champs sont resolus
+ * dans la LOCALE effective (override /config > locale Discord > FR). Mock Discord a la
+ * frontiere uniquement ; le domaine reste sans mock.
  */
 import { describe, expect, it } from "bun:test";
-import { convertCommand } from "./convert";
+import { creerConvertCommand } from "./convert";
+import { creerMemoryGuildSettingsStore } from "../guildsettings/memory-store";
+import { creerEmbedFactory } from "../theming/embed";
+import { THEME_RENAMIOOS } from "../theming/theme";
+import { parseEmbedColor } from "../domain/embed-color";
+import type { GuildSettingsStore } from "../guildsettings/store";
+import { en } from "../i18n/catalog";
 
 interface Captured {
-  embeds: { data: { fields?: { name: string; value: string }[] } }[];
+  embeds: { data: { color?: number; title?: string; fields?: { name: string; value: string }[] } }[];
   content: string;
   ephemeral: boolean;
 }
 
-/** Double : interaction avec options string (texte/style) et reply capturee. */
-function fakeInteraction(opts: { texte: string; style: string }) {
+/** Double : interaction avec options string (texte/style), contexte guilde, reply capturee. */
+function fakeInteraction(opts: { texte: string; style: string; discordLocale?: string }) {
   const captured: Captured = { embeds: [], content: "", ephemeral: false };
   const interaction = {
+    guildId: "g1",
+    guild: { preferredLocale: opts.discordLocale ?? "fr" },
+    locale: opts.discordLocale ?? "fr",
     options: {
       getString: (name: string, _required?: boolean) =>
         name === "texte" ? opts.texte : opts.style,
@@ -36,15 +46,19 @@ function fakeInteraction(opts: { texte: string; style: string }) {
   return { interaction, captured };
 }
 
+function creerCmd(store: GuildSettingsStore = creerMemoryGuildSettingsStore()) {
+  return creerConvertCommand(store, creerEmbedFactory(THEME_RENAMIOOS));
+}
+
 describe("commande /convert", () => {
   it('se nomme "convert" et a une description', () => {
-    expect(convertCommand.data.name).toBe("convert");
-    expect(convertCommand.data.description.length).toBeGreaterThan(0);
+    expect(creerCmd().data.name).toBe("convert");
+    expect(creerCmd().data.description.length).toBeGreaterThan(0);
   });
 
   it("stylise un texte et repond un embed (Original + Resultat)", async () => {
     const { interaction, captured } = fakeInteraction({ texte: "abc", style: "cursive" });
-    await convertCommand.execute(interaction);
+    await creerCmd().execute(interaction);
     expect(captured.embeds.length).toBe(1);
     const fields = captured.embeds[0]?.data.fields ?? [];
     const valeurs = fields.map((f) => f.value).join(" ");
@@ -53,16 +67,42 @@ describe("commande /convert", () => {
   });
 
   it("la reponse de SUCCES est EPHEMERE (B4, #45)", async () => {
-    // Comme les reponses d'erreur, le succes de /convert ne pollue plus le salon.
     const { interaction, captured } = fakeInteraction({ texte: "abc", style: "cursive" });
-    await convertCommand.execute(interaction);
+    await creerCmd().execute(interaction);
     expect(captured.embeds.length).toBe(1);
     expect(captured.ephemeral).toBe(true);
   });
 
+  it("SOCLE : l'embed prend la couleur du THEME par defaut", async () => {
+    const { interaction, captured } = fakeInteraction({ texte: "abc", style: "cursive" });
+    await creerCmd().execute(interaction);
+    expect(captured.embeds[0]?.data.color).toBe(THEME_RENAMIOOS.couleurDefaut);
+  });
+
+  it("SOCLE : l'embed prend la COULEUR de la guilde quand /config en a pose une", async () => {
+    const store = creerMemoryGuildSettingsStore();
+    const rose = parseEmbedColor("#ff33cc")!;
+    await store.setEmbedColor("g1", rose);
+    const { interaction, captured } = fakeInteraction({ texte: "abc", style: "cursive" });
+    await creerCmd(store).execute(interaction);
+    expect(captured.embeds[0]?.data.color).toBe(rose);
+  });
+
+  it("SOCLE : le titre est resolu dans la LOCALE effective (guilde en-US -> EN)", async () => {
+    const { interaction, captured } = fakeInteraction({
+      texte: "abc",
+      style: "cursive",
+      discordLocale: "en-US",
+    });
+    await creerCmd().execute(interaction);
+    // Titre EN (« Converted to … ») : la locale Discord a ete resolue et appliquee.
+    expect(captured.embeds[0]?.data.title).toContain("Converted");
+    expect(captured.embeds[0]?.data.fields?.[0]?.name).toBe(en.convert.champOriginal);
+  });
+
   it("style inconnu -> message ephemere, aucun embed", async () => {
     const { interaction, captured } = fakeInteraction({ texte: "abc", style: "inexistant" });
-    await convertCommand.execute(interaction);
+    await creerCmd().execute(interaction);
     expect(captured.embeds.length).toBe(0);
     expect(captured.ephemeral).toBe(true);
     expect(captured.content.toLowerCase()).toContain("inconnu");
@@ -71,18 +111,16 @@ describe("commande /convert", () => {
   it('texte deja stylise -> refus propre ephemere ("deja stylise")', async () => {
     const dejaStylise = "\u{1d4d7}\u{1d4ee}\u{1d4f5}\u{1d4f5}\u{1d4f8}"; // 𝓗𝓮𝓵𝓵𝓸
     const { interaction, captured } = fakeInteraction({ texte: dejaStylise, style: "cursive" });
-    await convertCommand.execute(interaction);
+    await creerCmd().execute(interaction);
     expect(captured.embeds.length).toBe(0);
     expect(captured.ephemeral).toBe(true);
     expect(captured.content.toLowerCase()).toContain("déjà stylisé");
   });
 
-  // Finding #24 (CWE-20) : texte non borne injecte dans l'embed. Au-dela de la
-  // limite, refus propre ephemere, aucun embed (pas d'injection de payload geant).
   it("texte trop long -> refus ephemere, aucun embed (finding #24)", async () => {
     const tropLong = "a".repeat(501);
     const { interaction, captured } = fakeInteraction({ texte: tropLong, style: "cursive" });
-    await convertCommand.execute(interaction);
+    await creerCmd().execute(interaction);
     expect(captured.embeds.length).toBe(0);
     expect(captured.ephemeral).toBe(true);
     expect(captured.content.toLowerCase()).toContain("trop long");
@@ -91,7 +129,7 @@ describe("commande /convert", () => {
   it("texte a la limite (500) -> stylise normalement", async () => {
     const limite = "a".repeat(500);
     const { interaction, captured } = fakeInteraction({ texte: limite, style: "cursive" });
-    await convertCommand.execute(interaction);
+    await creerCmd().execute(interaction);
     expect(captured.embeds.length).toBe(1);
   });
 });
