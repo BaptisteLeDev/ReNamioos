@@ -20,6 +20,7 @@ import type { AutoRenameLogStore } from "../auto-rename-log/store";
 import type { AutoRenameLogEntry } from "../domain/auto-rename-log";
 import type { OriginalNickStore } from "../original-nick/store";
 import { creerMemoryOriginalNickStore } from "../original-nick/memory-store";
+import { creerCompteurFenetre } from "../limitation/compteur-fenetre";
 import { creerGestionnaireMembreMisAJour } from "./guild-member-update";
 
 const MAPPING: MappingRoleStyle = {
@@ -344,5 +345,87 @@ describe("adapter guildMemberUpdate — auto-rename", () => {
     await gestionnaire(oldMember as never, newMember as never);
     expect(capture.editCalled).toBe(false);
     expect(capture.warns.length).toBe(0);
+  });
+});
+
+describe("adapter guildMemberUpdate — budget d'auto-rename borne (B2)", () => {
+  /** Fabrique un couple (old, new) : le membre `id` gagne le role_cursive sur `guildId`. */
+  function evenementGainRole(guildId: string, id: string, edits: string[]) {
+    const old = fakeMember({ roleIds: ["x"], guildId, memberId: id, username: "abc" });
+    const neuf = {
+      ...fakeMember({ roleIds: ["x", "role_cursive"], guildId, memberId: id, username: "abc" }),
+      edit: (data: { nick?: string | null }) => {
+        edits.push(String(data.nick));
+        return Promise.resolve();
+      },
+    };
+    return { old, neuf };
+  }
+
+  it("sous rafale, ne depasse pas 10 renommages/min/guilde ; l'excedent est ignore et journalise", async () => {
+    let t = 0;
+    const budget = creerCompteurFenetre({ now: () => t, limite: 10, fenetreMs: 60_000 });
+    const edits: string[] = [];
+    const journal: AutoRenameLogEntry[] = [];
+    const warns: Array<{ message: string; contexte: Record<string, unknown> }> = [];
+    const gestionnaire = creerGestionnaireMembreMisAJour({
+      store: fakeStore(MAPPING),
+      optOutStore: fakeOptOutStore(),
+      logStore: fakeLogStore(journal),
+      originalNickStore: creerMemoryOriginalNickStore(),
+      budgetStore: budget,
+      log: { warn: (message, contexte) => warns.push({ message, contexte }) },
+    });
+
+    // 11 evenements sur la MEME guilde, dans la meme minute.
+    for (let i = 0; i < 11; i++) {
+      const { old, neuf } = evenementGainRole("g-rafale", `m${i}`, edits);
+      await gestionnaire(old as never, neuf as never);
+      t += 100;
+    }
+
+    expect(edits.length).toBe(10); // 10 renommages appliques, pas 11
+    expect(journal.length).toBe(10); // seules les tentatives admises sont journalisees (#28)
+    expect(warns.length).toBe(1); // l'excedent est JOURNALISE (log structure)
+    expect(warns[0]!.contexte).toMatchObject({ guildId: "g-rafale" });
+  });
+
+  it("le budget est PAR GUILDE : une autre guilde garde son propre budget", async () => {
+    let t = 0;
+    const budget = creerCompteurFenetre({ now: () => t, limite: 10, fenetreMs: 60_000 });
+    const edits: string[] = [];
+    const journal: AutoRenameLogEntry[] = [];
+    const warns: Array<{ message: string; contexte: Record<string, unknown> }> = [];
+    const gestionnaire = creerGestionnaireMembreMisAJour({
+      store: fakeStore(MAPPING),
+      optOutStore: fakeOptOutStore(),
+      logStore: fakeLogStore(journal),
+      originalNickStore: creerMemoryOriginalNickStore(),
+      budgetStore: budget,
+      log: { warn: (message, contexte) => warns.push({ message, contexte }) },
+    });
+    // Epuise le budget de gA (10), puis un evenement sur gB doit passer.
+    for (let i = 0; i < 10; i++) {
+      const { old, neuf } = evenementGainRole("gA", `a${i}`, edits);
+      await gestionnaire(old as never, neuf as never);
+      t += 100;
+    }
+    const avant = edits.length;
+    const { old, neuf } = evenementGainRole("gB", "b0", edits);
+    await gestionnaire(old as never, neuf as never);
+    expect(edits.length).toBe(avant + 1); // gB non impacte par la rafale de gA
+  });
+});
+
+describe("adapter guildMemberUpdate — assainissement Unicode (B3)", () => {
+  it("chemin AUTO-RENAME : un pseudo source avec zero-width/RTL est assaini avant edit", async () => {
+    // nickname 'a<ZWSP>b<RTL>c' -> assaini 'abc' -> stylise 𝓐𝓫𝓬 ; aucun Cf/Cc a member.edit.
+    const { gestionnaire, oldMember, newMember, capture } = setup(
+      { roleIds: ["x"], nickname: `a\u{200B}b\u{202E}c` },
+      { roleIds: ["x", "role_cursive"], nickname: `a\u{200B}b\u{202E}c` },
+    );
+    await gestionnaire(oldMember as never, newMember as never);
+    expect(capture.editedNick).toBe("\u{1d4d0}\u{1d4eb}\u{1d4ec}"); // 𝓐𝓫𝓬
+    expect([...String(capture.editedNick)].some((c) => /[\p{Cf}\p{Cc}]/u.test(c))).toBe(false);
   });
 });

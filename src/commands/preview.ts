@@ -8,7 +8,7 @@
  * jamais de rendu vide. Toujours ephemeral (apercu prive, pas de pollution du salon).
  */
 import { EmbedBuilder, SlashCommandBuilder, type ChatInputCommandInteraction } from "discord.js";
-import { convertirTexte } from "../domain/stylisation";
+import { convertirTexte, LIMITE_TEXTE_CONVERT } from "../domain/stylisation";
 import type { Command } from "./types";
 import { COULEUR_BLEU } from "./couleurs";
 import { autocompleteStyle } from "./style-autocomplete";
@@ -35,7 +35,11 @@ export const previewCommand: Command = {
         .setAutocomplete(true),
     )
     .addStringOption((opt) =>
-      opt.setName("texte").setDescription("Texte à prévisualiser (optionnel ; sinon ton pseudo)"),
+      opt
+        .setName("texte")
+        .setDescription("Texte à prévisualiser (optionnel ; sinon ton pseudo)")
+        // Borne cOte Discord (UX) ; le domaine revalide ci-dessous (defense en profondeur).
+        .setMaxLength(LIMITE_TEXTE_CONVERT),
     ),
 
   autocomplete: autocompleteStyle,
@@ -48,6 +52,13 @@ export const previewCommand: Command = {
     }
 
     const source = interaction.options.getString("texte") ?? pseudoAppelant(interaction);
+    // Garde texte-trop-long du domaine (meme borne que /convert) : un texte non borne insere
+    // dans un field d'embed (cap 1024) le ferait jeter. Refus propre plutOt qu'erreur generique.
+    if ([...source].length > LIMITE_TEXTE_CONVERT) {
+      await interaction.reply({ content: messageErreur("texte-trop-long"), ephemeral: true });
+      return;
+    }
+
     const resultat = convertirTexte(source, style);
     if (!resultat.ok) {
       await interaction.reply({ content: messageErreur(resultat.erreur, style), ephemeral: true });

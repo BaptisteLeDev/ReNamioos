@@ -100,6 +100,21 @@ describe("commande /preview", () => {
     expect(captured.content.toLowerCase()).toContain("inconnu");
   });
 
+  it("texte tres long -> refus propre ephemere, aucun embed (borne domaine, audit)", async () => {
+    const long = "a".repeat(1000); // au-dela de LIMITE_TEXTE_CONVERT ; field embed cap 1024
+    const { interaction, captured } = fakeInteraction({ style: "cursive", texte: long });
+    await previewCommand.execute(interaction);
+    expect(captured.embeds.length).toBe(0);
+    expect(captured.ephemeral).toBe(true);
+    expect(captured.content.toLowerCase()).toContain("trop long");
+  });
+
+  it("borne l option texte cOte Discord (setMaxLength, audit)", () => {
+    const json = previewCommand.data.toJSON();
+    const texte = (json.options ?? []).find((o) => o.name === "texte") as { max_length?: number };
+    expect(texte.max_length).toBeGreaterThan(0);
+  });
+
   it("texte deja stylise -> refus propre ephemere", async () => {
     const dejaStylise = "\u{1d4d7}\u{1d4ee}\u{1d4f5}\u{1d4f5}\u{1d4f8}"; // 𝓗𝓮𝓵𝓵𝓸
     const { interaction, captured } = fakeInteraction({ style: "cursive", texte: dejaStylise });

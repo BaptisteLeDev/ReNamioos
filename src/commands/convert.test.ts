@@ -52,6 +52,14 @@ describe("commande /convert", () => {
     expect(valeurs).toContain("\u{1d4d0}\u{1d4eb}\u{1d4ec}"); // 𝓐𝓫𝓬 (resultat stylise)
   });
 
+  it("la reponse de SUCCES est EPHEMERE (B4, #45)", async () => {
+    // Comme les reponses d'erreur, le succes de /convert ne pollue plus le salon.
+    const { interaction, captured } = fakeInteraction({ texte: "abc", style: "cursive" });
+    await convertCommand.execute(interaction);
+    expect(captured.embeds.length).toBe(1);
+    expect(captured.ephemeral).toBe(true);
+  });
+
   it("style inconnu -> message ephemere, aucun embed", async () => {
     const { interaction, captured } = fakeInteraction({ texte: "abc", style: "inexistant" });
     await convertCommand.execute(interaction);

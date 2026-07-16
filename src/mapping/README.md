@@ -54,6 +54,10 @@ Composition : `creerMappingStore({ databaseUrl, mappingFichier, queries? })` (`i
   par le port. Changer la source ⇒ un seul point (`index.ts` + l'adapter concerné).
 - **Cache invalidé à l'écriture** : après `add`/`remove`, le `list` suivant de **cette** guild relit
   la base ; les autres guilds gardent leur cache (invalidation ciblée).
+- **Pas de re-peuplement périmé (anti-race)** : un `selectByGuild` en vol capture la **génération** de
+  la guild à son démarrage et ne peuple le cache que si elle n'a pas changé pendant l'`await` ; une
+  invalidation concurrente empêche l'écriture d'un snapshot périmé (sinon un mapping fraîchement
+  ajouté resterait invisible jusqu'au restart).
 - **Init paresseuse de la DB** : aucune connexion Postgres en mode fichier (cf. `src/db/client.ts`).
 - **Domaine pur intact** : ce contexte ne porte aucune règle de stylisation ni de détection de rôle ;
   il fournit le `MappingRoleStyle` ordonné que le domaine (`src/domain/auto-rename.ts`) consomme.

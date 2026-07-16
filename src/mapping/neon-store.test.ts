@@ -135,4 +135,38 @@ describe("NeonMappingStore", () => {
     await store.list("vide");
     expect(compteurs.selectByGuild).toBe(1);
   });
+
+  it("un selectByGuild EN VOL ne re-peuple PAS le cache apres une invalidation (race, audit)", async () => {
+    // Reproduit l'interleaving : un read en vol (snapshot perime) resout APRES une ecriture qui
+    // a invalide le cache ; sans garde, il re-peuplerait le cache avec le snapshot perime et le
+    // mapping fraichement ajoute resterait invisible jusqu'au restart.
+    const data = new Map<string, Array<{ roleId: string; styleName: string }>>([["g1", []]]);
+    let libererSelect!: () => void;
+    const selectBloque = new Promise<void>((r) => (libererSelect = r));
+    let selectCount = 0;
+    const queries: MappingQueries = {
+      selectByGuild: async (g) => {
+        selectCount += 1;
+        const snapshot = [...(data.get(g) ?? [])]; // capture AVANT le blocage (deviendra perime)
+        if (selectCount === 1) await selectBloque; // le 1er read reste EN VOL
+        return snapshot;
+      },
+      upsert: (g, roleId, styleName) => {
+        const lignes = (data.get(g) ?? []).filter((l) => l.roleId !== roleId);
+        lignes.push({ roleId, styleName });
+        data.set(g, lignes);
+        return Promise.resolve();
+      },
+      deleteOne: () => Promise.resolve(),
+    };
+    const store = creerNeonMappingStore(queries);
+
+    const lecture = store.styleForRole("g1", "rX"); // demarre le read (en vol, snapshot vide)
+    await store.add("g1", "rX", "cursive"); // ecrit + invalide PENDANT le read en vol
+    libererSelect(); // le read en vol resout avec le snapshot perime (vide)
+    await lecture;
+
+    // Le mapping fraichement ajoute DOIT etre visible (pas masque par le snapshot perime).
+    expect(await store.styleForRole("g1", "rX")).toBe("cursive");
+  });
 });

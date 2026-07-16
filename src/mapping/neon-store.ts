@@ -28,16 +28,28 @@ export interface MappingQueries {
 export function creerNeonMappingStore(queries: MappingQueries): MappingStore {
   // Cache PAR guild du mapping ORDONNE. Absence de cle = jamais charge (lazy).
   const cache = new Map<string, MappingRoleStyle>();
+  // Generation PAR guild : incrementee a chaque invalidation. Un read en vol capture la
+  // generation a son demarrage et ne peuple le cache QUE si elle n'a pas change entre-temps
+  // (audit : sinon un selectByGuild en vol re-peuplerait le cache avec un snapshot perime
+  // apres une invalidation, masquant l'ecriture jusqu'au restart).
+  const generation = new Map<string, number>();
+  const genDe = (guildId: string) => generation.get(guildId) ?? 0;
+  function invalider(guildId: string): void {
+    generation.set(guildId, genDe(guildId) + 1);
+    cache.delete(guildId);
+  }
 
   async function mappingDeGuild(guildId: string): Promise<MappingRoleStyle> {
     const enCache = cache.get(guildId);
     if (enCache) return enCache;
+    const genAuDepart = genDe(guildId);
     const lignes = await queries.selectByGuild(guildId);
     const mapping: MappingRoleStyle = {};
     for (const { roleId, styleName } of lignes) {
       mapping[roleId] = styleName as StyleName;
     }
-    cache.set(guildId, mapping);
+    // Ne peupler le cache que si aucune invalidation n'est survenue pendant le read.
+    if (genDe(guildId) === genAuDepart) cache.set(guildId, mapping);
     return mapping;
   }
 
@@ -49,12 +61,12 @@ export function creerNeonMappingStore(queries: MappingQueries): MappingStore {
 
     async add(guildId, roleId, styleName) {
       await queries.upsert(guildId, roleId, styleName);
-      cache.delete(guildId); // invalidation ciblee
+      invalider(guildId); // invalidation ciblee + bump de generation
     },
 
     async remove(guildId, roleId) {
       await queries.deleteOne(guildId, roleId);
-      cache.delete(guildId); // invalidation ciblee
+      invalider(guildId); // invalidation ciblee + bump de generation
     },
 
     async list(guildId) {

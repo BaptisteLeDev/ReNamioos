@@ -60,6 +60,8 @@ export const convertCommand: Command = {
         { name: "📝 Original", value: texte, inline: false },
         { name: "🎨 Résultat", value: resultat.texte, inline: false },
       );
-    await interaction.reply({ embeds: [embed] });
+    // ÉCART VOLONTAIRE (B4, #45) : le SUCCÈS devient éphémère, comme les erreurs — /convert
+    // ne pollue plus le salon (le résultat stylisé est destiné à un copier-coller privé).
+    await interaction.reply({ embeds: [embed], ephemeral: true });
   },
 };

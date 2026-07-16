@@ -24,14 +24,23 @@ function fakeStore(mapping: MappingRoleStyle): MappingStore {
 }
 
 function fakeInteraction(guildId: string | null = "guild-1") {
-  const captured: { embeds: { data: { fields?: { value: string }[] } }[] } = { embeds: [] };
+  const captured: { embeds: { data: { fields?: { value: string }[] } }[]; defere: boolean } = {
+    embeds: [],
+    defere: false,
+  };
+  const capter = (payload: { embeds?: never[] }) => {
+    captured.embeds = (payload.embeds ?? captured.embeds) as never;
+    return Promise.resolve();
+  };
   return {
     interaction: {
       guildId,
-      reply: (payload: { embeds?: never[] }) => {
-        captured.embeds = (payload.embeds ?? []) as never;
+      deferReply: () => {
+        captured.defere = true;
         return Promise.resolve();
       },
+      reply: capter,
+      editReply: capter,
     } as never,
     captured,
   };
@@ -69,6 +78,32 @@ describe("commande /aide", () => {
     await creerAideCommand(store).execute(interaction);
     const texte = (captured.embeds[0]?.data.fields ?? []).map((f) => f.value).join("\n");
     expect(texte).toContain("Rôles configurés : 2");
+  });
+
+  it("DEFERE la reponse AVANT l I/O DB (cold-start > 3s, T3/audit)", async () => {
+    let defereAvantList = false;
+    const state = { defere: false };
+    const store: MappingStore = {
+      styleForRole: () => Promise.resolve(null),
+      add: () => Promise.reject(new Error("lecture seule (test)")),
+      remove: () => Promise.reject(new Error("lecture seule (test)")),
+      list: () => {
+        defereAvantList = state.defere; // capture l ordre : defer doit preceder le read DB
+        return Promise.resolve({});
+      },
+    };
+    const interaction = {
+      guildId: "g1",
+      deferReply: () => {
+        state.defere = true;
+        return Promise.resolve();
+      },
+      reply: () => Promise.resolve(),
+      editReply: () => Promise.resolve(),
+    } as never;
+    await creerAideCommand(store).execute(interaction);
+    expect(state.defere).toBe(true);
+    expect(defereAvantList).toBe(true);
   });
 
   it("hors serveur (DM, guildId null) -> « Rôles configurés : 0 » sans lire le store", async () => {

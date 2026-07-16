@@ -13,10 +13,11 @@
  * Mock Discord a la frontiere uniquement.
  */
 import { describe, expect, it } from "bun:test";
-import { PermissionFlagsBits } from "discord.js";
+import { DiscordAPIError, PermissionFlagsBits } from "discord.js";
 import { creerRenameCommand } from "./rename";
 import { creerMemoryOriginalNickStore } from "../original-nick/memory-store";
 import type { OriginalNickStore } from "../original-nick/store";
+import { creerCompteurFenetre } from "../limitation/compteur-fenetre";
 
 interface Scenario {
   canManageNicknames?: boolean;
@@ -27,10 +28,15 @@ interface Scenario {
   nouveauNom?: string | null;
   duree?: string | null;
   store?: OriginalNickStore;
+  userId?: string;
+  guildId?: string;
 }
 
 /** Commande par defaut (store memoire) pour les scenarios sans renommage temporaire. */
 const renameCommand = creerRenameCommand(creerMemoryOriginalNickStore());
+
+/** Invocateurs par defaut UNIQUES : deux scenarios sans cooldown explicite n'interagissent pas. */
+let compteurInvocateur = 0;
 
 interface Captured {
   edited: string | null | undefined;
@@ -59,12 +65,27 @@ function fakeInteraction(s: Scenario) {
     manageable: s.manageable ?? true,
     edit: (data: { nick?: string | null }) => {
       captured.editCalled = true;
-      if (s.editThrows) return Promise.reject(new Error("Missing Permissions"));
+      // Forbidden bot realiste : DiscordAPIError 50013 (Missing Permissions), mappe vers le
+      // message « permission » par styliser (audit #7 : seul 50013 est mappe permission).
+      if (s.editThrows) {
+        return Promise.reject(
+          new DiscordAPIError(
+            { code: 50013, message: "Missing Permissions" },
+            50013,
+            403,
+            "PATCH",
+            "https://discord.test/x",
+            { files: [], body: {} },
+          ),
+        );
+      }
       captured.edited = data.nick;
       return Promise.resolve();
     },
   };
   const interaction = {
+    guildId: s.guildId ?? "g-test",
+    user: { id: s.userId ?? `u-${++compteurInvocateur}` },
     memberPermissions: {
       has: (perm: bigint) =>
         perm === PermissionFlagsBits.ManageNicknames ? (s.canManageNicknames ?? true) : false,
@@ -201,6 +222,54 @@ describe("commande /rename — renommage temporaire (issue #38)", () => {
     expect(await store.listDue(Number.MAX_SAFE_INTEGER)).toHaveLength(0);
   });
 
+  it("membre deja sous auto-rename par role : /rename duree POSE l echeance (ne devient PAS permanent, audit)", async () => {
+    const store = creerMemoryOriginalNickStore();
+    // Ligne role-based preexistante (expiresAt NULL) : original memorise = "Bob".
+    await store.rememberIfAbsent("g-test", "m-cible", "Bob");
+    const command = creerRenameCommand(store);
+    const { interaction, captured } = fakeInteraction({ store, style: "cursive", duree: "2h" });
+    await command.execute(interaction);
+    expect(captured.editCalled).toBe(true);
+    // L echeance est bien ecrite : le sweep pourra reverter (listDue la retrouve).
+    expect(await store.listDue(Number.MAX_SAFE_INTEGER)).toEqual([
+      { guildId: "g-test", memberId: "m-cible", nick: "Bob" },
+    ]);
+    // L original role-based est preserve (pas ecrase par le pseudo courant deja stylise).
+    expect(await store.get("g-test", "m-cible")).toBe("Bob");
+  });
+
+  it("echec d edit : NE forget PAS une ligne role-based preexistante (corollaire audit)", async () => {
+    const store = creerMemoryOriginalNickStore();
+    await store.rememberIfAbsent("g-test", "m-cible", "Bob"); // role-based, a preserver
+    const command = creerRenameCommand(store);
+    const { interaction, captured } = fakeInteraction({
+      store,
+      style: "cursive",
+      duree: "2h",
+      editThrows: true,
+    });
+    await command.execute(interaction);
+    expect(captured.editCalled).toBe(true);
+    expect(captured.ephemeral).toBe(true);
+    // La ligne role-based DOIT survivre : on ne l a pas creee.
+    expect(await store.get("g-test", "m-cible")).toBe("Bob");
+  });
+
+  it("echec d edit : forget la ligne qu on a CREEE (aucune preexistante)", async () => {
+    const store = creerMemoryOriginalNickStore();
+    const command = creerRenameCommand(store);
+    const { interaction } = fakeInteraction({
+      store,
+      style: "cursive",
+      nouveauNom: "abc",
+      duree: "2h",
+      editThrows: true,
+    });
+    await command.execute(interaction);
+    // Ligne creee puis oubliee sur echec : plus rien a reverter.
+    expect(await store.get("g-test", "m-cible")).toBeNull();
+  });
+
   it("duree invalide -> refus propre ephemere, AUCUN edit", async () => {
     const store = creerMemoryOriginalNickStore();
     const command = creerRenameCommand(store);
@@ -214,5 +283,157 @@ describe("commande /rename — renommage temporaire (issue #38)", () => {
     expect(captured.editCalled).toBe(false);
     expect(captured.ephemeral).toBe(true);
     expect(captured.content.toLowerCase()).toContain("durée");
+  });
+});
+
+describe("commande /rename — cooldown anti mass-rename (B1)", () => {
+  it("refuse le 4e renommage en 60 s (meme invocateur+guilde) en ephemere, AUCUN edit", async () => {
+    let t = 1_000;
+    const cooldown = creerCompteurFenetre({ now: () => t, limite: 3, fenetreMs: 60_000 });
+    const command = creerRenameCommand(creerMemoryOriginalNickStore(), cooldown);
+
+    // 3 renommages autorises (meme invocateur "spam", meme guilde "g1").
+    for (let i = 0; i < 3; i++) {
+      const { interaction, captured } = fakeInteraction({
+        style: "cursive",
+        nouveauNom: `nom${i}`,
+        userId: "spam",
+        guildId: "g1",
+      });
+      await command.execute(interaction);
+      expect(captured.editCalled).toBe(true);
+      t += 1_000;
+    }
+
+    // 4e dans la fenetre -> refuse, ephemere, aucun edit, avec le temps d'attente.
+    const { interaction, captured } = fakeInteraction({
+      style: "cursive",
+      nouveauNom: "encore",
+      userId: "spam",
+      guildId: "g1",
+    });
+    await command.execute(interaction);
+    expect(captured.editCalled).toBe(false);
+    expect(captured.ephemeral).toBe(true);
+    expect(captured.content.toLowerCase()).toContain("trop de renommages");
+    expect(captured.content).toMatch(/\d+\s*s/); // temps d'attente restant affiche
+  });
+
+  it("un AUTRE invocateur sur la meme guilde n'est pas bloque", async () => {
+    let t = 1_000;
+    const cooldown = creerCompteurFenetre({ now: () => t, limite: 3, fenetreMs: 60_000 });
+    const command = creerRenameCommand(creerMemoryOriginalNickStore(), cooldown);
+    for (let i = 0; i < 3; i++) {
+      const { interaction } = fakeInteraction({
+        style: "cursive",
+        nouveauNom: `n${i}`,
+        userId: "spam",
+        guildId: "g1",
+      });
+      await command.execute(interaction);
+      t += 1_000;
+    }
+    const { interaction, captured } = fakeInteraction({
+      style: "cursive",
+      nouveauNom: "ok",
+      userId: "autre",
+      guildId: "g1",
+    });
+    await command.execute(interaction);
+    expect(captured.editCalled).toBe(true);
+  });
+
+  it("un renommage REFUSE (permission) ne consomme pas de jeton de cooldown", async () => {
+    let t = 1_000;
+    const cooldown = creerCompteurFenetre({ now: () => t, limite: 3, fenetreMs: 60_000 });
+    const command = creerRenameCommand(creerMemoryOriginalNickStore(), cooldown);
+    // 3 tentatives sans permission -> aucun edit, aucun jeton consomme.
+    for (let i = 0; i < 3; i++) {
+      const { interaction } = fakeInteraction({
+        style: "cursive",
+        nouveauNom: `n${i}`,
+        userId: "u",
+        guildId: "g1",
+        canManageNicknames: false,
+      });
+      await command.execute(interaction);
+      t += 1_000;
+    }
+    // Un renommage LEGITIME passe encore (les refus n'ont pas rempli la fenetre).
+    const { interaction, captured } = fakeInteraction({
+      style: "cursive",
+      nouveauNom: "ok",
+      userId: "u",
+      guildId: "g1",
+    });
+    await command.execute(interaction);
+    expect(captured.editCalled).toBe(true);
+  });
+});
+
+describe("commande /rename — cooldown atomique sous rafale concurrente (B1, TOCTOU)", () => {
+  it("au plus 3 edits appliques quand 10 invocations concurrentes franchissent le check avant tout enregistrement", async () => {
+    const t = 1_000;
+    const cooldown = creerCompteurFenetre({ now: () => t, limite: 3, fenetreMs: 60_000 });
+    const command = creerRenameCommand(creerMemoryOriginalNickStore(), cooldown);
+
+    let editsAppliques = 0;
+    let libererEdit!: () => void;
+    // Un edit qui NE resout PAS immediatement : les invocations restent bloquees dessus,
+    // reproduisant la rafale concurrente (aucune n'a encore pu enregistrer son jeton).
+    const editEnAttente = new Promise<void>((resolve) => {
+      libererEdit = resolve;
+    });
+
+    function invoquer(i: number) {
+      const targetMember = {
+        id: "m-cible",
+        nickname: null,
+        user: { username: `nom${i}` },
+        displayName: `nom${i}`,
+        guild: { id: "g1" },
+        toString: () => "@cible",
+        manageable: true,
+        edit: () => {
+          editsAppliques++;
+          return editEnAttente;
+        },
+      };
+      const interaction = {
+        guildId: "g1",
+        user: { id: "spam" },
+        memberPermissions: {
+          has: (perm: bigint) => perm === PermissionFlagsBits.ManageNicknames,
+        },
+        options: {
+          getMember: () => targetMember,
+          getString: (name: string) =>
+            name === "style" ? "cursive" : name === "duree" ? null : `nom${i}`,
+        },
+        reply: () => Promise.resolve(),
+      } as never;
+      return command.execute(interaction);
+    }
+
+    // Lance 10 invocations SANS await entre elles : chaque execute() court jusqu'au
+    // membre.edit (bloque) avant de rendre la main, donc toutes atteignent le check du
+    // cooldown avant que la 1re n'ait fini. Seules 3 doivent aboutir a un edit.
+    const enCours = Array.from({ length: 10 }, (_, i) => invoquer(i));
+    libererEdit();
+    await Promise.all(enCours);
+
+    expect(editsAppliques).toBeLessThanOrEqual(3);
+  });
+});
+
+describe("commande /rename — assainissement Unicode (B3)", () => {
+  it("chemin COMMANDE : une source contenant zero-width/RTL est assainie avant edit", async () => {
+    // 'a<ZWSP>b<RTL>c' -> assaini 'abc' -> stylise 𝓐𝓫𝓬 ; aucun Cf/Cc ne survit a member.edit.
+    const source = `a\u{200B}b\u{202E}c`;
+    const { interaction, captured } = fakeInteraction({ style: "cursive", nouveauNom: source });
+    await renameCommand.execute(interaction);
+    expect(captured.editCalled).toBe(true);
+    expect(captured.edited).toBe("\u{1d4d0}\u{1d4eb}\u{1d4ec}"); // 𝓐𝓫𝓬
+    expect([...String(captured.edited)].some((c) => /[\p{Cf}\p{Cc}]/u.test(c))).toBe(false);
   });
 });

@@ -10,7 +10,13 @@
  * domaine, et reposent le resultat via ces helpers. Le domaine reste sans mock
  * et sans import de discord.js (invariant de l'ACL ciblee, ADR-0002).
  */
-import { EmbedBuilder, PermissionFlagsBits, type GuildMember, type Role } from "discord.js";
+import {
+  DiscordAPIError,
+  EmbedBuilder,
+  PermissionFlagsBits,
+  type GuildMember,
+  type Role,
+} from "discord.js";
 import { evaluerFaisabiliteRename, type RaisonInfaisabilite } from "../domain/faisabilite-rename";
 import {
   convertirTexte,
@@ -34,6 +40,24 @@ export function messageErreur(erreur: ErreurStylisation, style?: string): string
     case "texte-trop-long":
       return `❌ Texte trop long : ${LIMITE_TEXTE_CONVERT} caractères maximum.`;
   }
+}
+
+/** Code d'erreur Discord « Missing Permissions » (couvre le refus hierarchie a l'execution). */
+const CODE_MISSING_PERMISSIONS = 50013;
+
+/**
+ * Traduit un echec de `member.edit` en message utilisateur (audit #7). Avant : `catch {}`
+ * aplati rapportait TOUTE erreur (429, reseau, 5xx) comme « pas la permission » et l'avalait
+ * sans trace. Ici on LOG toujours l'erreur reelle, et on ne renvoie le message « permission »
+ * QUE pour un DiscordAPIError 50013 (Missing Permissions / hierarchie) ; sinon un message
+ * generique, pour ne pas diagnostiquer a tort une permission manquante.
+ */
+function messageEchecEdit(err: unknown, messagePermission: string, messageGenerique: string): string {
+  console.error("[styliser] echec de member.edit :", err);
+  if (err instanceof DiscordAPIError && err.code === CODE_MISSING_PERMISSIONS) {
+    return messagePermission;
+  }
+  return messageGenerique;
 }
 
 /** Vrai si le nom est un style charge (garde de type a la frontiere). */
@@ -85,9 +109,15 @@ export async function appliquerRename(
 
   try {
     await membre.edit({ nick: pseudo });
-  } catch {
-    // discord.Forbidden cote bot (permission Discord manquante a l'execution).
-    return { ok: false, message: "❌ Je n’ai pas la permission de renommer ce membre." };
+  } catch (err) {
+    return {
+      ok: false,
+      message: messageEchecEdit(
+        err,
+        "❌ Je n’ai pas la permission de renommer ce membre.",
+        "❌ Le renommage a échoué (erreur Discord). Réessaie dans un moment.",
+      ),
+    };
   }
 
   return { ok: true, pseudo, style };
@@ -118,8 +148,15 @@ export async function restaurerPseudo(
   const tronque = tronquerPseudo(pseudo);
   try {
     await membre.edit({ nick: tronque });
-  } catch {
-    return { ok: false, message: "❌ Je n’ai pas la permission de restaurer ce pseudo." };
+  } catch (err) {
+    return {
+      ok: false,
+      message: messageEchecEdit(
+        err,
+        "❌ Je n’ai pas la permission de restaurer ce pseudo.",
+        "❌ La restauration du pseudo a échoué (erreur Discord). Réessaie dans un moment.",
+      ),
+    };
   }
   return { ok: true, pseudo: tronque };
 }

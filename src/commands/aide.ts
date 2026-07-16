@@ -23,6 +23,10 @@ export function creerAideCommand(mappingStore: MappingStore): Command {
     data: new SlashCommandBuilder().setName("aide").setDescription("Affiche l’aide du bot."),
 
     async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+      // ACK d'abord (T3/audit) : la lecture du store peut faire un round-trip Neon ; sur
+      // cold-start (> 3 s) l'ack expirerait avant le 1er reply. On differe puis on editReply.
+      await interaction.deferReply();
+
       const totalRoles = interaction.guildId
         ? Object.keys(await mappingStore.list(interaction.guildId)).length
         : 0;
@@ -38,7 +42,9 @@ export function creerAideCommand(mappingStore: MappingStore): Command {
               "`/styles` - Affiche tous les styles",
               "`/convert <texte> <style>` - Convertit du texte",
               "`/preview <style> [texte]` - Aperçu privé d’un style",
-              "`/rename <membre> <style> [nom]` - Renomme un membre",
+              "`/rename <membre> <style> [nom] [durée]` - Renomme un membre",
+              "`/rename-pending` - Renommages temporaires à venir",
+              "`/rename-cancel <membre>` - Annule un renommage temporaire",
               "`/random <membre> [nom]` - Style aléatoire",
               "`/ping` - Teste la connexion",
             ].join("\n"),
@@ -63,7 +69,7 @@ export function creerAideCommand(mappingStore: MappingStore): Command {
         )
         .setFooter({ text: "Créé avec ❤️ par Baptiste" });
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.editReply({ embeds: [embed] });
     },
   };
 }

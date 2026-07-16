@@ -21,6 +21,7 @@ import {
 import type { Command } from "./commands/types";
 import { creerCommandes } from "./commands/index";
 import { deployApplicationCommands } from "./commands/deploy-runtime";
+import { repondreErreurRouteur } from "./router-error";
 import type { BotStats, StatsProvider } from "./api/stats-provider";
 import { creerGestionnaireMembreMisAJour } from "./events/guild-member-update";
 import type { MappingStore } from "./mapping/store";
@@ -168,12 +169,9 @@ export class BotClient extends Client implements StatsProvider {
       await command.execute(interaction);
     } catch (err) {
       console.error(`Erreur a l'execution de /${interaction.commandName} :`, err);
-      const payload = { content: "Une erreur est survenue.", ephemeral: true };
-      if (interaction.replied || interaction.deferred) {
-        await interaction.followUp(payload);
-      } else {
-        await interaction.reply(payload);
-      }
+      // Reponse de secours GARDEE (T1/audit) : ne jamais laisser un rejet du reply/followUp
+      // remonter en unhandledRejection (handler branche via `void handleInteraction`).
+      await repondreErreurRouteur(interaction, interaction.commandName);
     }
   }
 

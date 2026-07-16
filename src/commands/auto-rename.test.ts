@@ -82,13 +82,14 @@ interface Scenario {
 interface Captured {
   content: string;
   ephemeral: boolean;
+  defere: boolean;
   embeds: Array<{
     data: { fields?: Array<{ name: string; value: string }>; description?: string };
   }>;
 }
 
 function fakeInteraction(s: Scenario) {
-  const captured: Captured = { content: "", ephemeral: false, embeds: [] };
+  const captured: Captured = { content: "", ephemeral: false, defere: false, embeds: [] };
   const botMembre = {
     permissions: {
       has: (perm: bigint) =>
@@ -117,10 +118,20 @@ function fakeInteraction(s: Scenario) {
       getString: (_name: string, _req?: boolean) => s.style ?? null,
       getInteger: (_name: string, _req?: boolean) => null,
     },
+    deferReply: (payload?: { ephemeral?: boolean }) => {
+      captured.defere = true;
+      captured.ephemeral = payload?.ephemeral ?? false;
+      return Promise.resolve();
+    },
     reply: (payload: { content?: string; ephemeral?: boolean; embeds?: unknown[] }) => {
       captured.content = payload.content ?? "";
       captured.ephemeral = payload.ephemeral ?? false;
       captured.embeds = (payload.embeds as never) ?? [];
+      return Promise.resolve();
+    },
+    editReply: (payload: { content?: string; embeds?: unknown[] }) => {
+      captured.content = payload.content ?? captured.content;
+      captured.embeds = (payload.embeds as never) ?? captured.embeds;
       return Promise.resolve();
     },
   } as never;
@@ -273,6 +284,20 @@ describe("commande /auto-rename", () => {
     expect(texte).toContain("\u{1d4e1}"); // R cursive
   });
 
+  it("list > 25 mappings -> reponse VALIDE, pas de crash embed (T6/audit)", async () => {
+    const beaucoup: MappingRoleStyle = {};
+    for (let i = 0; i < 30; i++) beaucoup[`role-${i}`] = "cursive" as StyleName;
+    const store = fakeStore({ "guild-1": beaucoup });
+    const { interaction, captured } = fakeInteraction({ sub: "list" });
+    // Ne doit PAS jeter (un embed > 25 fields serait rejete par discord.js / l API).
+    await commande(store).execute(interaction);
+    const embed = captured.embeds[0]?.data;
+    // Limite Discord : au plus 25 fields. On agrege donc dans la description.
+    expect((embed?.fields ?? []).length).toBeLessThanOrEqual(25);
+    const texte = (embed?.description ?? "") + (embed?.fields ?? []).map((f) => f.value).join("\n");
+    expect(texte).toContain("role-0");
+  });
+
   it("list sans mapping -> message aucun mapping (pas une erreur)", async () => {
     const store = fakeStore();
     const { interaction, captured } = fakeInteraction({ sub: "list" });
@@ -317,6 +342,49 @@ describe("commande /auto-rename", () => {
     await commande(fakeStore(), fakeLogStore([])).execute(interaction);
     const texte = captured.content + JSON.stringify(captured.embeds);
     expect(texte.toLowerCase()).toMatch(/aucun|vide|rien/);
+  });
+
+  it("list DEFERE la reponse AVANT l I/O DB (cold-start > 3s, T3/audit)", async () => {
+    let defereAvantList = false;
+    const state = { defere: false };
+    const store: MappingStore = {
+      styleForRole: () => Promise.resolve(null),
+      add: () => Promise.resolve(),
+      remove: () => Promise.resolve(),
+      list: () => {
+        defereAvantList = state.defere;
+        return Promise.resolve({});
+      },
+    };
+    const { interaction } = fakeInteraction({ sub: "list" });
+    (interaction as { deferReply: () => Promise<void> }).deferReply = () => {
+      state.defere = true;
+      return Promise.resolve();
+    };
+    await commande(store).execute(interaction);
+    expect(state.defere).toBe(true);
+    expect(defereAvantList).toBe(true);
+  });
+
+  it("log DEFERE la reponse AVANT l I/O DB (cold-start > 3s, T3/audit)", async () => {
+    let defereAvantRecent = false;
+    const state = { defere: false };
+    const log: AutoRenameLogStore = {
+      record: () => Promise.resolve(),
+      recent: () => {
+        defereAvantRecent = state.defere;
+        return Promise.resolve([]);
+      },
+      failuresToday: () => 0,
+    };
+    const { interaction } = fakeInteraction({ sub: "log" });
+    (interaction as { deferReply: () => Promise<void> }).deferReply = () => {
+      state.defere = true;
+      return Promise.resolve();
+    };
+    await commande(fakeStore(), log).execute(interaction);
+    expect(state.defere).toBe(true);
+    expect(defereAvantRecent).toBe(true);
   });
 
   it("log exige ManageGuild (refus propre sinon)", async () => {

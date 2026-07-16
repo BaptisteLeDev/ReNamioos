@@ -31,13 +31,34 @@ import {
 } from "./styliser";
 import { parserEcheance } from "../domain/rename-temporaire";
 import type { OriginalNickStore } from "../original-nick/store";
+import { creerCompteurFenetre, type CompteurFenetre } from "../limitation/compteur-fenetre";
+import {
+  FENETRE_RENOMMAGE_MS,
+  LIMITE_RENOMMAGE_PAR_INVOCATEUR,
+} from "../domain/fenetre-glissante";
+import { consommerCooldownOuMessage } from "./cooldown-rename";
 
 /** Message d'erreur (FR) pour une duree invalide (#38). */
 function messageDureeInvalide(): string {
   return "❌ Durée invalide. Utilise une durée comme `2h`, `30m`, `7j`, ou une date ISO future.";
 }
 
-export function creerRenameCommand(originalNickStore: OriginalNickStore): Command {
+/**
+ * Compteur de cooldown par DÉFAUT (B1) quand la composition n'en injecte pas : chaque
+ * fabrique reçoit alors le sien. En prod, src/client.ts injecte UN compteur PARTAGÉ
+ * entre /rename et /random pour que la limite de 3/60 s couvre les deux commandes.
+ */
+function cooldownParDefaut(): CompteurFenetre {
+  return creerCompteurFenetre({
+    limite: LIMITE_RENOMMAGE_PAR_INVOCATEUR,
+    fenetreMs: FENETRE_RENOMMAGE_MS,
+  });
+}
+
+export function creerRenameCommand(
+  originalNickStore: OriginalNickStore,
+  cooldown: CompteurFenetre = cooldownParDefaut(),
+): Command {
   return {
     data: new SlashCommandBuilder()
       .setName("rename")
@@ -106,19 +127,40 @@ export function creerRenameCommand(originalNickStore: OriginalNickStore): Comman
         expiresAt = echeance.expiresAt;
       }
 
+      // Cooldown anti mass-rename (B1) : au-dela de 3 renommages/60 s pour cet invocateur
+      // sur cette guilde, on REFUSE en ephemere avec le temps d'attente, AUCUN edit. Le jeton
+      // est consomme ATOMIQUEMENT ici, AVANT l'await member.edit : sans cela, une rafale
+      // concurrente franchit toutes le check avant le 1er enregistrement (TOCTOU) et depasse
+      // la limite. Meme patron atomique que le budget d'auto-rename (guild-member-update).
+      const messageCooldown = consommerCooldownOuMessage(cooldown, interaction);
+      if (messageCooldown !== null) {
+        await interaction.reply({ content: messageCooldown, ephemeral: true });
+        return;
+      }
+
       const source = sourceRename(membre, interaction.options.getString("nouveau_nom"));
 
-      // Si renommage temporaire : MEMORISER le pseudo source AVANT de styliser, avec
-      // l'echeance, pour que le job de balayage le restaure (round-trip #25 reutilise).
-      // Idempotent : ne pas ecraser un original deja memorise (auto-rename par role en cours).
+      // Si renommage temporaire : POSER l'echeance AVANT de styliser, pour que le job de
+      // balayage restaure le pseudo (round-trip #25 reutilise). rememberWithDeadline ecrit
+      // l'echeance MEME si une ligne existe deja (membre deja sous auto-rename par role) — sans
+      // rememberWithDeadline, un rememberIfAbsent serait un no-op et le rename « temporaire »
+      // resterait PERMANENT en silence (audit). On retient si on a CREE la ligne : sur echec,
+      // on ne forget() que ce qu'on a cree (jamais une ligne role-based preexistante).
+      let echeanceLigneCreee = false;
       if (expiresAt !== undefined) {
-        await originalNickStore.rememberIfAbsent(membre.guild.id, membre.id, source, expiresAt);
+        echeanceLigneCreee = await originalNickStore.rememberWithDeadline(
+          membre.guild.id,
+          membre.id,
+          source,
+          expiresAt,
+        );
       }
 
       const resultat = await appliquerRename(membre, style, source);
       if (!resultat.ok) {
-        // Le rename a echoue : on n'aura rien a reverter, on oublie l'echeance memorisee.
-        if (expiresAt !== undefined) await originalNickStore.forget(membre.guild.id, membre.id);
+        // Le rename a echoue : rien a reverter. On oublie l'echeance UNIQUEMENT si on a cree la
+        // ligne (sinon on supprimerait un original pilote par les roles, corollaire de l'audit).
+        if (echeanceLigneCreee) await originalNickStore.forget(membre.guild.id, membre.id);
         await interaction.reply({ content: resultat.message, ephemeral: true });
         return;
       }

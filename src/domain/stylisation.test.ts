@@ -13,6 +13,7 @@
 import { describe, expect, it } from "bun:test";
 import { CONVERSIONS, STYLE_NAMES, STYLES, type StyleName } from "./styles";
 import {
+  assainirSource,
   convertirChiffres,
   convertirTexte,
   mettreMajusculeDebut,
@@ -305,6 +306,65 @@ describe("convertirTexte", () => {
 // sur la sortie de convertirTexte. ATTENTION JS : decoupage par CODE POINT
 // ([...str].slice(0,32)) et non str.slice(0,32) (qui couperait une paire de
 // substitution UTF-16 sur les glyphes hors BMP).
+
+// ===================================================================
+// 7. assainirSource — nettoyage Unicode defensif AVANT stylisation (B3, #45)
+//
+// Retire les caracteres de format/controle (Cf/Cc : RTL-override U+202E,
+// zero-width U+200B-200D, BOM U+FEFF) et borne les diacritiques combinants
+// (zalgo) a 2 consecutifs max. Applique en amont de tout le pipeline : aucune
+// application via member.edit ne peut recevoir un pseudo empoisonne.
+// ===================================================================
+
+describe("assainirSource", () => {
+  it("retire le RTL-override U+202E", () => {
+    expect(assainirSource("ab‮cd")).toBe("abcd");
+  });
+
+  it("retire les zero-width (U+200B-200D) et le BOM (U+FEFF)", () => {
+    expect(assainirSource("a​b‌c‍d﻿e")).toBe("abcde");
+  });
+
+  it("retire les caracteres de controle (Cc)", () => {
+    expect(assainirSource("a bc")).toBe("abc");
+  });
+
+  it("borne les diacritiques combinants a 2 consecutifs (anti-zalgo)", () => {
+    // 'a' suivi de 5 combinants -> on ne garde que les 2 premiers.
+    const zalgo = "á́́́́";
+    expect(assainirSource(zalgo)).toBe("á́");
+  });
+
+  it("re-autorise des combinants apres un caractere de base (compteur remis a zero)", () => {
+    // 2 combinants sur 'a', puis 'b' (reset), puis 2 combinants sur 'b' : tout est garde.
+    const entree = "á́b́́";
+    expect(assainirSource(entree)).toBe(entree);
+  });
+
+  it("preserve un texte propre, accents precomposes compris", () => {
+    expect(assainirSource("café")).toBe("café");
+    expect(assainirSource("naïve")).toBe("naïve");
+    expect(assainirSource("abc123")).toBe("abc123");
+  });
+});
+
+describe("convertirTexte assainit la source AVANT de styliser (B3)", () => {
+  it("un zero-width interne est retire avant stylisation (pas reinjecte)", () => {
+    // 'a​b' -> assaini 'ab' -> stylise 'Ab' en cursive.
+    const r = convertirTexte("a​b", "cursive");
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.texte).toBe("\u{1d4d0}\u{1d4eb}"); // 𝓐𝓫, aucun U+200B survivant
+      expect([...r.texte].some((c) => /[\p{Cf}\p{Cc}]/u.test(c))).toBe(false);
+    }
+  });
+
+  it("un RTL-override est retire avant stylisation", () => {
+    const r = convertirTexte("a‮b", "cursive");
+    expect(r.ok).toBe(true);
+    if (r.ok) expect([...r.texte].some((c) => c === "‮")).toBe(false);
+  });
+});
 
 describe("troncature", () => {
   it("test_troncature_compte_les_code_points_pas_les_octets", () => {

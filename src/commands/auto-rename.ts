@@ -140,13 +140,15 @@ export function creerAutoRenameCommand(store: MappingStore, logStore: AutoRename
       }
 
       if (sub === "log") {
+        // ACK avant l'I/O DB (T3/audit) : `recent` fait un round-trip Neon ; sur cold-start
+        // l'ack expirerait avant le 1er reply. On differe (ephemere) puis on editReply.
+        await interaction.deferReply({ ephemeral: true });
         const evenements = await logStore.recent(guildId, LIMITE_LOG);
         if (evenements.length === 0) {
-          await interaction.reply({
+          await interaction.editReply({
             content:
               "ℹ️ Aucun auto-rename enregistré sur ce serveur pour le moment. " +
               "Le journal se remplit quand un membre gagne un rôle mappé.",
-            ephemeral: true,
           });
           return;
         }
@@ -155,33 +157,42 @@ export function creerAutoRenameCommand(store: MappingStore, logStore: AutoRename
           .setColor(COULEUR_VIOLET)
           .setDescription(`Les ${evenements.length} derniers événements (récent → ancien).`)
           .addFields(evenements.map(ligneJournal));
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await interaction.editReply({ embeds: [embed] });
         return;
       }
 
-      // sub === 'list'
+      // sub === 'list' — ACK avant l'I/O DB (T3/audit), meme raison que /auto-rename log.
+      await interaction.deferReply({ ephemeral: true });
       const mapping = await store.list(guildId);
       const entrees = Object.entries(mapping);
       if (entrees.length === 0) {
-        await interaction.reply({
+        await interaction.editReply({
           content:
             "ℹ️ Aucun mapping auto-rename sur ce serveur. Ajoute-en un avec `/auto-rename add`.",
-          ephemeral: true,
         });
         return;
       }
+      // Agregation en DESCRIPTION bornee plutOt qu'un field par mapping (T6/audit) : un embed
+      // est limite a 25 fields, donc > 25 rOles mappes le faisaient jeter. On accumule les
+      // lignes sous un budget avec marge (limite description 4096) et on signale le reste.
+      const enTete = "Ordre = priorité quand plusieurs rôles sont gagnés d’un coup.";
+      const BUDGET = 3_900;
+      const lignes: string[] = [];
+      let taille = enTete.length;
+      for (const [roleId, style] of entrees) {
+        const ligne = `• <@&${roleId}> → **${capitaliser(style)}** ${apercuStyle(style)}`;
+        if (taille + 1 + ligne.length > BUDGET) break;
+        lignes.push(ligne);
+        taille += 1 + ligne.length;
+      }
+      const reste = entrees.length - lignes.length;
+      const corps = [enTete, ...lignes];
+      if (reste > 0) corps.push(`… et ${reste} autre(s) mapping(s) non affiché(s).`);
       const embed = new EmbedBuilder()
         .setTitle("🎭 Auto-rename de ce serveur")
         .setColor(COULEUR_VIOLET)
-        .setDescription("Ordre = priorité quand plusieurs rôles sont gagnés d’un coup.")
-        .addFields(
-          entrees.map(([roleId, style]) => ({
-            name: capitaliser(style),
-            value: `<@&${roleId}> → ${apercuStyle(style)}`,
-            inline: false,
-          })),
-        );
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+        .setDescription(corps.join("\n"));
+      await interaction.editReply({ embeds: [embed] });
     },
   };
 }
