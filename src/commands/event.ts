@@ -281,7 +281,10 @@ export function creerEventCommand(
       // sub === 'start'
       const style = interaction.options.getString("style", true);
       if (!estStyleConnu(style)) {
-        await interaction.reply({ content: messageErreur("style-inconnu", style), ephemeral: true });
+        await interaction.reply({
+          content: messageErreur("style-inconnu", style, messages.styliser),
+          ephemeral: true,
+        });
         return;
       }
       const echeance = parserEcheance(interaction.options.getString("duree", true), maintenant);

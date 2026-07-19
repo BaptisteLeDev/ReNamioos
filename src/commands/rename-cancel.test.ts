@@ -11,6 +11,7 @@ import { PermissionFlagsBits } from "discord.js";
 import { creerRenameCancelCommand } from "./rename-cancel";
 import { creerMemoryOriginalNickStore } from "../original-nick/memory-store";
 import type { OriginalNickStore } from "../original-nick/store";
+import { en } from "../i18n/catalog";
 
 interface Scenario {
   canManageNicknames?: boolean;
@@ -19,6 +20,7 @@ interface Scenario {
   memberNull?: boolean;
   guildId?: string;
   store: OriginalNickStore;
+  discordLocale?: string;
 }
 
 interface Captured {
@@ -44,6 +46,8 @@ function fakeInteraction(s: Scenario) {
   };
   const interaction = {
     guildId: s.guildId ?? "g-test",
+    guild: { preferredLocale: s.discordLocale ?? "fr" },
+    locale: s.discordLocale ?? "fr",
     memberPermissions: {
       has: (perm: bigint) =>
         perm === PermissionFlagsBits.ManageNicknames ? (s.canManageNicknames ?? true) : false,
@@ -136,5 +140,24 @@ describe("commande /rename-cancel", () => {
     expect(captured.ephemeral).toBe(true);
     // La ligne reste : l echeance sera retentee par le job de balayage.
     expect(await store.getPending("g-test", "m-cible")).not.toBeNull();
+  });
+});
+
+describe("commande /rename-cancel — SOCLE i18n (locale de la guilde Discord)", () => {
+  it("aucun renommage temporaire : le message est localise en EN (guilde en-US)", async () => {
+    const store = creerMemoryOriginalNickStore();
+    const command = creerRenameCancelCommand(store);
+    const { interaction, captured } = fakeInteraction({ store, discordLocale: "en-US" });
+    await command.execute(interaction);
+    expect(captured.content).toBe(en.renameCancel.aucunRenommageTemporaire);
+  });
+
+  it("confirmation de restauration : localisee en EN (guilde en-US)", async () => {
+    const store = creerMemoryOriginalNickStore();
+    await store.rememberIfAbsent("g-test", "m-cible", "Bob", Date.now() + 100_000);
+    const command = creerRenameCancelCommand(store);
+    const { interaction, captured } = fakeInteraction({ store, discordLocale: "en-US" });
+    await command.execute(interaction);
+    expect(captured.content).toBe(en.renameCancel.confirmation({ membre: "@cible", pseudo: "Bob" }));
   });
 });

@@ -17,6 +17,8 @@ import type { Command } from "./types";
 import { autocompleteStyle } from "./style-autocomplete";
 import { capitaliser, estStyleConnu, messageErreur } from "./styliser";
 import { resoudreContexteCommande } from "./contexte";
+import { localisations } from "../i18n/localizations";
+import { CATALOGUE } from "../i18n/catalog";
 import type { GuildSettingsStore } from "../guildsettings/store";
 import type { EmbedTheme } from "../theming/embed";
 
@@ -24,17 +26,24 @@ export function creerConvertCommand(
   settingsStore: GuildSettingsStore,
   embedFactory: EmbedTheme,
 ): Command {
+  const m = CATALOGUE.fr;
   return {
     data: new SlashCommandBuilder()
       .setName("convert")
-      .setDescription("Convertit un texte dans un style Unicode.")
+      .setDescription(m.convert.commandeDescription)
+      .setDescriptionLocalizations(localisations((x) => x.convert.commandeDescription))
       .addStringOption((opt) =>
-        opt.setName("texte").setDescription("Le texte à convertir").setRequired(true),
+        opt
+          .setName("texte")
+          .setDescription(m.convert.texteOptionDescription)
+          .setDescriptionLocalizations(localisations((x) => x.convert.texteOptionDescription))
+          .setRequired(true),
       )
       .addStringOption((opt) =>
         opt
           .setName("style")
-          .setDescription("Le style de police à appliquer")
+          .setDescription(m.convert.styleOptionDescription)
+          .setDescriptionLocalizations(localisations((x) => x.convert.styleOptionDescription))
           .setRequired(true)
           .setAutocomplete(true),
       ),
@@ -42,29 +51,39 @@ export function creerConvertCommand(
     autocomplete: autocompleteStyle,
 
     async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+      // SOCLE : locale effective + couleur de guilde resolues TOT (erreurs ET succes localises).
+      const { messages, settings } = await resoudreContexteCommande(interaction, settingsStore);
+
       const texte = interaction.options.getString("texte", true);
       const style = interaction.options.getString("style", true);
 
       // Borne l'entree AVANT toute construction d'embed (finding #24, CWE-20).
       // Longueur par code point (coherent avec tronquerPseudo).
       if ([...texte].length > LIMITE_TEXTE_CONVERT) {
-        await interaction.reply({ content: messageErreur("texte-trop-long"), ephemeral: true });
+        await interaction.reply({
+          content: messageErreur("texte-trop-long", undefined, messages.styliser),
+          ephemeral: true,
+        });
         return;
       }
 
       if (!estStyleConnu(style)) {
-        await interaction.reply({ content: messageErreur("style-inconnu", style), ephemeral: true });
+        await interaction.reply({
+          content: messageErreur("style-inconnu", style, messages.styliser),
+          ephemeral: true,
+        });
         return;
       }
 
       const resultat = convertirTexte(texte, style);
       if (!resultat.ok) {
-        await interaction.reply({ content: messageErreur(resultat.erreur, style), ephemeral: true });
+        await interaction.reply({
+          content: messageErreur(resultat.erreur, style, messages.styliser),
+          ephemeral: true,
+        });
         return;
       }
 
-      // SOCLE : locale effective + couleur de guilde via le port de reglages, embed themé.
-      const { messages, settings } = await resoudreContexteCommande(interaction, settingsStore);
       const embed = embedFactory({ couleurGuilde: settings.embedColor })
         .setTitle(messages.convert.titre({ style: capitaliser(style) }))
         .addFields(

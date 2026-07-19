@@ -123,7 +123,7 @@ function embedConfirmation(
 ) {
   return embedFactory({ couleurGuilde: ctx.settings.embedColor })
     .setTitle(ctx.messages.menuContextuel.styliserApplique)
-    .addFields(...champsRename(membre, pseudo, style));
+    .addFields(...champsRename(membre, pseudo, style, ctx.messages.styliser));
 }
 
 /** Gestionnaire du select : applique le style au membre via le flux partage. */
@@ -151,7 +151,10 @@ export function creerGestionnaireStyliser(
 
       const style = interaction.values[0];
       if (style === undefined || !estStyleConnu(style)) {
-        await interaction.reply({ content: messageErreur("style-inconnu", style), ephemeral: true });
+        await interaction.reply({
+          content: messageErreur("style-inconnu", style, ctx.messages.styliser),
+          ephemeral: true,
+        });
         return;
       }
 
@@ -173,7 +176,7 @@ export function creerGestionnaireStyliser(
       }
 
       const source = sourceRename(membre, null);
-      const resultat = await appliquerRename(membre, style, source);
+      const resultat = await appliquerRename(membre, style, source, ctx.messages.styliser);
       if (!resultat.ok) {
         await interaction.reply({ content: resultat.message, ephemeral: true });
         return;

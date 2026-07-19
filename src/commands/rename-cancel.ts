@@ -20,22 +20,38 @@ import {
 import type { Command } from "./types";
 import type { OriginalNickStore } from "../original-nick/store";
 import { restaurerPseudo } from "./styliser";
+import { resoudreContexteCommande } from "./contexte";
+import { localisations } from "../i18n/localizations";
+import { CATALOGUE } from "../i18n/catalog";
+import type { GuildSettingsStore } from "../guildsettings/store";
+import { creerMemoryGuildSettingsStore } from "../guildsettings/memory-store";
 
-export function creerRenameCancelCommand(originalNickStore: OriginalNickStore): Command {
+export function creerRenameCancelCommand(
+  originalNickStore: OriginalNickStore,
+  settingsStore: GuildSettingsStore = creerMemoryGuildSettingsStore(),
+): Command {
+  const m = CATALOGUE.fr;
   return {
     data: new SlashCommandBuilder()
       .setName("rename-cancel")
-      .setDescription("Annule un renommage temporaire et restaure le pseudo d’origine.")
+      .setDescription(m.renameCancel.commandeDescription)
+      .setDescriptionLocalizations(localisations((x) => x.renameCancel.commandeDescription))
       .setDefaultMemberPermissions(PermissionFlagsBits.ManageNicknames)
       .addUserOption((opt) =>
-        opt.setName("membre").setDescription("Le membre dont annuler le renommage").setRequired(true),
+        opt
+          .setName("membre")
+          .setDescription(m.renameCancel.membreOptionDescription)
+          .setDescriptionLocalizations(localisations((x) => x.renameCancel.membreOptionDescription))
+          .setRequired(true),
       ),
 
     async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+      const { messages } = await resoudreContexteCommande(interaction, settingsStore);
+
       // Defense en profondeur : meme garde que /rename.
       if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageNicknames)) {
         await interaction.reply({
-          content: "❌ Tu n’as pas la permission de gérer les surnoms.",
+          content: messages.menuContextuel.styliserPermissionRefusee,
           ephemeral: true,
         });
         return;
@@ -44,7 +60,7 @@ export function creerRenameCancelCommand(originalNickStore: OriginalNickStore): 
       const membre = interaction.options.getMember("membre") as GuildMember | null;
       if (!membre) {
         await interaction.reply({
-          content: "❌ Membre introuvable sur ce serveur.",
+          content: messages.menuContextuel.styliserMembreIntrouvable,
           ephemeral: true,
         });
         return;
@@ -54,14 +70,14 @@ export function creerRenameCancelCommand(originalNickStore: OriginalNickStore): 
       const pending = await originalNickStore.getPending(membre.guild.id, membre.id);
       if (!pending) {
         await interaction.reply({
-          content: "ℹ️ Ce membre n’a aucun renommage temporaire actif.",
+          content: messages.renameCancel.aucunRenommageTemporaire,
           ephemeral: true,
         });
         return;
       }
 
       // Restaure d'abord ; on n'oublie la ligne QU'EN cas de succes (comme le job de balayage).
-      const resultat = await restaurerPseudo(membre, pending.nick);
+      const resultat = await restaurerPseudo(membre, pending.nick, messages.styliser);
       if (!resultat.ok) {
         await interaction.reply({ content: resultat.message, ephemeral: true });
         return;
@@ -69,7 +85,10 @@ export function creerRenameCancelCommand(originalNickStore: OriginalNickStore): 
       await originalNickStore.forget(membre.guild.id, membre.id);
 
       await interaction.reply({
-        content: `✅ Renommage temporaire de ${membre.toString()} annulé, pseudo restauré : **${resultat.pseudo}**.`,
+        content: messages.renameCancel.confirmation({
+          membre: membre.toString(),
+          pseudo: resultat.pseudo,
+        }),
       });
     },
   };

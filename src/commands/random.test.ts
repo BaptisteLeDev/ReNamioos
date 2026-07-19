@@ -13,6 +13,7 @@ import { describe, expect, it } from "bun:test";
 import { PermissionFlagsBits } from "discord.js";
 import { creerRandomCommand } from "./random";
 import { creerCompteurFenetre } from "../limitation/compteur-fenetre";
+import { en } from "../i18n/catalog";
 
 /** Commande par defaut (cooldown propre) pour les scenarios qui ne testent pas le cooldown. */
 const randomCommand = creerRandomCommand();
@@ -27,6 +28,7 @@ interface Scenario {
   nouveauNom?: string | null;
   userId?: string;
   guildId?: string;
+  discordLocale?: string;
 }
 
 interface Captured {
@@ -60,6 +62,8 @@ function fakeInteraction(s: Scenario) {
   };
   const interaction = {
     guildId: s.guildId ?? "g-test",
+    guild: { preferredLocale: s.discordLocale ?? "fr" },
+    locale: s.discordLocale ?? "fr",
     user: { id: s.userId ?? `u-${++compteurInvocateur}` },
     memberPermissions: {
       has: (perm: bigint) =>
@@ -208,5 +212,27 @@ describe("commande /random — cooldown anti mass-rename (B1)", () => {
     const { interaction, captured } = fakeInteraction({ nouveauNom: "x", userId: "s", guildId: "g" });
     await command.execute(interaction);
     expect(captured.editCalled).toBe(false);
+  });
+});
+
+describe("commande /random — SOCLE i18n (locale de la guilde Discord)", () => {
+  it("succes : le titre de l'embed de confirmation est localise en EN (guilde en-US)", async () => {
+    const { interaction, captured } = fakeInteraction({
+      nouveauNom: "renamio",
+      discordLocale: "en-US",
+    });
+    await randomCommand.execute(interaction);
+    const embed = captured.embeds[0] as { data: { title?: string } };
+    expect(embed.data.title).toBe(en.random.titreConfirmation);
+  });
+
+  it("hierarchie de roles : le refus est localise en EN (guilde en-US)", async () => {
+    const { interaction, captured } = fakeInteraction({
+      nouveauNom: "abc",
+      manageable: false,
+      discordLocale: "en-US",
+    });
+    await randomCommand.execute(interaction);
+    expect(captured.content).toBe(en.styliser.hierarchieRenommer);
   });
 });

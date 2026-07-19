@@ -109,7 +109,9 @@ function construireReponse(opts: {
 }): ReponseConversion {
   const { source, tronque, style, channelId, messageId, ctx, embedFactory } = opts;
   const resultat = convertirTexte(source, style);
-  if (!resultat.ok) return { ok: false, message: messageErreur(resultat.erreur, style) };
+  if (!resultat.ok) {
+    return { ok: false, message: messageErreur(resultat.erreur, style, ctx.messages.styliser) };
+  }
 
   const embed = embedFactory({ couleurGuilde: ctx.settings.embedColor })
     .setTitle(ctx.messages.convert.titre({ style: capitaliser(style) }))
@@ -191,7 +193,10 @@ export function creerGestionnaireConvertir(
       const ctx = await resoudreContexteCommande(interaction, settingsStore);
       const style = interaction.values[0];
       if (style === undefined || !estStyleConnu(style)) {
-        await interaction.reply({ content: messageErreur("style-inconnu", style), ephemeral: true });
+        await interaction.reply({
+          content: messageErreur("style-inconnu", style, ctx.messages.styliser),
+          ephemeral: true,
+        });
         return;
       }
 

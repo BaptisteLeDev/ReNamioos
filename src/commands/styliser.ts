@@ -25,20 +25,29 @@ import {
   type ErreurStylisation,
 } from "../domain/stylisation";
 import { STYLE_NAMES, type StyleName } from "../domain/styles";
+import { fr, type Messages } from "../i18n/catalog";
+
+/** Jeu de messages de cette couche de traduction (socle i18n). */
+type MessagesStyliser = Messages["styliser"];
 
 /**
- * Message utilisateur (FR) pour chaque erreur metier. Un seul endroit : un
- * changement de libelle ne touche qu'ici (mandat anti-duplication). Inclut le
+ * Message utilisateur pour chaque erreur metier, dans la locale fournie (defaut FR pour les
+ * appelants pas encore migres au socle i18n : anti-regression, cf. catalog.ts). Un seul
+ * endroit : un changement de libelle ne touche qu'ici (mandat anti-duplication). Inclut le
  * refus propre « ce texte est déjà stylisé » (ADR-0003, decision 3).
  */
-export function messageErreur(erreur: ErreurStylisation, style?: string): string {
+export function messageErreur(
+  erreur: ErreurStylisation,
+  style?: string,
+  messages: MessagesStyliser = fr.styliser,
+): string {
   switch (erreur) {
     case "style-inconnu":
-      return `❌ Style « ${style ?? "?"} » inconnu. Utilise \`/styles\` pour voir la liste.`;
+      return messages.styleInconnu({ style: style ?? "?" });
     case "rien-a-styliser":
-      return "❌ Rien à styliser : ce texte est déjà stylisé (ou ne contient aucune lettre).";
+      return messages.rienAStyliser;
     case "texte-trop-long":
-      return `❌ Texte trop long : ${LIMITE_TEXTE_CONVERT} caractères maximum.`;
+      return messages.texteTropLong({ limite: LIMITE_TEXTE_CONVERT });
   }
 }
 
@@ -90,19 +99,20 @@ export async function appliquerRename(
   membre: GuildMember,
   style: StyleName,
   source: string,
+  messages: MessagesStyliser = fr.styliser,
 ): Promise<ResultatRename> {
   // Hierarchie de roles : le bot ne peut pas editer un membre au-dessus de lui
   // (ou le proprietaire). On le detecte AVANT d'appeler l'API.
   if (!membre.manageable) {
     return {
       ok: false,
-      message: "❌ Hiérarchie de rôles : je ne peux pas renommer ce membre (rôle trop haut).",
+      message: messages.hierarchieRenommer,
     };
   }
 
   const resultat = convertirTexte(source, style);
   if (!resultat.ok) {
-    return { ok: false, message: messageErreur(resultat.erreur, style) };
+    return { ok: false, message: messageErreur(resultat.erreur, style, messages) };
   }
 
   const pseudo = tronquerPseudo(resultat.texte);
@@ -112,11 +122,7 @@ export async function appliquerRename(
   } catch (err) {
     return {
       ok: false,
-      message: messageEchecEdit(
-        err,
-        "❌ Je n’ai pas la permission de renommer ce membre.",
-        "❌ Le renommage a échoué (erreur Discord). Réessaie dans un moment.",
-      ),
+      message: messageEchecEdit(err, messages.permissionRenommer, messages.echecRenommage),
     };
   }
 
@@ -138,11 +144,12 @@ export type ResultatRestauration = { ok: true; pseudo: string } | { ok: false; m
 export async function restaurerPseudo(
   membre: GuildMember,
   pseudo: string,
+  messages: MessagesStyliser = fr.styliser,
 ): Promise<ResultatRestauration> {
   if (!membre.manageable) {
     return {
       ok: false,
-      message: "❌ Hiérarchie de rôles : je ne peux pas restaurer le pseudo de ce membre.",
+      message: messages.hierarchieRestaurer,
     };
   }
   const tronque = tronquerPseudo(pseudo);
@@ -151,11 +158,7 @@ export async function restaurerPseudo(
   } catch (err) {
     return {
       ok: false,
-      message: messageEchecEdit(
-        err,
-        "❌ Je n’ai pas la permission de restaurer ce pseudo.",
-        "❌ La restauration du pseudo a échoué (erreur Discord). Réessaie dans un moment.",
-      ),
+      message: messageEchecEdit(err, messages.permissionRestaurer, messages.echecRestauration),
     };
   }
   return { ok: true, pseudo: tronque };
@@ -170,11 +173,12 @@ export function champsRename(
   membre: GuildMember,
   pseudo: string,
   style: StyleName,
+  messages: MessagesStyliser = fr.styliser,
 ): { name: string; value: string; inline: boolean }[] {
   return [
-    { name: "👤 Membre", value: membre.toString(), inline: true },
-    { name: "🎨 Style", value: capitaliser(style), inline: true },
-    { name: "📝 Nouveau pseudo", value: pseudo, inline: false },
+    { name: messages.champMembre, value: membre.toString(), inline: true },
+    { name: messages.champStyle, value: capitaliser(style), inline: true },
+    { name: messages.champNouveauPseudo, value: pseudo, inline: false },
   ];
 }
 
@@ -185,11 +189,12 @@ export function embedRenameOk(
   style: StyleName,
   couleur: number,
   titre: string,
+  messages: MessagesStyliser = fr.styliser,
 ): EmbedBuilder {
   return new EmbedBuilder()
     .setTitle(titre)
     .setColor(couleur)
-    .addFields(...champsRename(membre, pseudo, style));
+    .addFields(...champsRename(membre, pseudo, style, messages));
 }
 
 /** Source du rename : nouveau_nom explicite, sinon nick serveur, sinon nom global. */
@@ -202,13 +207,13 @@ export function capitaliser(mot: string): string {
   return mot.length > 0 ? mot[0]!.toUpperCase() + mot.slice(1) : mot;
 }
 
-/** Message d'alerte (FR) pour chaque raison d'infaisabilite d'un auto-rename (#29). */
-function messageInfaisabilite(raison: RaisonInfaisabilite): string {
+/** Message d'alerte pour chaque raison d'infaisabilite d'un auto-rename (#29). */
+function messageInfaisabilite(raison: RaisonInfaisabilite, messages: MessagesStyliser): string {
   switch (raison) {
     case "permission-manquante":
-      return "⚠️ Attention : il me manque la permission « Gérer les pseudos », je ne pourrai pas appliquer ce style.";
+      return messages.faisabilitePermissionManquante;
     case "role-trop-haut":
-      return "⚠️ Attention : ce rôle est au-dessus du mien, je ne pourrai pas renommer ses membres. Place mon rôle plus haut.";
+      return messages.faisabiliteRoleTropHaut;
   }
 }
 
@@ -222,6 +227,7 @@ function messageInfaisabilite(raison: RaisonInfaisabilite): string {
 export function avertissementFaisabilite(
   botMembre: GuildMember | null,
   role: Pick<Role, "position"> | null,
+  messages: MessagesStyliser = fr.styliser,
 ): string | null {
   if (!botMembre || !role) return null;
   const faisabilite = evaluerFaisabiliteRename({
@@ -229,5 +235,5 @@ export function avertissementFaisabilite(
     positionRoleBot: botMembre.roles.highest.position,
     positionRoleCible: role.position,
   });
-  return faisabilite.ok ? null : messageInfaisabilite(faisabilite.raison);
+  return faisabilite.ok ? null : messageInfaisabilite(faisabilite.raison, messages);
 }

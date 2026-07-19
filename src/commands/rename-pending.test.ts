@@ -10,11 +10,13 @@ import { PermissionFlagsBits } from "discord.js";
 import { creerRenamePendingCommand } from "./rename-pending";
 import { creerMemoryOriginalNickStore } from "../original-nick/memory-store";
 import type { OriginalNickStore } from "../original-nick/store";
+import { en } from "../i18n/catalog";
 
 interface Scenario {
   canManageNicknames?: boolean;
   guildId?: string;
   store: OriginalNickStore;
+  discordLocale?: string;
 }
 
 interface Captured {
@@ -26,6 +28,8 @@ function fakeInteraction(s: Scenario) {
   const captured: Captured = { content: "", ephemeral: false };
   const interaction = {
     guildId: s.guildId ?? "g-test",
+    guild: { preferredLocale: s.discordLocale ?? "fr" },
+    locale: s.discordLocale ?? "fr",
     memberPermissions: {
       has: (perm: bigint) =>
         perm === PermissionFlagsBits.ManageNicknames ? (s.canManageNicknames ?? true) : false,
@@ -125,5 +129,27 @@ describe("commande /rename-pending", () => {
     await command.execute(interaction);
     expect(captured.content.toLowerCase()).toContain("aucun");
     expect(captured.content).not.toContain("<@echu>");
+  });
+});
+
+describe("commande /rename-pending — SOCLE i18n (locale de la guilde Discord)", () => {
+  it("aucune echeance : le message est localise en EN (guilde en-US)", async () => {
+    const command = creerRenamePendingCommand(creerMemoryOriginalNickStore());
+    const { interaction, captured } = fakeInteraction({
+      store: creerMemoryOriginalNickStore(),
+      discordLocale: "en-US",
+    });
+    await command.execute(interaction);
+    expect(captured.content).toBe(en.renamePending.aucuneEcheance);
+  });
+
+  it("entete localisee en EN (guilde en-US) quand des echeances existent", async () => {
+    const maintenant = 1_000_000;
+    const store = creerMemoryOriginalNickStore();
+    await store.rememberIfAbsent("g-test", "tot", "Bob", maintenant + 10_000);
+    const command = creerRenamePendingCommand(store, () => maintenant);
+    const { interaction, captured } = fakeInteraction({ store, discordLocale: "en-US" });
+    await command.execute(interaction);
+    expect(captured.content).toContain(en.renamePending.entete({ count: 1 }));
   });
 });

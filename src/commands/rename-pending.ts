@@ -19,6 +19,11 @@ import {
 } from "discord.js";
 import type { Command } from "./types";
 import type { OriginalNickStore } from "../original-nick/store";
+import { resoudreContexteCommande } from "./contexte";
+import { localisations } from "../i18n/localizations";
+import { CATALOGUE } from "../i18n/catalog";
+import type { GuildSettingsStore } from "../guildsettings/store";
+import { creerMemoryGuildSettingsStore } from "../guildsettings/memory-store";
 
 /** Formate une ligne d'echeance en Markdown Discord (mention + pseudo cible + date). */
 function ligneEcheance(memberId: string, nick: string, expiresAt: number): string {
@@ -30,19 +35,24 @@ function ligneEcheance(memberId: string, nick: string, expiresAt: number): strin
 export function creerRenamePendingCommand(
   originalNickStore: OriginalNickStore,
   maintenant: () => number = Date.now,
+  settingsStore: GuildSettingsStore = creerMemoryGuildSettingsStore(),
 ): Command {
+  const m = CATALOGUE.fr;
   return {
     data: new SlashCommandBuilder()
       .setName("rename-pending")
-      .setDescription("Liste les renommages temporaires à venir sur ce serveur.")
+      .setDescription(m.renamePending.commandeDescription)
+      .setDescriptionLocalizations(localisations((x) => x.renamePending.commandeDescription))
       .setDefaultMemberPermissions(PermissionFlagsBits.ManageNicknames),
 
     async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+      const { messages } = await resoudreContexteCommande(interaction, settingsStore);
+
       // Defense en profondeur : meme garde que /rename (default_member_permissions peut
       // etre relache par un admin de guild).
       if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageNicknames)) {
         await interaction.reply({
-          content: "❌ Tu n’as pas la permission de gérer les surnoms.",
+          content: messages.menuContextuel.styliserPermissionRefusee,
           ephemeral: true,
         });
         return;
@@ -51,7 +61,7 @@ export function creerRenamePendingCommand(
       const guildId = interaction.guildId;
       if (!guildId) {
         await interaction.reply({
-          content: "❌ Cette commande doit être utilisée sur un serveur.",
+          content: messages.renamePending.horsServeur,
           ephemeral: true,
         });
         return;
@@ -60,7 +70,7 @@ export function creerRenamePendingCommand(
       const pending = await originalNickStore.listPendingByGuild(guildId, maintenant());
       if (pending.length === 0) {
         await interaction.reply({
-          content: "ℹ️ Aucun renommage temporaire en attente sur ce serveur.",
+          content: messages.renamePending.aucuneEcheance,
           ephemeral: true,
         });
         return;
@@ -68,7 +78,7 @@ export function creerRenamePendingCommand(
 
       // Tri (presentation) par echeance croissante : la plus proche en premier.
       const triees = [...pending].sort((a, b) => a.expiresAt - b.expiresAt);
-      const entete = `⏳ **Renommages temporaires en attente (${pending.length})**`;
+      const entete = messages.renamePending.entete({ count: pending.length });
 
       // Borne l'affichage sous la limite Discord de 2000 caracteres (robustesse #46) : au-dela
       // d'une trentaine d'echeances (pseudos jusqu'a 32 code points), le contenu depasserait la
@@ -85,7 +95,7 @@ export function creerRenamePendingCommand(
       }
       const reste = triees.length - lignes.length;
       const corps = [entete, ...lignes];
-      if (reste > 0) corps.push(`… et ${reste} autre(s) échéance(s) non affichée(s).`);
+      if (reste > 0) corps.push(messages.renamePending.reste({ reste }));
 
       await interaction.reply({ content: corps.join("\n"), ephemeral: true });
     },

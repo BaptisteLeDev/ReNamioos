@@ -18,6 +18,7 @@ import { creerRenameCommand } from "./rename";
 import { creerMemoryOriginalNickStore } from "../original-nick/memory-store";
 import type { OriginalNickStore } from "../original-nick/store";
 import { creerCompteurFenetre } from "../limitation/compteur-fenetre";
+import { en } from "../i18n/catalog";
 
 interface Scenario {
   canManageNicknames?: boolean;
@@ -30,6 +31,7 @@ interface Scenario {
   store?: OriginalNickStore;
   userId?: string;
   guildId?: string;
+  discordLocale?: string;
 }
 
 /** Commande par defaut (store memoire) pour les scenarios sans renommage temporaire. */
@@ -85,6 +87,8 @@ function fakeInteraction(s: Scenario) {
   };
   const interaction = {
     guildId: s.guildId ?? "g-test",
+    guild: { preferredLocale: s.discordLocale ?? "fr" },
+    locale: s.discordLocale ?? "fr",
     user: { id: s.userId ?? `u-${++compteurInvocateur}` },
     memberPermissions: {
       has: (perm: bigint) =>
@@ -319,6 +323,33 @@ describe("commande /rename — cooldown anti mass-rename (B1)", () => {
     expect(captured.content).toMatch(/\d+\s*s/); // temps d'attente restant affiche
   });
 
+  it("message de cooldown localise en EN (guilde en-US)", async () => {
+    let t = 1_000;
+    const cooldown = creerCompteurFenetre({ now: () => t, limite: 3, fenetreMs: 60_000 });
+    const command = creerRenameCommand(creerMemoryOriginalNickStore(), cooldown);
+    for (let i = 0; i < 3; i++) {
+      const { interaction } = fakeInteraction({
+        style: "cursive",
+        nouveauNom: `n${i}`,
+        userId: "spam-en",
+        guildId: "g-en",
+        discordLocale: "en-US",
+      });
+      await command.execute(interaction);
+      t += 1_000;
+    }
+    const { interaction, captured } = fakeInteraction({
+      style: "cursive",
+      nouveauNom: "encore",
+      userId: "spam-en",
+      guildId: "g-en",
+      discordLocale: "en-US",
+    });
+    await command.execute(interaction);
+    const secondes = Math.ceil((60_000 - 3_000) / 1000);
+    expect(captured.content).toBe(en.cooldown.tropDeRenommages({ secondes }));
+  });
+
   it("un AUTRE invocateur sur la meme guilde n'est pas bloque", async () => {
     let t = 1_000;
     const cooldown = creerCompteurFenetre({ now: () => t, limite: 3, fenetreMs: 60_000 });
@@ -435,5 +466,39 @@ describe("commande /rename — assainissement Unicode (B3)", () => {
     expect(captured.editCalled).toBe(true);
     expect(captured.edited).toBe("\u{1d4d0}\u{1d4eb}\u{1d4ec}"); // 𝓐𝓫𝓬
     expect([...String(captured.edited)].some((c) => /[\p{Cf}\p{Cc}]/u.test(c))).toBe(false);
+  });
+});
+
+describe("commande /rename — SOCLE i18n (locale de la guilde Discord)", () => {
+  it("style inconnu : le refus est localise en EN (guilde en-US)", async () => {
+    const { interaction, captured } = fakeInteraction({
+      style: "inexistant",
+      nouveauNom: "abc",
+      discordLocale: "en-US",
+    });
+    await renameCommand.execute(interaction);
+    expect(captured.content).toBe(en.styliser.styleInconnu({ style: "inexistant" }));
+  });
+
+  it("succes : le titre de l'embed de confirmation est localise en EN (guilde en-US)", async () => {
+    const { interaction, captured } = fakeInteraction({
+      style: "cursive",
+      nouveauNom: "abc",
+      discordLocale: "en-US",
+    });
+    await renameCommand.execute(interaction);
+    const embed = captured.embeds[0] as { data: { title?: string } };
+    expect(embed.data.title).toBe(en.rename.titreConfirmation);
+  });
+
+  it("duree invalide : le refus est localise en EN (guilde en-US)", async () => {
+    const { interaction, captured } = fakeInteraction({
+      style: "cursive",
+      nouveauNom: "abc",
+      duree: "n importe quoi",
+      discordLocale: "en-US",
+    });
+    await renameCommand.execute(interaction);
+    expect(captured.content).toBe(en.rename.dureeInvalide);
   });
 });

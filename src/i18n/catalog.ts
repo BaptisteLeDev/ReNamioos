@@ -38,6 +38,10 @@ export interface Messages {
     horsServeur: string;
   };
   convert: {
+    /** Description de la commande /convert (localisee sur Discord). */
+    commandeDescription: string;
+    texteOptionDescription: string;
+    styleOptionDescription: string;
     titre: (p: { style: string }) => string;
     champOriginal: string;
     champResultat: string;
@@ -77,6 +81,57 @@ export interface Messages {
     statutTitre: string;
     statut: (p: { style: string; roleId: string; fin: string }) => string;
   };
+  /**
+   * Couche de traduction PARTAGEE (ACL) entre le domaine de stylisation et Discord, consommee
+   * par /rename, /random, /convert, /preview, l'auto-rename et les menus contextuels. Un seul
+   * point de verite pour ces messages (regle de 3 : au moins 5 commandes les partagent).
+   */
+  styliser: {
+    styleInconnu: (p: { style: string }) => string;
+    rienAStyliser: string;
+    texteTropLong: (p: { limite: number }) => string;
+    hierarchieRenommer: string;
+    permissionRenommer: string;
+    echecRenommage: string;
+    hierarchieRestaurer: string;
+    permissionRestaurer: string;
+    echecRestauration: string;
+    champMembre: string;
+    champStyle: string;
+    champNouveauPseudo: string;
+    faisabilitePermissionManquante: string;
+    faisabiliteRoleTropHaut: string;
+  };
+  /** Cooldown anti mass-rename PARTAGE par /rename et /random. */
+  cooldown: {
+    tropDeRenommages: (p: { secondes: number }) => string;
+  };
+  rename: {
+    commandeDescription: string;
+    membreOptionDescription: string;
+    styleOptionDescription: string;
+    nouveauNomOptionDescription: string;
+    dureeOptionDescription: string;
+    dureeInvalide: string;
+    titreConfirmation: string;
+  };
+  random: {
+    commandeDescription: string;
+    titreConfirmation: string;
+  };
+  renameCancel: {
+    commandeDescription: string;
+    membreOptionDescription: string;
+    aucunRenommageTemporaire: string;
+    confirmation: (p: { membre: string; pseudo: string }) => string;
+  };
+  renamePending: {
+    commandeDescription: string;
+    horsServeur: string;
+    aucuneEcheance: string;
+    entete: (p: { count: number }) => string;
+    reste: (p: { reste: number }) => string;
+  };
   erreurGenerique: string;
 }
 
@@ -109,6 +164,9 @@ export const fr: Messages = {
     horsServeur: "Cette commande ne peut etre utilisee que sur un serveur.",
   },
   convert: {
+    commandeDescription: "Convertit un texte dans un style Unicode.",
+    texteOptionDescription: "Le texte à convertir",
+    styleOptionDescription: "Le style de police à appliquer",
     titre: ({ style }) => `✨ Conversion en ${style}`,
     champOriginal: "📝 Original",
     champResultat: "🎨 Resultat",
@@ -148,6 +206,60 @@ export const fr: Messages = {
     statut: ({ style, roleId, fin }) =>
       `Style **${style}** sur <@&${roleId}> — fin ${fin}.`,
   },
+  styliser: {
+    styleInconnu: ({ style }) =>
+      `❌ Style « ${style} » inconnu. Utilise \`/styles\` pour voir la liste.`,
+    rienAStyliser: "❌ Rien à styliser : ce texte est déjà stylisé (ou ne contient aucune lettre).",
+    texteTropLong: ({ limite }) => `❌ Texte trop long : ${limite} caractères maximum.`,
+    hierarchieRenommer:
+      "❌ Hiérarchie de rôles : je ne peux pas renommer ce membre (rôle trop haut).",
+    permissionRenommer: "❌ Je n’ai pas la permission de renommer ce membre.",
+    echecRenommage: "❌ Le renommage a échoué (erreur Discord). Réessaie dans un moment.",
+    hierarchieRestaurer:
+      "❌ Hiérarchie de rôles : je ne peux pas restaurer le pseudo de ce membre.",
+    permissionRestaurer: "❌ Je n’ai pas la permission de restaurer ce pseudo.",
+    echecRestauration:
+      "❌ La restauration du pseudo a échoué (erreur Discord). Réessaie dans un moment.",
+    champMembre: "👤 Membre",
+    champStyle: "🎨 Style",
+    champNouveauPseudo: "📝 Nouveau pseudo",
+    faisabilitePermissionManquante:
+      "⚠️ Attention : il me manque la permission « Gérer les pseudos », je ne pourrai pas appliquer ce style.",
+    faisabiliteRoleTropHaut:
+      "⚠️ Attention : ce rôle est au-dessus du mien, je ne pourrai pas renommer ses membres. Place mon rôle plus haut.",
+  },
+  cooldown: {
+    tropDeRenommages: ({ secondes }) =>
+      `⏳ Trop de renommages d’affilée. Réessaie dans ${secondes} s.`,
+  },
+  rename: {
+    commandeDescription: "Renomme un membre avec un style.",
+    membreOptionDescription: "Le membre à renommer",
+    styleOptionDescription: "Le style à appliquer",
+    nouveauNomOptionDescription: "Nouveau nom (optionnel ; sinon nom actuel)",
+    dureeOptionDescription: "Auto-revert après ce délai (ex. 2h, 30m, 7j) ou à une date ISO",
+    dureeInvalide:
+      "❌ Durée invalide. Utilise une durée comme `2h`, `30m`, `7j`, ou une date ISO future.",
+    titreConfirmation: "✅ Membre renommé",
+  },
+  random: {
+    commandeDescription: "Renomme un membre avec un style aléatoire.",
+    titreConfirmation: "🎲 Membre renommé (aléatoire)",
+  },
+  renameCancel: {
+    commandeDescription: "Annule un renommage temporaire et restaure le pseudo d’origine.",
+    membreOptionDescription: "Le membre dont annuler le renommage",
+    aucunRenommageTemporaire: "ℹ️ Ce membre n’a aucun renommage temporaire actif.",
+    confirmation: ({ membre, pseudo }) =>
+      `✅ Renommage temporaire de ${membre} annulé, pseudo restauré : **${pseudo}**.`,
+  },
+  renamePending: {
+    commandeDescription: "Liste les renommages temporaires à venir sur ce serveur.",
+    horsServeur: "❌ Cette commande doit être utilisée sur un serveur.",
+    aucuneEcheance: "ℹ️ Aucun renommage temporaire en attente sur ce serveur.",
+    entete: ({ count }) => `⏳ **Renommages temporaires en attente (${count})**`,
+    reste: ({ reste }) => `… et ${reste} autre(s) échéance(s) non affichée(s).`,
+  },
   erreurGenerique: "Une erreur est survenue.",
 };
 
@@ -178,6 +290,9 @@ export const en: Messages = {
     horsServeur: "This command can only be used in a server.",
   },
   convert: {
+    commandeDescription: "Converts a text into a Unicode style.",
+    texteOptionDescription: "The text to convert",
+    styleOptionDescription: "The font style to apply",
     titre: ({ style }) => `✨ Converted to ${style}`,
     champOriginal: "📝 Original",
     champResultat: "🎨 Result",
@@ -216,6 +331,55 @@ export const en: Messages = {
     statutTitre: "🎉 Style Party in progress",
     statut: ({ style, roleId, fin }) =>
       `Style **${style}** on <@&${roleId}> — ends ${fin}.`,
+  },
+  styliser: {
+    styleInconnu: ({ style }) => `❌ Unknown style "${style}". Use \`/styles\` to see the list.`,
+    rienAStyliser: "❌ Nothing to stylize: this text is already stylized (or has no letters).",
+    texteTropLong: ({ limite }) => `❌ Text too long: ${limite} characters maximum.`,
+    hierarchieRenommer: "❌ Role hierarchy: I can't rename this member (role too high).",
+    permissionRenommer: "❌ I don't have permission to rename this member.",
+    echecRenommage: "❌ The rename failed (Discord error). Try again in a moment.",
+    hierarchieRestaurer: "❌ Role hierarchy: I can't restore this member's nickname.",
+    permissionRestaurer: "❌ I don't have permission to restore this nickname.",
+    echecRestauration: "❌ Restoring the nickname failed (Discord error). Try again in a moment.",
+    champMembre: "👤 Member",
+    champStyle: "🎨 Style",
+    champNouveauPseudo: "📝 New nickname",
+    faisabilitePermissionManquante:
+      "⚠️ Heads up: I'm missing the \"Manage Nicknames\" permission, so I won't be able to apply this style.",
+    faisabiliteRoleTropHaut:
+      "⚠️ Heads up: this role is above mine, so I won't be able to rename its members. Move my role higher.",
+  },
+  cooldown: {
+    tropDeRenommages: ({ secondes }) => `⏳ Too many renames in a row. Try again in ${secondes}s.`,
+  },
+  rename: {
+    commandeDescription: "Renames a member with a style.",
+    membreOptionDescription: "The member to rename",
+    styleOptionDescription: "The style to apply",
+    nouveauNomOptionDescription: "New name (optional; defaults to the current name)",
+    dureeOptionDescription: "Auto-revert after this delay (e.g. 2h, 30m, 7j) or an ISO date",
+    dureeInvalide:
+      "❌ Invalid duration. Use a duration like `2h`, `30m`, `7j`, or a future ISO date.",
+    titreConfirmation: "✅ Member renamed",
+  },
+  random: {
+    commandeDescription: "Renames a member with a random style.",
+    titreConfirmation: "🎲 Member renamed (random)",
+  },
+  renameCancel: {
+    commandeDescription: "Cancels a temporary rename and restores the original nickname.",
+    membreOptionDescription: "The member whose rename to cancel",
+    aucunRenommageTemporaire: "ℹ️ This member has no active temporary rename.",
+    confirmation: ({ membre, pseudo }) =>
+      `✅ Temporary rename of ${membre} cancelled, nickname restored: **${pseudo}**.`,
+  },
+  renamePending: {
+    commandeDescription: "Lists the upcoming temporary renames on this server.",
+    horsServeur: "❌ This command can only be used in a server.",
+    aucuneEcheance: "ℹ️ No temporary rename is pending on this server.",
+    entete: ({ count }) => `⏳ **Pending temporary renames (${count})**`,
+    reste: ({ reste }) => `… and ${reste} more deadline(s) not shown.`,
   },
   erreurGenerique: "An error occurred.",
 };

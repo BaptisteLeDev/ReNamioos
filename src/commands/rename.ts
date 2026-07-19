@@ -37,11 +37,11 @@ import {
   LIMITE_RENOMMAGE_PAR_INVOCATEUR,
 } from "../domain/fenetre-glissante";
 import { consommerCooldownOuMessage } from "./cooldown-rename";
-
-/** Message d'erreur (FR) pour une duree invalide (#38). */
-function messageDureeInvalide(): string {
-  return "❌ Durée invalide. Utilise une durée comme `2h`, `30m`, `7j`, ou une date ISO future.";
-}
+import { resoudreContexteCommande } from "./contexte";
+import { localisations } from "../i18n/localizations";
+import { CATALOGUE } from "../i18n/catalog";
+import type { GuildSettingsStore } from "../guildsettings/store";
+import { creerMemoryGuildSettingsStore } from "../guildsettings/memory-store";
 
 /**
  * Compteur de cooldown par DÉFAUT (B1) quand la composition n'en injecte pas : chaque
@@ -58,39 +58,55 @@ function cooldownParDefaut(): CompteurFenetre {
 export function creerRenameCommand(
   originalNickStore: OriginalNickStore,
   cooldown: CompteurFenetre = cooldownParDefaut(),
+  settingsStore: GuildSettingsStore = creerMemoryGuildSettingsStore(),
 ): Command {
+  const m = CATALOGUE.fr;
   return {
     data: new SlashCommandBuilder()
       .setName("rename")
-      .setDescription("Renomme un membre avec un style.")
+      .setDescription(m.rename.commandeDescription)
+      .setDescriptionLocalizations(localisations((x) => x.rename.commandeDescription))
       .setDefaultMemberPermissions(PermissionFlagsBits.ManageNicknames)
       .addUserOption((opt) =>
-        opt.setName("membre").setDescription("Le membre à renommer").setRequired(true),
+        opt
+          .setName("membre")
+          .setDescription(m.rename.membreOptionDescription)
+          .setDescriptionLocalizations(localisations((x) => x.rename.membreOptionDescription))
+          .setRequired(true),
       )
       .addStringOption((opt) =>
         opt
           .setName("style")
-          .setDescription("Le style à appliquer")
+          .setDescription(m.rename.styleOptionDescription)
+          .setDescriptionLocalizations(localisations((x) => x.rename.styleOptionDescription))
           .setRequired(true)
           .setAutocomplete(true),
       )
       .addStringOption((opt) =>
-        opt.setName("nouveau_nom").setDescription("Nouveau nom (optionnel ; sinon nom actuel)"),
+        opt
+          .setName("nouveau_nom")
+          .setDescription(m.rename.nouveauNomOptionDescription)
+          .setDescriptionLocalizations(localisations((x) => x.rename.nouveauNomOptionDescription)),
       )
       .addStringOption((opt) =>
         opt
           .setName("duree")
-          .setDescription("Auto-revert après ce délai (ex. 2h, 30m, 7j) ou à une date ISO"),
+          .setDescription(m.rename.dureeOptionDescription)
+          .setDescriptionLocalizations(localisations((x) => x.rename.dureeOptionDescription)),
       ),
 
     autocomplete: autocompleteStyle,
 
     async execute(interaction: ChatInputCommandInteraction): Promise<void> {
+      // SOCLE : locale effective resolue TOT (toutes les reponses, erreurs incluses, sont
+      // localisees).
+      const { messages } = await resoudreContexteCommande(interaction, settingsStore);
+
       // Defense en profondeur : on revalide la permission de l'appelant (en plus
       // de default_member_permissions, qui peut etre relache par un admin de guild).
       if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageNicknames)) {
         await interaction.reply({
-          content: "❌ Tu n’as pas la permission de gérer les surnoms.",
+          content: messages.menuContextuel.styliserPermissionRefusee,
           ephemeral: true,
         });
         return;
@@ -99,7 +115,7 @@ export function creerRenameCommand(
       const style = interaction.options.getString("style", true);
       if (!estStyleConnu(style)) {
         await interaction.reply({
-          content: messageErreur("style-inconnu", style),
+          content: messageErreur("style-inconnu", style, messages.styliser),
           ephemeral: true,
         });
         return;
@@ -108,7 +124,7 @@ export function creerRenameCommand(
       const membre = interaction.options.getMember("membre") as GuildMember | null;
       if (!membre) {
         await interaction.reply({
-          content: "❌ Membre introuvable sur ce serveur.",
+          content: messages.menuContextuel.styliserMembreIntrouvable,
           ephemeral: true,
         });
         return;
@@ -121,7 +137,7 @@ export function creerRenameCommand(
       if (dureeSaisie !== null) {
         const echeance = parserEcheance(dureeSaisie, Date.now());
         if (!echeance.ok) {
-          await interaction.reply({ content: messageDureeInvalide(), ephemeral: true });
+          await interaction.reply({ content: messages.rename.dureeInvalide, ephemeral: true });
           return;
         }
         expiresAt = echeance.expiresAt;
@@ -132,7 +148,7 @@ export function creerRenameCommand(
       // est consomme ATOMIQUEMENT ici, AVANT l'await member.edit : sans cela, une rafale
       // concurrente franchit toutes le check avant le 1er enregistrement (TOCTOU) et depasse
       // la limite. Meme patron atomique que le budget d'auto-rename (guild-member-update).
-      const messageCooldown = consommerCooldownOuMessage(cooldown, interaction);
+      const messageCooldown = consommerCooldownOuMessage(cooldown, interaction, messages.cooldown);
       if (messageCooldown !== null) {
         await interaction.reply({ content: messageCooldown, ephemeral: true });
         return;
@@ -142,7 +158,7 @@ export function creerRenameCommand(
 
       // Si renommage temporaire : POSER l'echeance AVANT de styliser, pour que le job de
       // balayage restaure le pseudo (round-trip #25 reutilise). rememberWithDeadline ecrit
-      // l'echeance MEME si une ligne existe deja (membre deja sous auto-rename par role) — sans
+      // l'echeance MEME si une ligne existe deja (membre deja sous auto-rename par role) : sans
       // rememberWithDeadline, un rememberIfAbsent serait un no-op et le rename « temporaire »
       // resterait PERMANENT en silence (audit). On retient si on a CREE la ligne : sur echec,
       // on ne forget() que ce qu'on a cree (jamais une ligne role-based preexistante).
@@ -156,7 +172,7 @@ export function creerRenameCommand(
         );
       }
 
-      const resultat = await appliquerRename(membre, style, source);
+      const resultat = await appliquerRename(membre, style, source, messages.styliser);
       if (!resultat.ok) {
         // Le rename a echoue : rien a reverter. On oublie l'echeance UNIQUEMENT si on a cree la
         // ligne (sinon on supprimerait un original pilote par les roles, corollaire de l'audit).
@@ -170,7 +186,8 @@ export function creerRenameCommand(
         resultat.pseudo,
         resultat.style,
         COULEUR_VERT,
-        "✅ Membre renommé",
+        messages.rename.titreConfirmation,
+        messages.styliser,
       );
       await interaction.reply({ embeds: [embed] });
     },

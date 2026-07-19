@@ -12,6 +12,7 @@
  */
 import type { ChatInputCommandInteraction } from "discord.js";
 import type { CompteurFenetre } from "../limitation/compteur-fenetre";
+import type { Messages } from "../i18n/catalog";
 
 /** Clé de cooldown : un invocateur donné, sur une guilde donnée. */
 function cleCooldown(interaction: ChatInputCommandInteraction): string {
@@ -36,12 +37,13 @@ function cleCooldown(interaction: ChatInputCommandInteraction): string {
 export function consommerCooldownOuMessage(
   cooldown: CompteurFenetre,
   interaction: ChatInputCommandInteraction,
+  messages: Messages["cooldown"],
 ): string | null {
   const cle = cleCooldown(interaction);
   const resultat = cooldown.evaluer(cle);
   if (!resultat.autorise) {
     const secondes = Math.ceil(resultat.attenteMs / 1000);
-    return `⏳ Trop de renommages d’affilée. Réessaie dans ${secondes} s.`;
+    return messages.tropDeRenommages({ secondes });
   }
   cooldown.enregistrer(cle);
   return null;
