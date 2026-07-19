@@ -6,6 +6,14 @@
 # DOTENV_PRIVATE_KEY (hors repo, Bitwarden) permet de le dechiffrer.
 !.env.production
 .env.keys
+# Secrets locaux pour `act` (CI etage 2 en local) : JAMAIS committes.
+.secrets
+.secrets.*
+
+# Artefacts d'analyse locale (CI etage 2 : CodeQL / SonarQube)
+codeql-db/
+*.sarif
+.scannerwork/
 
 # Node / Bun (reecriture TS)
 node_modules/
